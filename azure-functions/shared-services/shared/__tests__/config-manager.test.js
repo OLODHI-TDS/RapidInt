@@ -188,7 +188,7 @@ describe('Configuration Manager', () => {
         providerPreference: 'auto'
       };
 
-      const orgConfig = configManager.getOrganizationConfig('agency-123', orgCredentials, mockContext);
+      const orgConfig = configManager.getOrganizationConfig('agency-123', 'branch-001', orgCredentials, mockContext);
 
       expect(orgConfig.routingMode).toBe('both');
     });
@@ -200,7 +200,7 @@ describe('Configuration Manager', () => {
         providerPreference: 'current'
       };
 
-      const orgConfig = configManager.getOrganizationConfig('agency-123', orgCredentials, mockContext);
+      const orgConfig = configManager.getOrganizationConfig('agency-123', 'branch-001', orgCredentials, mockContext);
 
       expect(orgConfig.routingMode).toBe('legacy-only');
       expect(orgConfig.activeProvider).toBe('current');
@@ -214,7 +214,7 @@ describe('Configuration Manager', () => {
         providerPreference: 'salesforce'
       };
 
-      const orgConfig = configManager.getOrganizationConfig('agency-123', orgCredentials, mockContext);
+      const orgConfig = configManager.getOrganizationConfig('agency-123', 'branch-001', orgCredentials, mockContext);
 
       expect(orgConfig.routingMode).toBe('salesforce-only');
       expect(orgConfig.activeProvider).toBe('salesforce');
@@ -228,7 +228,7 @@ describe('Configuration Manager', () => {
         providerPreference: 'dual'
       };
 
-      const orgConfig = configManager.getOrganizationConfig('agency-123', orgCredentials, mockContext);
+      const orgConfig = configManager.getOrganizationConfig('agency-123', 'branch-001', orgCredentials, mockContext);
 
       expect(orgConfig.routingMode).toBe('both');
       expect(orgConfig.enableDualMode).toBe(true);
@@ -242,7 +242,7 @@ describe('Configuration Manager', () => {
         providerPreference: 'auto'
       };
 
-      const orgConfig = configManager.getOrganizationConfig('agency-123', orgCredentials, mockContext);
+      const orgConfig = configManager.getOrganizationConfig('agency-123', 'branch-001', orgCredentials, mockContext);
 
       expect(orgConfig.routingMode).toBe('forwarding');
     });
@@ -255,7 +255,7 @@ describe('Configuration Manager', () => {
         providerPreference: 'current'
       };
 
-      const orgConfig = configManager.getOrganizationConfig('agency-123', orgCredentials, mockContext);
+      const orgConfig = configManager.getOrganizationConfig('agency-123', 'branch-001', orgCredentials, mockContext);
 
       // Should use global config even though org prefers current
       expect(orgConfig.routingMode).toBe('both');
@@ -270,10 +270,10 @@ describe('Configuration Manager', () => {
       };
 
       // First call
-      configManager.getOrganizationConfig('agency-123', orgCredentials, mockContext);
+      configManager.getOrganizationConfig('agency-123', 'branch-001', orgCredentials, mockContext);
 
       // Second call
-      configManager.getOrganizationConfig('agency-123', orgCredentials, mockContext);
+      configManager.getOrganizationConfig('agency-123', 'branch-001', orgCredentials, mockContext);
 
       // Should log about using cached config
       expect(mockContext.log).toHaveBeenCalledWith(
@@ -290,11 +290,49 @@ describe('Configuration Manager', () => {
         providerPreference: 'salesforce'
       };
 
-      const orgConfig1 = configManager.getOrganizationConfig('agency-1', orgCredentials1, mockContext);
-      const orgConfig2 = configManager.getOrganizationConfig('agency-2', orgCredentials2, mockContext);
+      const orgConfig1 = configManager.getOrganizationConfig('agency-1', 'branch-001', orgCredentials1, mockContext);
+      const orgConfig2 = configManager.getOrganizationConfig('agency-2', 'branch-001', orgCredentials2, mockContext);
 
       expect(orgConfig1.routingMode).toBe('legacy-only');
       expect(orgConfig2.routingMode).toBe('salesforce-only');
+    });
+
+    // HIGH-007: Test branch-specific cache isolation
+    test('should isolate cache per branch for same agency (HIGH-007 fix)', () => {
+      const agencyRef = 'agency-abc';
+
+      // Branch 1 with legacy preference
+      const branch1Credentials = {
+        providerPreference: 'current'
+      };
+
+      // Branch 2 with salesforce preference
+      const branch2Credentials = {
+        providerPreference: 'salesforce'
+      };
+
+      // Get config for branch 1
+      const branch1Config = configManager.getOrganizationConfig(agencyRef, 'branch-001', branch1Credentials, mockContext);
+
+      // Get config for branch 2 (different branch, same agency)
+      const branch2Config = configManager.getOrganizationConfig(agencyRef, 'branch-002', branch2Credentials, mockContext);
+
+      // Verify each branch got its own configuration
+      expect(branch1Config.routingMode).toBe('legacy-only');
+      expect(branch1Config.activeProvider).toBe('current');
+
+      expect(branch2Config.routingMode).toBe('salesforce-only');
+      expect(branch2Config.activeProvider).toBe('salesforce');
+
+      // Verify cache isolation - get branch 1 config again, should still be legacy
+      const branch1ConfigAgain = configManager.getOrganizationConfig(agencyRef, 'branch-001', branch1Credentials, mockContext);
+      expect(branch1ConfigAgain.routingMode).toBe('legacy-only');
+      expect(branch1ConfigAgain.activeProvider).toBe('current');
+
+      // Verify we used cached config (should log about cache)
+      expect(mockContext.log).toHaveBeenCalledWith(
+        expect.stringContaining('Using cached organization configuration')
+      );
     });
   });
 
@@ -427,8 +465,8 @@ describe('Configuration Manager', () => {
 
       // Load org configs
       const orgCredentials = { providerPreference: 'auto' };
-      configManager.getOrganizationConfig('agency-1', orgCredentials, mockContext);
-      configManager.getOrganizationConfig('agency-2', orgCredentials, mockContext);
+      configManager.getOrganizationConfig('agency-1', 'branch-001', orgCredentials, mockContext);
+      configManager.getOrganizationConfig('agency-2', 'branch-001', orgCredentials, mockContext);
 
       const stats = configManager.getConfigCacheStats();
 
@@ -558,7 +596,7 @@ describe('Configuration Manager', () => {
 
   describe('Edge Cases', () => {
     test('should handle missing org credentials gracefully', () => {
-      const orgConfig = configManager.getOrganizationConfig('agency-123', null, mockContext);
+      const orgConfig = configManager.getOrganizationConfig('agency-123', 'branch-001', null, mockContext);
 
       expect(orgConfig).toBeDefined();
       expect(orgConfig.routingMode).toBe('legacy-only');
@@ -567,7 +605,7 @@ describe('Configuration Manager', () => {
     test('should handle org credentials without providerPreference', () => {
       const orgCredentials = {};
 
-      const orgConfig = configManager.getOrganizationConfig('agency-123', orgCredentials, mockContext);
+      const orgConfig = configManager.getOrganizationConfig('agency-123', 'branch-001', orgCredentials, mockContext);
 
       expect(orgConfig).toBeDefined();
       expect(orgConfig.routingMode).toBe('legacy-only');

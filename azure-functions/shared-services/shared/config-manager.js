@@ -104,11 +104,12 @@ function validateGlobalConfig(config, context) {
  * Combines global config with organization overrides
  *
  * @param {string} altoAgencyRef - Alto agency reference
+ * @param {string} altoBranchId - Alto branch ID for cache isolation
  * @param {Object} orgCredentials - Organization credentials object (includes providerPreference)
  * @param {Object} context - Azure Function context (for logging)
  * @returns {Object} - Organization-specific configuration
  */
-function getOrganizationConfig(altoAgencyRef, orgCredentials, context) {
+function getOrganizationConfig(altoAgencyRef, altoBranchId, orgCredentials, context) {
   const globalConfig = getGlobalConfig(context);
 
   // Check if organization overrides are allowed
@@ -117,17 +118,17 @@ function getOrganizationConfig(altoAgencyRef, orgCredentials, context) {
     return globalConfig;
   }
 
-  // Check cache
-  const cacheKey = altoAgencyRef;
+  // Check cache - SECURITY FIX: Include branch ID for proper isolation (HIGH-007)
+  const cacheKey = `${altoAgencyRef}:${altoBranchId}`;
   const now = Date.now();
   const cached = configCache.organizations.get(cacheKey);
 
   if (cached && (now - cached.timestamp < configCache.ttl)) {
-    context?.log(`Using cached organization configuration for ${altoAgencyRef}`);
+    context?.log(`Using cached organization configuration for ${altoAgencyRef}:${altoBranchId}`);
     return cached.config;
   }
 
-  context?.log(`Building organization configuration for ${altoAgencyRef}`);
+  context?.log(`Building organization configuration for ${altoAgencyRef}:${altoBranchId}`);
 
   // Start with global config
   const orgConfig = { ...globalConfig };

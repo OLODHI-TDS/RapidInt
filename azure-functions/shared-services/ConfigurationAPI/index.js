@@ -347,7 +347,9 @@ async function getOrganizationConfiguration(context, agencyRef) {
       providerPreference: 'auto' // This would be retrieved from storage
     };
 
-    const orgConfig = configManager.getOrganizationConfig(agencyRef, mockOrgCredentials, context);
+    // Use 'DEFAULT' as branch ID for agency-level configuration API
+    // Branch-specific configs should be retrieved via the branch-specific endpoints
+    const orgConfig = configManager.getOrganizationConfig(agencyRef, 'DEFAULT', mockOrgCredentials, context);
 
     return {
       status: 200,
