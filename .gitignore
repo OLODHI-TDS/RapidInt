@@ -1,0 +1,68 @@
+# Dependencies
+node_modules/
+azure-functions/node_modules/
+logic-apps/node_modules/
+
+# Azure Functions
+azure-functions/local.settings.json
+local.settings.json
+.vscode/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Azure Storage Emulator
+__blobstorage__/
+__queuestorage__/
+__azurite_db*__.json
+
+# Build outputs
+dist/
+build/
+out/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Node.js binaries (shouldn't be committed)
+node-v*.*/
+
+# Security and sensitive files
+SECURITY_AUDIT_REPORT.md
+*.pem
+*.key
+*.cert
+
+# Azure deployment
+.deployment
+
+# Debug files
+debug-*.js
+test-*.js

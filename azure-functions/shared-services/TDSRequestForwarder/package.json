@@ -1,0 +1,31 @@
+{
+  "name": "tds-request-forwarder",
+  "version": "1.0.0",
+  "description": "TDS API Request Forwarder - Routes requests between Legacy and Salesforce APIs",
+  "main": "index.js",
+  "scripts": {
+    "start": "func start",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "@azure/functions-core-tools": "^4.0.5382",
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "tds",
+    "azure-functions",
+    "api-gateway",
+    "salesforce",
+    "request-forwarder"
+  ],
+  "author": "Omar Lodhi",
+  "license": "UNLICENSED"
+}

@@ -1,0 +1,441 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TDS Integration Platform - Standard Deposit Model",
+  "description": "Canonical data model for all property management system integrations",
+  "type": "object",
+  "required": [
+    "metadata",
+    "organization",
+    "deposit",
+    "property",
+    "landlord",
+    "tenants"
+  ],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "description": "Integration metadata",
+      "required": ["sourceSystem", "sourceId", "organizationId"],
+      "properties": {
+        "sourceSystem": {
+          "type": "string",
+          "enum": ["alto", "jupix", "reapit", "arthur", "propertyfile"],
+          "description": "Source property management system"
+        },
+        "sourceId": {
+          "type": "string",
+          "description": "Unique ID in source system (e.g. tenancy ID)"
+        },
+        "organizationId": {
+          "type": "string",
+          "description": "Organization/Agency identifier"
+        },
+        "integrationId": {
+          "type": "string",
+          "description": "Unique integration ID"
+        },
+        "webhookId": {
+          "type": "string",
+          "description": "Webhook event ID"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Integration timestamp"
+        },
+        "version": {
+          "type": "string",
+          "default": "1.0",
+          "description": "Schema version"
+        }
+      }
+    },
+    "organization": {
+      "type": "object",
+      "description": "TDS organization/member details",
+      "required": ["memberNumber"],
+      "properties": {
+        "memberNumber": {
+          "type": "string",
+          "description": "TDS member number"
+        },
+        "branchId": {
+          "type": "string",
+          "description": "TDS branch identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Organization/Agency name"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Organization contact email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Organization contact phone"
+        }
+      }
+    },
+    "deposit": {
+      "type": "object",
+      "description": "Deposit details",
+      "required": ["amount", "tenancyStartDate"],
+      "properties": {
+        "amount": {
+          "type": "number",
+          "minimum": 0.01,
+          "description": "Deposit amount in pounds"
+        },
+        "currency": {
+          "type": "string",
+          "default": "GBP",
+          "enum": ["GBP"],
+          "description": "Currency code"
+        },
+        "tenancyStartDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Tenancy start date (YYYY-MM-DD)"
+        },
+        "tenancyEndDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Tenancy end date (YYYY-MM-DD)"
+        },
+        "tenancyTerm": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Tenancy term in months"
+        },
+        "rentAmount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Monthly rent amount"
+        },
+        "allocationDateTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Deposit allocation date/time"
+        }
+      }
+    },
+    "property": {
+      "type": "object",
+      "description": "Property details",
+      "required": ["address"],
+      "properties": {
+        "address": {
+          "type": "object",
+          "required": ["line1", "postcode"],
+          "properties": {
+            "line1": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "Address line 1"
+            },
+            "line2": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Address line 2"
+            },
+            "line3": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Address line 3"
+            },
+            "line4": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Address line 4"
+            },
+            "city": {
+              "type": "string",
+              "maxLength": 50,
+              "description": "City"
+            },
+            "postcode": {
+              "type": "string",
+              "pattern": "^[A-Z]{1,2}[0-9][A-Z0-9]?\\s?[0-9][A-Z]{2}$",
+              "description": "UK postcode"
+            },
+            "county": {
+              "type": "string",
+              "maxLength": 50,
+              "description": "County (auto-populated from postcode)"
+            },
+            "country": {
+              "type": "string",
+              "default": "UK",
+              "description": "Country"
+            }
+          }
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "House",
+            "Flat",
+            "Maisonette",
+            "Bungalow",
+            "Studio",
+            "Room",
+            "Other"
+          ],
+          "description": "Property type"
+        },
+        "bedrooms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Number of bedrooms"
+        },
+        "furnished": {
+          "type": "string",
+          "enum": ["Furnished", "Unfurnished", "Part Furnished"],
+          "description": "Furnishing status"
+        },
+        "council": {
+          "type": "string",
+          "description": "Local council"
+        }
+      }
+    },
+    "landlord": {
+      "type": "object",
+      "description": "Landlord details",
+      "required": ["firstName", "lastName", "email"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "enum": ["Mr", "Mrs", "Miss", "Ms", "Dr", "Prof"],
+          "description": "Title"
+        },
+        "firstName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
+          "description": "First name"
+        },
+        "lastName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
+          "description": "Last name"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address"
+        },
+        "phone": {
+          "type": "string",
+          "pattern": "^[0-9+\\s()-]{10,20}$",
+          "description": "Phone number"
+        },
+        "address": {
+          "type": "object",
+          "description": "Landlord address",
+          "properties": {
+            "line1": {"type": "string", "maxLength": 100},
+            "line2": {"type": "string", "maxLength": 100},
+            "city": {"type": "string", "maxLength": 50},
+            "postcode": {
+              "type": "string",
+              "pattern": "^[A-Z]{1,2}[0-9][A-Z0-9]?\\s?[0-9][A-Z]{2}$"
+            },
+            "country": {"type": "string", "default": "UK"}
+          }
+        },
+        "company": {
+          "type": "object",
+          "description": "Landlord company details",
+          "properties": {
+            "name": {"type": "string", "maxLength": 100},
+            "registrationNumber": {"type": "string"},
+            "vatNumber": {"type": "string"}
+          }
+        }
+      }
+    },
+    "tenants": {
+      "type": "array",
+      "description": "Tenant details",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": ["firstName", "lastName", "email"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "enum": ["Mr", "Mrs", "Miss", "Ms", "Dr", "Prof"]
+          },
+          "firstName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^[0-9+\\s()-]{10,20}$"
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "format": "date",
+            "description": "Date of birth (YYYY-MM-DD)"
+          },
+          "isPrimary": {
+            "type": "boolean",
+            "default": false,
+            "description": "Primary tenant indicator"
+          }
+        }
+      }
+    },
+    "additionalInfo": {
+      "type": "object",
+      "description": "Additional information",
+      "properties": {
+        "lettingAgent": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string"},
+            "email": {"type": "string", "format": "email"},
+            "phone": {"type": "string"}
+          }
+        },
+        "inventory": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string"},
+            "url": {"type": "string", "format": "uri"},
+            "checkInDate": {"type": "string", "format": "date"}
+          }
+        },
+        "specialInstructions": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Special instructions or notes"
+        },
+        "source": {
+          "type": "object",
+          "description": "Source system specific data",
+          "properties": {
+            "tenancyId": {"type": "string"},
+            "inventoryId": {"type": "string"},
+            "branchId": {"type": "string"},
+            "agentId": {"type": "string"}
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "metadata": {
+        "sourceSystem": "alto",
+        "sourceId": "TEN_12345",
+        "organizationId": "ORG_001",
+        "integrationId": "INT_67890",
+        "webhookId": "WH_ABCDEF",
+        "timestamp": "2025-01-25T10:30:00.000Z",
+        "version": "1.0"
+      },
+      "organization": {
+        "memberNumber": "TDS_98765",
+        "branchId": "BRANCH_001",
+        "name": "Example Property Agency",
+        "email": "deposits@example-agency.co.uk",
+        "phone": "01234567890"
+      },
+      "deposit": {
+        "amount": 1500.00,
+        "currency": "GBP",
+        "tenancyStartDate": "2025-02-01",
+        "tenancyEndDate": "2026-01-31",
+        "tenancyTerm": 12,
+        "rentAmount": 1200.00,
+        "allocationDateTime": "2025-01-25T10:30:00.000Z"
+      },
+      "property": {
+        "address": {
+          "line1": "123 High Street",
+          "line2": "City Centre",
+          "city": "Milton Keynes",
+          "postcode": "MK18 7ET",
+          "county": "Buckinghamshire",
+          "country": "UK"
+        },
+        "type": "Flat",
+        "bedrooms": 2,
+        "furnished": "Furnished",
+        "council": "Milton Keynes Council"
+      },
+      "landlord": {
+        "title": "Mr",
+        "firstName": "John",
+        "lastName": "Smith",
+        "email": "john.smith@example.com",
+        "phone": "07700900001",
+        "address": {
+          "line1": "456 Oak Road",
+          "city": "London",
+          "postcode": "SW1A 1AA",
+          "country": "UK"
+        }
+      },
+      "tenants": [
+        {
+          "title": "Ms",
+          "firstName": "Sarah",
+          "lastName": "Johnson",
+          "email": "sarah.johnson@example.com",
+          "phone": "07700900002",
+          "dateOfBirth": "1990-05-15",
+          "isPrimary": true
+        },
+        {
+          "title": "Mr",
+          "firstName": "Mike",
+          "lastName": "Wilson",
+          "email": "mike.wilson@example.com",
+          "phone": "07700900003",
+          "dateOfBirth": "1988-10-22",
+          "isPrimary": false
+        }
+      ],
+      "additionalInfo": {
+        "lettingAgent": {
+          "name": "Jane Doe",
+          "email": "jane.doe@example-agency.co.uk",
+          "phone": "01234567891"
+        },
+        "inventory": {
+          "id": "INV_12345",
+          "url": "https://example.com/inventory/12345",
+          "checkInDate": "2025-02-01"
+        },
+        "specialInstructions": "Tenant has pets - 1 small dog",
+        "source": {
+          "tenancyId": "TEN_12345",
+          "inventoryId": "INV_12345",
+          "branchId": "BRANCH_001",
+          "agentId": "AGENT_789"
+        }
+      }
+    }
+  ]
+}

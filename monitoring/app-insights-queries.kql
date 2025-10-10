@@ -1,0 +1,480 @@
+// ============================================================================
+// Application Insights KQL Queries for TDS API Versioning Monitoring
+// ============================================================================
+// These queries help monitor the migration from legacy to Salesforce API
+// Use these in Azure Application Insights Analytics or Azure Monitor
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 1. Provider Performance Comparison
+// ----------------------------------------------------------------------------
+// Compare response times between legacy and Salesforce providers
+// Shows average, p50, p95, and p99 percentiles over the last 24 hours
+// ----------------------------------------------------------------------------
+
+customMetrics
+| where timestamp > ago(24h)
+| where name == "TDS_Request_Duration"
+| extend provider = tostring(customDimensions.provider)
+| where provider in ("legacy", "salesforce")
+| summarize
+    count = count(),
+    avg_duration = avg(value),
+    p50 = percentile(value, 50),
+    p95 = percentile(value, 95),
+    p99 = percentile(value, 99),
+    max_duration = max(value)
+    by provider
+| project
+    provider,
+    count,
+    avg_duration_ms = round(avg_duration, 2),
+    p50_ms = round(p50, 2),
+    p95_ms = round(p95, 2),
+    p99_ms = round(p99, 2),
+    max_duration_ms = round(max_duration, 2)
+| order by provider asc;
+
+// ----------------------------------------------------------------------------
+// 2. Provider Error Rate Trends (Last 7 Days)
+// ----------------------------------------------------------------------------
+// Track error rates for each provider over time
+// Identifies which provider is more stable
+// ----------------------------------------------------------------------------
+
+requests
+| where timestamp > ago(7d)
+| where name startswith "TDS_"
+| extend provider = tostring(customDimensions.provider)
+| where provider in ("legacy", "salesforce")
+| summarize
+    total = count(),
+    failed = countif(success == false),
+    error_rate_pct = round(100.0 * countif(success == false) / count(), 2)
+    by bin(timestamp, 1h), provider
+| project timestamp, provider, total, failed, error_rate_pct
+| order by timestamp desc, provider asc;
+
+// ----------------------------------------------------------------------------
+// 3. Dual-Mode Execution Results (Last 24 Hours)
+// ----------------------------------------------------------------------------
+// Analyze results when both providers are executed simultaneously
+// Shows match rates and performance differences
+// ----------------------------------------------------------------------------
+
+customEvents
+| where timestamp > ago(24h)
+| where name == "TDS_Dual_Mode_Execution"
+| extend
+    outcome = tostring(customDimensions.outcome),
+    legacySuccess = customDimensions.legacySuccess == "true",
+    salesforceSuccess = customDimensions.salesforceSuccess == "true",
+    resultsMatch = customDimensions.resultsMatch == "true"
+| summarize
+    count = count(),
+    both_success_match = countif(outcome == "both_success_match"),
+    both_success_mismatch = countif(outcome == "both_success_mismatch"),
+    legacy_only = countif(outcome == "legacy_only_success"),
+    salesforce_only = countif(outcome == "salesforce_only_success"),
+    both_failed = countif(outcome == "both_failed"),
+    match_rate_pct = round(100.0 * countif(outcome == "both_success_match") / count(), 2)
+| project
+    total_executions = count,
+    both_success_match,
+    both_success_mismatch,
+    legacy_only,
+    salesforce_only,
+    both_failed,
+    match_rate_pct;
+
+// ----------------------------------------------------------------------------
+// 4. Migration Progress by Organization
+// ----------------------------------------------------------------------------
+// Track which organizations are migrated and their success rates
+// Shows provider usage and error rates per organization
+// ----------------------------------------------------------------------------
+
+requests
+| where timestamp > ago(30d)
+| where name startswith "TDS_"
+| extend
+    provider = tostring(customDimensions.provider),
+    organizationId = tostring(customDimensions.organizationId)
+| where isnotempty(organizationId) and organizationId != "unknown"
+| summarize
+    total_requests = count(),
+    successful_requests = countif(success == true),
+    failed_requests = countif(success == false),
+    success_rate_pct = round(100.0 * countif(success == true) / count(), 2),
+    last_request = max(timestamp),
+    providers_used = make_set(provider)
+    by organizationId
+| extend
+    migration_status = case(
+        array_length(providers_used) == 1 and providers_used[0] == "salesforce", "Migrated",
+        array_length(providers_used) > 1, "Testing",
+        "Legacy"
+    )
+| project
+    organizationId,
+    migration_status,
+    total_requests,
+    success_rate_pct,
+    failed_requests,
+    last_request,
+    providers_used
+| order by migration_status asc, total_requests desc;
+
+// ----------------------------------------------------------------------------
+// 5. Circuit Breaker Activations
+// ----------------------------------------------------------------------------
+// Monitor circuit breaker state changes and failures
+// Identifies when providers become unavailable
+// ----------------------------------------------------------------------------
+
+customEvents
+| where timestamp > ago(24h)
+| where name == "TDS_Circuit_Breaker_State_Change"
+| extend
+    provider = tostring(customDimensions.provider),
+    oldState = tostring(customDimensions.oldState),
+    newState = tostring(customDimensions.newState),
+    reason = tostring(customDimensions.reason)
+| where newState == "open"  // Circuit breaker opened (provider failing)
+| summarize
+    activation_count = count(),
+    reasons = make_set(reason),
+    first_activation = min(timestamp),
+    last_activation = max(timestamp)
+    by provider
+| project
+    provider,
+    activation_count,
+    first_activation,
+    last_activation,
+    reasons
+| order by activation_count desc;
+
+// ----------------------------------------------------------------------------
+// 6. Top 10 Slowest Requests
+// ----------------------------------------------------------------------------
+// Identify the slowest API requests to optimize performance
+// Shows operation, provider, duration, and success status
+// ----------------------------------------------------------------------------
+
+requests
+| where timestamp > ago(24h)
+| where name startswith "TDS_"
+| extend
+    provider = tostring(customDimensions.provider),
+    mode = tostring(customDimensions.mode)
+| top 10 by duration desc
+| project
+    timestamp,
+    operation = name,
+    provider,
+    mode,
+    duration_ms = round(duration, 2),
+    success,
+    resultCode,
+    cloud_RoleInstance
+| order by duration_ms desc;
+
+// ----------------------------------------------------------------------------
+// 7. Failed Deposit Creations by Error Type
+// ----------------------------------------------------------------------------
+// Analyze failures to identify common error patterns
+// Groups by provider and error type
+// ----------------------------------------------------------------------------
+
+exceptions
+| where timestamp > ago(7d)
+| where customDimensions.handler in ("TDSRequestForwarder", "TDSAdapterFactory")
+| extend
+    provider = tostring(customDimensions.provider),
+    errorType = tostring(customDimensions.errorType),
+    operation = tostring(customDimensions.operation)
+| where isnotempty(provider)
+| summarize
+    error_count = count(),
+    sample_message = any(outerMessage),
+    first_occurrence = min(timestamp),
+    last_occurrence = max(timestamp)
+    by provider, errorType, operation
+| project
+    provider,
+    operation,
+    errorType,
+    error_count,
+    sample_message,
+    first_occurrence,
+    last_occurrence
+| order by error_count desc;
+
+// ----------------------------------------------------------------------------
+// 8. Comparison Mismatch Patterns
+// ----------------------------------------------------------------------------
+// Identify patterns in response mismatches between providers
+// Helps understand what data differs and how often
+// ----------------------------------------------------------------------------
+
+customEvents
+| where timestamp > ago(7d)
+| where name == "TDS_Response_Comparison"
+| extend
+    statusMatch = customDimensions.statusMatch == "true",
+    dataMatch = customDimensions.dataMatch == "true",
+    bothSucceeded = customDimensions.bothSucceeded == "true",
+    divergent = customDimensions.divergent == "true"
+| summarize
+    total_comparisons = count(),
+    status_mismatches = countif(statusMatch == false),
+    data_mismatches = countif(dataMatch == false and bothSucceeded == true),
+    divergent_results = countif(divergent == true),
+    perfect_matches = countif(statusMatch == true and dataMatch == true)
+    by bin(timestamp, 1h)
+| extend
+    mismatch_rate_pct = round(100.0 * (status_mismatches + data_mismatches) / total_comparisons, 2)
+| project
+    timestamp,
+    total_comparisons,
+    perfect_matches,
+    status_mismatches,
+    data_mismatches,
+    divergent_results,
+    mismatch_rate_pct
+| order by timestamp desc;
+
+// ----------------------------------------------------------------------------
+// 9. Traffic Distribution (Current vs Salesforce %)
+// ----------------------------------------------------------------------------
+// Track what percentage of traffic goes to each provider
+// Shows the gradual migration rollout
+// ----------------------------------------------------------------------------
+
+requests
+| where timestamp > ago(24h)
+| where name startswith "TDS_"
+| extend provider = tostring(customDimensions.provider)
+| where provider in ("legacy", "salesforce")
+| summarize count() by bin(timestamp, 1h), provider
+| project timestamp, provider, count_
+| evaluate pivot(provider, sum(count_))
+| extend
+    total = legacy + salesforce,
+    legacy_pct = round(100.0 * legacy / (legacy + salesforce), 2),
+    salesforce_pct = round(100.0 * salesforce / (legacy + salesforce), 2)
+| project
+    timestamp,
+    total,
+    legacy_requests = legacy,
+    salesforce_requests = salesforce,
+    legacy_pct,
+    salesforce_pct
+| order by timestamp desc;
+
+// ----------------------------------------------------------------------------
+// 10. Fallback Activation Monitoring
+// ----------------------------------------------------------------------------
+// Track when fallback from Salesforce to Legacy is triggered
+// Indicates Salesforce API reliability issues
+// ----------------------------------------------------------------------------
+
+customEvents
+| where timestamp > ago(7d)
+| where name == "TDS_Fallback_Activated"
+| extend
+    fromProvider = tostring(customDimensions.fromProvider),
+    toProvider = tostring(customDimensions.toProvider),
+    reason = tostring(customDimensions.reason)
+| summarize
+    fallback_count = count(),
+    reasons = make_set(reason),
+    first_fallback = min(timestamp),
+    last_fallback = max(timestamp)
+    by bin(timestamp, 1h), fromProvider, toProvider
+| project
+    hour = timestamp,
+    fromProvider,
+    toProvider,
+    fallback_count,
+    reasons,
+    first_fallback,
+    last_fallback
+| order by hour desc, fallback_count desc;
+
+// ----------------------------------------------------------------------------
+// 11. Configuration Change Audit Trail
+// ----------------------------------------------------------------------------
+// Track all configuration changes for compliance and debugging
+// Shows what was changed, when, and by whom
+// ----------------------------------------------------------------------------
+
+customEvents
+| where timestamp > ago(30d)
+| where name == "TDS_Configuration_Changed"
+| extend
+    configKey = tostring(customDimensions.configKey),
+    oldValue = tostring(customDimensions.oldValue),
+    newValue = tostring(customDimensions.newValue),
+    updatedBy = tostring(customDimensions.updatedBy)
+| project
+    timestamp,
+    configKey,
+    oldValue,
+    newValue,
+    updatedBy,
+    environment = tostring(customDimensions.environment)
+| order by timestamp desc;
+
+// ----------------------------------------------------------------------------
+// 12. Average Response Time by Provider (Last 7 Days Trend)
+// ----------------------------------------------------------------------------
+// Visualize performance trends over time
+// Useful for identifying degradation or improvement patterns
+// ----------------------------------------------------------------------------
+
+customMetrics
+| where timestamp > ago(7d)
+| where name == "TDS_Request_Duration"
+| extend provider = tostring(customDimensions.provider)
+| where provider in ("legacy", "salesforce")
+| summarize avg_duration = avg(value) by bin(timestamp, 1h), provider
+| project timestamp, provider, avg_duration_ms = round(avg_duration, 2)
+| order by timestamp desc, provider asc;
+
+// ----------------------------------------------------------------------------
+// 13. Requests Per Second by Provider
+// ----------------------------------------------------------------------------
+// Monitor request volume and identify traffic spikes
+// ----------------------------------------------------------------------------
+
+requests
+| where timestamp > ago(24h)
+| where name startswith "TDS_"
+| extend provider = tostring(customDimensions.provider)
+| where provider in ("legacy", "salesforce")
+| summarize request_count = count() by bin(timestamp, 1m), provider
+| extend requests_per_second = round(request_count / 60.0, 2)
+| project timestamp, provider, requests_per_second
+| order by timestamp desc;
+
+// ----------------------------------------------------------------------------
+// 14. Migration Readiness Dashboard Query
+// ----------------------------------------------------------------------------
+// Comprehensive query for executive dashboard
+// Shows overall migration health and readiness
+// ----------------------------------------------------------------------------
+
+let total_requests = materialize(
+    requests
+    | where timestamp > ago(30d)
+    | where name startswith "TDS_"
+    | extend provider = tostring(customDimensions.provider)
+    | summarize total = count() by provider
+);
+let error_rates = materialize(
+    requests
+    | where timestamp > ago(30d)
+    | where name startswith "TDS_"
+    | extend provider = tostring(customDimensions.provider)
+    | summarize
+        errors = countif(success == false),
+        total = count()
+        by provider
+    | extend error_rate = round(100.0 * errors / total, 2)
+);
+let comparison_quality = materialize(
+    customEvents
+    | where timestamp > ago(30d)
+    | where name == "TDS_Dual_Mode_Execution"
+    | extend outcome = tostring(customDimensions.outcome)
+    | summarize
+        total = count(),
+        perfect_matches = countif(outcome == "both_success_match")
+    | extend match_rate = round(100.0 * perfect_matches / total, 2)
+);
+let fallback_count = materialize(
+    customEvents
+    | where timestamp > ago(30d)
+    | where name == "TDS_Fallback_Activated"
+    | summarize fallback_events = count()
+);
+// Combine all metrics
+total_requests
+| join kind=leftouter error_rates on provider
+| extend
+    comparison_match_rate = toscalar(comparison_quality | project match_rate),
+    total_fallbacks = toscalar(fallback_count | project fallback_events)
+| project
+    provider,
+    total_requests = total,
+    error_rate_pct = error_rate,
+    comparison_match_rate_pct = comparison_match_rate,
+    total_fallbacks,
+    migration_readiness = case(
+        provider == "salesforce" and error_rate < 1.0 and comparison_match_rate > 95, "Ready",
+        provider == "salesforce" and error_rate < 5.0 and comparison_match_rate > 90, "Almost Ready",
+        provider == "salesforce", "Not Ready",
+        "N/A"
+    )
+| order by provider asc;
+
+// ----------------------------------------------------------------------------
+// 15. Provider-Specific Error Details
+// ----------------------------------------------------------------------------
+// Deep dive into errors for a specific provider (change provider filter)
+// ----------------------------------------------------------------------------
+
+let target_provider = "salesforce";  // Change to "legacy" or "salesforce"
+exceptions
+| where timestamp > ago(24h)
+| where customDimensions.provider == target_provider
+| extend
+    errorType = tostring(customDimensions.errorType),
+    errorMessage = tostring(customDimensions.errorMessage),
+    operation = tostring(customDimensions.operation),
+    statusCode = tostring(customDimensions.statusCode)
+| project
+    timestamp,
+    errorType,
+    errorMessage,
+    operation,
+    statusCode,
+    severityLevel,
+    cloud_RoleInstance
+| order by timestamp desc
+| take 50;
+
+// ============================================================================
+// ALERTS AND MONITORING RECOMMENDATIONS
+// ============================================================================
+//
+// Set up the following alerts in Azure Monitor:
+//
+// 1. High Error Rate Alert
+//    - Query: Provider error rate > 5% for 15 minutes
+//    - Severity: High
+//    - Action: Email + PagerDuty
+//
+// 2. Circuit Breaker Open Alert
+//    - Query: Circuit breaker state changes to "open"
+//    - Severity: Critical
+//    - Action: Immediate notification
+//
+// 3. High Fallback Rate Alert
+//    - Query: > 10 fallbacks in 5 minutes
+//    - Severity: Medium
+//    - Action: Email notification
+//
+// 4. Response Time Degradation Alert
+//    - Query: P95 response time > 2x baseline for 10 minutes
+//    - Severity: Medium
+//    - Action: Email notification
+//
+// 5. Comparison Mismatch Spike Alert
+//    - Query: Mismatch rate > 20% for 30 minutes
+//    - Severity: High
+//    - Action: Email + Slack notification
+//
+// ============================================================================

@@ -1,0 +1,154 @@
+### TDS Integration Platform - API Test Suite
+### Use with VS Code REST Client extension
+
+@baseUrl = http://localhost:7071/api
+
+### 1. Configuration API - Get Routing Mode
+GET {{baseUrl}}/config/routing-mode
+
+### 2. Configuration API - Get All Config
+GET {{baseUrl}}/config/all
+
+### 3. Configuration API - Update Routing Mode
+PUT {{baseUrl}}/config/routing-mode
+Content-Type: application/json
+
+{
+  "routingMode": "legacy-only"
+}
+
+### 4. Configuration API - Update Forwarding Percentage
+PUT {{baseUrl}}/config/forwarding-percentage
+Content-Type: application/json
+
+{
+  "percentage": 25
+}
+
+### 5. Comparison Metrics - Overall Stats
+GET {{baseUrl}}/comparison-metrics/overall
+
+### 6. Comparison Metrics - Recent Comparisons
+GET {{baseUrl}}/comparison-metrics/recent?limit=10
+
+### 7. Comparison Metrics - Organization Readiness
+GET {{baseUrl}}/comparison-metrics/readiness/1af89d60-662c-475b-bcc8-9bcbf04b6322
+
+### 8. Comparison Metrics - All Differences
+GET {{baseUrl}}/comparison-metrics/differences
+
+### 9. Comparison Metrics - Organization Stats
+GET {{baseUrl}}/comparison-metrics/organization/1af89d60-662c-475b-bcc8-9bcbf04b6322
+
+### 10. Postcode Lookup - Valid UK Postcode
+GET {{baseUrl}}/postcode/SW1A1AA
+
+### 11. Postcode Lookup - Another Valid Postcode
+GET {{baseUrl}}/postcode/M11AE
+
+### 12. TDS Request Forwarder - Create Deposit (Minimal)
+POST {{baseUrl}}/tds-forwarder/create
+Content-Type: application/json
+
+{
+  "metadata": {
+    "sourceSystem": "alto",
+    "sourceId": "test-tenancy-001",
+    "organizationId": "test-org-001",
+    "altoAgencyRef": "1af89d60-662c-475b-bcc8-9bcbf04b6322",
+    "altoBranchId": "main",
+    "timestamp": "2025-01-15T10:00:00Z",
+    "version": "1.0"
+  },
+  "organization": {
+    "memberNumber": "1960473",
+    "branchId": "1960473",
+    "name": "Test Organization"
+  },
+  "deposit": {
+    "amount": 1500,
+    "currency": "GBP",
+    "tenancyStartDate": "2025-02-01",
+    "tenancyEndDate": "2026-02-01",
+    "tenancyTerm": 12,
+    "rentAmount": 1200,
+    "allocationDateTime": "2025-01-15T10:00:00Z"
+  },
+  "property": {
+    "address": {
+      "line1": "10 Downing Street",
+      "line2": "",
+      "city": "London",
+      "postcode": "SW1A2AA",
+      "county": "Greater London",
+      "country": "UK"
+    },
+    "type": "House",
+    "bedrooms": 3,
+    "furnished": "Furnished"
+  },
+  "landlord": {
+    "title": "Mr",
+    "firstName": "John",
+    "lastName": "Smith",
+    "email": "john.smith@example.com",
+    "phone": "07700900000",
+    "address": {
+      "line1": "123 Landlord Street",
+      "city": "London",
+      "postcode": "SW1A1AA"
+    }
+  },
+  "tenants": [
+    {
+      "title": "Ms",
+      "firstName": "Jane",
+      "lastName": "Doe",
+      "email": "jane.doe@example.com",
+      "phone": "07700900001"
+    }
+  ]
+}
+
+### 13. TDS Request Forwarder - Check Status
+POST {{baseUrl}}/tds-forwarder/status
+Content-Type: application/json
+
+{
+  "batch_id": "BATCH_ID_HERE",
+  "credentials": {
+    "memberId": "1960473",
+    "branchId": "1960473",
+    "apiKey": "SJKFW-4782P-3D7DJ-ADDSD-3S78F"
+  }
+}
+
+### 14. Health Check (if implemented)
+GET {{baseUrl}}/health
+
+### 15. Configuration API - Get Organization Provider Preference
+GET {{baseUrl}}/config/organization/1af89d60-662c-475b-bcc8-9bcbf04b6322/provider
+
+### 16. Configuration API - Set Organization to Dual Mode
+PUT {{baseUrl}}/config/organization/1af89d60-662c-475b-bcc8-9bcbf04b6322/provider
+Content-Type: application/json
+
+{
+  "provider": "dual"
+}
+
+### 17. Configuration API - Set Organization to Legacy Only
+PUT {{baseUrl}}/config/organization/1af89d60-662c-475b-bcc8-9bcbf04b6322/provider
+Content-Type: application/json
+
+{
+  "provider": "current"
+}
+
+### 18. Configuration API - Set Organization to Salesforce Only
+PUT {{baseUrl}}/config/organization/1af89d60-662c-475b-bcc8-9bcbf04b6322/provider
+Content-Type: application/json
+
+{
+  "provider": "salesforce"
+}

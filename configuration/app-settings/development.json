@@ -1,0 +1,179 @@
+{
+  "environment": "development",
+  "platformSettings": {
+    "resourceGroupName": "tds-integration-dev",
+    "location": "uksouth",
+    "subscriptionId": "your-subscription-id",
+    "keyVaultName": "tds-platform-dev-kv",
+    "storageAccountName": "tdsplatformdevstorage",
+    "serviceBusNamespace": "tds-integration-dev-bus",
+    "functionAppName": "tds-platform-dev-functions",
+    "logicAppName": "tds-integration-dev-logic",
+    "apiManagementName": "tds-integration-dev-apim"
+  },
+  "services": {
+    "postcodeLookup": {
+      "endpoint": "https://tds-platform-dev-functions.azurewebsites.net/api/postcode",
+      "cacheEnabled": true,
+      "cacheTtlMinutes": 60,
+      "maxBatchSize": 100
+    },
+    "tdsAdapterFactory": {
+      "endpoint": "https://tds-platform-dev-functions.azurewebsites.net/api/tds",
+      "activeProvider": "current",
+      "dualMode": true,
+      "providers": {
+        "current": {
+          "baseUrl": "https://sandbox.api.custodial.tenancydepositscheme.com/v1.2",
+          "timeout": 30000,
+          "maxRetries": 3
+        },
+        "salesforce": {
+          "baseUrl": "https://thedisputeservice--fullcopy.sandbox.my.salesforce-sites.com",
+          "timeout": 45000,
+          "maxRetries": 3
+        }
+      },
+      "dualModeConfig": {
+        "enabled": true,
+        "compareResponses": true,
+        "logDifferences": true,
+        "alertOnMismatch": true,
+        "failOnMismatch": false,
+        "maxDifferenceThreshold": 10
+      },
+      "circuitBreaker": {
+        "enabled": true,
+        "failureThreshold": 3,
+        "successThreshold": 2,
+        "timeoutMs": 30000,
+        "monitoringWindowMs": 180000
+      },
+      "comparison": {
+        "enabled": true,
+        "strictMode": false,
+        "ignoreFields": ["timestamp", "requestId", "processingTime"],
+        "tolerancePercent": 1.0,
+        "logMismatches": true,
+        "alertOnCriticalMismatch": false
+      }
+    },
+    "tdsRequestForwarder": {
+      "endpoint": "https://tds-platform-dev-functions.azurewebsites.net/api/tds-forwarder",
+      "routingMode": "shadow",
+      "forwardingPercentage": 10,
+      "enableFallback": true,
+      "enableResponseComparison": true,
+      "migrationSettings": {
+        "enableShadowMode": true,
+        "shadowPercentage": 10,
+        "logDifferences": true,
+        "alertOnMismatch": true
+      }
+    },
+    "alto": {
+      "baseUrl": "https://api.alto.zoopladev.co.uk",
+      "tokenEndpoint": "https://api.alto.zoopladev.co.uk/token",
+      "clientId": "d9kj85ukjpr6634i4sae0g00s",
+      "clientSecretKeyVault": "alto-client-secret-dev",
+      "scope": "alto/read:contacts,alto/read:tenancies,alto/read:inventory",
+      "timeout": 30000
+    }
+  },
+  "integrations": {
+    "alto": {
+      "enabled": true,
+      "logicAppName": "alto-adapter-dev",
+      "webhookPath": "/api/webhooks/alto",
+      "maxProcessingTimeMinutes": 30,
+      "retryPolicy": {
+        "maxAttempts": 3,
+        "backoffMultiplier": 2,
+        "initialDelaySeconds": 1
+      }
+    },
+    "jupix": {
+      "enabled": false,
+      "logicAppName": "jupix-adapter-dev",
+      "webhookPath": "/api/webhooks/jupix"
+    }
+  },
+  "organizationMappings": {
+    "1af89d60-662c-475b-bcc8-9bcbf04b6322": {
+      "name": "Development Test Agency",
+      "environment": "sandbox",
+      "alto": {
+        "agencyRef": "1af89d60-662c-475b-bcc8-9bcbf04b6322",
+        "branchId": "DEV_BRANCH_001"
+      },
+      "tds": {
+        "memberNumber": "DEV_TDS_12345",
+        "branchId": "DEV_BRANCH_001",
+        "credentialsKeyVault": "tds-dev-credentials"
+      }
+    }
+  },
+  "organizationOverrides": {
+    "note": "Per-organization API provider preferences override global settings",
+    "1af89d60-662c-475b-bcc8-9bcbf04b6322": {
+      "agencyRef": "1af89d60-662c-475b-bcc8-9bcbf04b6322",
+      "providerPreference": "dual",
+      "note": "Development agency uses dual-mode for testing"
+    }
+  },
+  "monitoring": {
+    "applicationInsights": {
+      "instrumentationKey": "dev-app-insights-key",
+      "samplingPercentage": 100,
+      "enableDependencyTracking": true
+    },
+    "logLevel": "Information",
+    "alerts": {
+      "enabled": true,
+      "emailRecipients": ["dev-team@example.com"],
+      "thresholds": {
+        "errorRatePercent": 5,
+        "responseTimeMs": 10000,
+        "queueDepth": 50
+      }
+    }
+  },
+  "security": {
+    "enableWebhookSignatureVerification": false,
+    "allowedOrigins": ["*"],
+    "rateLimiting": {
+      "enabled": true,
+      "requestsPerMinute": 100
+    }
+  },
+  "storage": {
+    "tables": {
+      "altoIntegrations": "AltoIntegrations",
+      "organizationMappings": "OrganizationMappings",
+      "webhookLogs": "WebhookLogs",
+      "depositRecords": "DepositRecords"
+    },
+    "queues": {
+      "deadLetter": "dead-letter-queue",
+      "retry": "retry-queue",
+      "notifications": "notifications-queue"
+    },
+    "retentionDays": 90
+  },
+  "featureFlags": {
+    "enableJupixIntegration": false,
+    "enableSalesforceTDS": true,
+    "enableAdvancedValidation": true,
+    "enableBatchProcessing": false,
+    "enableWebhookDeduplication": true,
+    "enableDualApiMode": true,
+    "enableRequestForwarding": true,
+    "enableLegacyToSalesforceForwarding": true,
+    "enableGradualRollout": true,
+    "enableCircuitBreaker": true,
+    "enableResponseComparison": true,
+    "enableOrganizationOverrides": true,
+    "enableConfigurationAPI": true,
+    "enableDynamicRouting": true
+  }
+}

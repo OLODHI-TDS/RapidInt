@@ -1,0 +1,29 @@
+{
+  "name": "@tds/shared-utilities",
+  "version": "1.0.0",
+  "description": "Shared utilities for TDS Integration Platform",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "tds",
+    "salesforce",
+    "authentication",
+    "oauth2"
+  ],
+  "author": "Omar Lodhi",
+  "license": "UNLICENSED"
+}

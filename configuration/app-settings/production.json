@@ -1,0 +1,232 @@
+{
+  "environment": "production",
+  "platformSettings": {
+    "resourceGroupName": "tds-integration-prod",
+    "location": "uksouth",
+    "subscriptionId": "your-production-subscription-id",
+    "keyVaultName": "tds-platform-prod-kv",
+    "storageAccountName": "tdsplatformprodstorage",
+    "serviceBusNamespace": "tds-integration-prod-bus",
+    "functionAppName": "tds-platform-prod-functions",
+    "logicAppName": "tds-integration-prod-logic",
+    "apiManagementName": "tds-integration-prod-apim"
+  },
+  "services": {
+    "postcodeLookup": {
+      "endpoint": "https://tds-platform-prod-functions.azurewebsites.net/api/postcode",
+      "cacheEnabled": true,
+      "cacheTtlMinutes": 240,
+      "maxBatchSize": 500
+    },
+    "tdsAdapterFactory": {
+      "endpoint": "https://tds-platform-prod-functions.azurewebsites.net/api/tds",
+      "activeProvider": "current",
+      "dualMode": false,
+      "providers": {
+        "current": {
+          "baseUrl": "https://api.custodial.tenancydepositscheme.com/v1.2",
+          "timeout": 45000,
+          "maxRetries": 5
+        },
+        "salesforce": {
+          "baseUrl": "https://thedisputeservice--production.salesforce-sites.com",
+          "timeout": 60000,
+          "maxRetries": 5,
+          "note": "Production URL TBD - update when available"
+        }
+      },
+      "dualModeConfig": {
+        "enabled": false,
+        "compareResponses": true,
+        "logDifferences": true,
+        "alertOnMismatch": true,
+        "failOnMismatch": false,
+        "maxDifferenceThreshold": 5
+      },
+      "circuitBreaker": {
+        "enabled": true,
+        "failureThreshold": 5,
+        "successThreshold": 2,
+        "timeoutMs": 60000,
+        "monitoringWindowMs": 300000
+      },
+      "comparison": {
+        "enabled": true,
+        "strictMode": false,
+        "ignoreFields": ["timestamp", "requestId", "processingTime"],
+        "tolerancePercent": 0.1,
+        "logMismatches": true,
+        "alertOnCriticalMismatch": true
+      }
+    },
+    "tdsRequestForwarder": {
+      "endpoint": "https://tds-platform-prod-functions.azurewebsites.net/api/tds-forwarder",
+      "routingMode": "legacy-only",
+      "forwardingPercentage": 0,
+      "enableFallback": true,
+      "enableResponseComparison": true,
+      "migrationSettings": {
+        "enableShadowMode": false,
+        "shadowPercentage": 0,
+        "logDifferences": true,
+        "alertOnMismatch": true
+      }
+    },
+    "alto": {
+      "baseUrl": "https://api.alto.zoopla.co.uk",
+      "tokenEndpoint": "https://api.alto.zoopla.co.uk/token",
+      "clientId": "production-client-id",
+      "clientSecretKeyVault": "alto-client-secret-prod",
+      "scope": "alto/read:contacts,alto/read:tenancies,alto/read:inventory",
+      "timeout": 45000
+    }
+  },
+  "integrations": {
+    "alto": {
+      "enabled": true,
+      "logicAppName": "alto-adapter-prod",
+      "webhookPath": "/api/webhooks/alto",
+      "maxProcessingTimeMinutes": 45,
+      "retryPolicy": {
+        "maxAttempts": 5,
+        "backoffMultiplier": 2,
+        "initialDelaySeconds": 2
+      }
+    },
+    "jupix": {
+      "enabled": true,
+      "logicAppName": "jupix-adapter-prod",
+      "webhookPath": "/api/webhooks/jupix",
+      "maxProcessingTimeMinutes": 45,
+      "retryPolicy": {
+        "maxAttempts": 5,
+        "backoffMultiplier": 2,
+        "initialDelaySeconds": 2
+      }
+    }
+  },
+  "organizationMappings": {
+    "1af89d60-662c-475b-bcc8-9bcbf04b6322": {
+      "name": "Example Property Agency Ltd",
+      "environment": "production",
+      "alto": {
+        "agencyRef": "1af89d60-662c-475b-bcc8-9bcbf04b6322",
+        "branchId": "MAIN_BRANCH"
+      },
+      "tds": {
+        "memberNumber": "TDS_PROD_12345",
+        "branchId": "MAIN_BRANCH",
+        "credentialsKeyVault": "tds-prod-credentials"
+      }
+    }
+  },
+  "organizationOverrides": {
+    "note": "Per-organization API provider preferences override global settings",
+    "example": {
+      "agencyRef": "example-agency-ref-here",
+      "providerPreference": "auto",
+      "note": "Options: 'current' (legacy), 'salesforce', 'dual', 'auto' (use global config)"
+    }
+  },
+  "monitoring": {
+    "applicationInsights": {
+      "instrumentationKey": "prod-app-insights-key",
+      "samplingPercentage": 10,
+      "enableDependencyTracking": true
+    },
+    "logLevel": "Warning",
+    "alerts": {
+      "enabled": true,
+      "emailRecipients": [
+        "alerts@example.com",
+        "ops-team@example.com"
+      ],
+      "smsRecipients": ["+447700900000"],
+      "teamsWebhook": "https://outlook.office.com/webhook/teams-channel",
+      "thresholds": {
+        "errorRatePercent": 1,
+        "responseTimeMs": 5000,
+        "queueDepth": 20,
+        "failedIntegrationsPerHour": 5
+      }
+    }
+  },
+  "security": {
+    "enableWebhookSignatureVerification": true,
+    "allowedOrigins": [
+      "https://api.alto.zoopla.co.uk",
+      "https://api.jupix.co.uk"
+    ],
+    "rateLimiting": {
+      "enabled": true,
+      "requestsPerMinute": 500,
+      "burstLimit": 1000
+    },
+    "ipWhitelisting": {
+      "enabled": true,
+      "allowedIPs": [
+        "10.0.0.0/24",
+        "192.168.1.0/24"
+      ]
+    }
+  },
+  "storage": {
+    "tables": {
+      "altoIntegrations": "AltoIntegrations",
+      "jupixIntegrations": "JupixIntegrations",
+      "organizationMappings": "OrganizationMappings",
+      "webhookLogs": "WebhookLogs",
+      "depositRecords": "DepositRecords",
+      "auditLogs": "AuditLogs"
+    },
+    "queues": {
+      "deadLetter": "dead-letter-queue",
+      "retry": "retry-queue",
+      "notifications": "notifications-queue",
+      "highPriority": "high-priority-queue"
+    },
+    "retentionDays": 2555,
+    "archiveAfterDays": 365,
+    "backupEnabled": true
+  },
+  "featureFlags": {
+    "enableJupixIntegration": true,
+    "enableSalesforceTDS": false,
+    "enableAdvancedValidation": true,
+    "enableBatchProcessing": true,
+    "enableWebhookDeduplication": true,
+    "enableAuditLogging": true,
+    "enableAutoScaling": true,
+    "enableDualApiMode": false,
+    "enableRequestForwarding": false,
+    "enableLegacyToSalesforceForwarding": false,
+    "enableGradualRollout": false,
+    "enableCircuitBreaker": true,
+    "enableResponseComparison": true,
+    "enableOrganizationOverrides": true,
+    "enableConfigurationAPI": true,
+    "enableDynamicRouting": false
+  },
+  "performance": {
+    "concurrentRequests": 100,
+    "maxMemoryMB": 512,
+    "timeoutSeconds": 300,
+    "enableCaching": true,
+    "cacheExpiryMinutes": 60
+  },
+  "compliance": {
+    "gdpr": {
+      "enabled": true,
+      "dataRetentionDays": 2555,
+      "anonymizeAfterDays": 2920
+    },
+    "pci": {
+      "enabled": false
+    },
+    "encryption": {
+      "atRest": true,
+      "inTransit": true,
+      "keyVaultManaged": true
+    }
+  }
+}

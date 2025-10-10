@@ -1,0 +1,154 @@
+{
+  "environment": "local",
+  "platformSettings": {
+    "resourceGroupName": "local-development",
+    "location": "local",
+    "subscriptionId": "local-dev",
+    "keyVaultName": "local-kv",
+    "storageAccountName": "127.0.0.1",
+    "serviceBusNamespace": "local-bus",
+    "functionAppName": "localhost:7071",
+    "logicAppName": "local-logic",
+    "apiManagementName": "local-apim"
+  },
+  "services": {
+    "postcodeLookup": {
+      "endpoint": "http://localhost:7071/api/postcode",
+      "cacheEnabled": true,
+      "cacheTtlMinutes": 5,
+      "maxBatchSize": 10
+    },
+    "tdsAdapterFactory": {
+      "endpoint": "http://localhost:7071/api/tds",
+      "activeProvider": "current",
+      "providers": {
+        "current": {
+          "baseUrl": "https://sandbox.api.custodial.tenancydepositscheme.com/v1.2",
+          "timeout": 30000,
+          "maxRetries": 2
+        },
+        "salesforce": {
+          "baseUrl": "https://tds-dev.my.salesforce.com/services/apexrest/v2.0",
+          "timeout": 30000,
+          "maxRetries": 2
+        },
+        "mock": {
+          "baseUrl": "http://localhost:3001/mock-tds",
+          "timeout": 5000,
+          "maxRetries": 1
+        }
+      }
+    },
+    "alto": {
+      "baseUrl": "https://api.alto.zoopladev.co.uk",
+      "tokenEndpoint": "https://api.alto.zoopladev.co.uk/token",
+      "clientId": "d9kj85ukjpr6634i4sae0g00s",
+      "clientSecretKeyVault": "local-alto-secret",
+      "scope": "alto/read:contacts,alto/read:tenancies,alto/read:inventory",
+      "timeout": 15000
+    }
+  },
+  "integrations": {
+    "alto": {
+      "enabled": true,
+      "logicAppName": "local-alto-adapter",
+      "webhookPath": "/api/webhooks/alto",
+      "maxProcessingTimeMinutes": 5,
+      "retryPolicy": {
+        "maxAttempts": 2,
+        "backoffMultiplier": 1.5,
+        "initialDelaySeconds": 1
+      }
+    },
+    "jupix": {
+      "enabled": false,
+      "logicAppName": "local-jupix-adapter",
+      "webhookPath": "/api/webhooks/jupix"
+    }
+  },
+  "organizationMappings": {
+    "local-test-agency": {
+      "name": "Local Test Agency",
+      "environment": "development",
+      "alto": {
+        "agencyRef": "local-test-agency",
+        "branchId": "LOCAL_BRANCH"
+      },
+      "tds": {
+        "memberNumber": "LOCAL_TDS_123",
+        "branchId": "LOCAL_BRANCH",
+        "credentialsKeyVault": "local-tds-credentials"
+      }
+    },
+    "1af89d60-662c-475b-bcc8-9bcbf04b6322": {
+      "name": "Local Development Agency",
+      "environment": "development",
+      "alto": {
+        "agencyRef": "1af89d60-662c-475b-bcc8-9bcbf04b6322",
+        "branchId": "DEV_BRANCH"
+      },
+      "tds": {
+        "memberNumber": "DEV_TDS_12345",
+        "branchId": "DEV_BRANCH",
+        "credentialsKeyVault": "local-dev-credentials"
+      }
+    }
+  },
+  "monitoring": {
+    "applicationInsights": {
+      "instrumentationKey": "local-ai-key",
+      "samplingPercentage": 100,
+      "enableDependencyTracking": true
+    },
+    "logLevel": "Debug",
+    "alerts": {
+      "enabled": false,
+      "emailRecipients": ["dev@localhost"],
+      "thresholds": {
+        "errorRatePercent": 50,
+        "responseTimeMs": 30000,
+        "queueDepth": 100
+      }
+    }
+  },
+  "security": {
+    "enableWebhookSignatureVerification": false,
+    "allowedOrigins": ["*"],
+    "rateLimiting": {
+      "enabled": false,
+      "requestsPerMinute": 1000
+    }
+  },
+  "storage": {
+    "connectionString": "UseDevelopmentStorage=true",
+    "tables": {
+      "altoIntegrations": "AltoIntegrationsLocal",
+      "organizationMappings": "OrganizationMappingsLocal",
+      "webhookLogs": "WebhookLogsLocal",
+      "depositRecords": "DepositRecordsLocal"
+    },
+    "queues": {
+      "deadLetter": "dead-letter-queue-local",
+      "retry": "retry-queue-local",
+      "notifications": "notifications-queue-local"
+    },
+    "retentionDays": 7
+  },
+  "featureFlags": {
+    "enableJupixIntegration": false,
+    "enableSalesforceTDS": false,
+    "enableAdvancedValidation": true,
+    "enableBatchProcessing": false,
+    "enableWebhookDeduplication": false,
+    "enableMockTDS": true
+  },
+  "development": {
+    "enableCORS": true,
+    "enableDetailedErrors": true,
+    "enableRequestLogging": true,
+    "mockServices": {
+      "tds": "http://localhost:3001/mock-tds",
+      "alto": "http://localhost:3002/mock-alto"
+    }
+  }
+}

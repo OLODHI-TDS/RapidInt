@@ -1,0 +1,1628 @@
+[2025-09-30T14:54:26.973Z] Executing HTTP request: {
+[2025-09-30T14:54:26.975Z] 🔄 Executing workflow wf_1759244066894_4rfn8rgi for tenancy 1565002
+[2025-09-30T14:54:26.979Z]   "requestId": "71f839d4-562b-4218-ad73-36de969e35f0",
+[2025-09-30T14:54:26.983Z] 📡 Fetching Alto tenancy data...
+[2025-09-30T14:54:26.986Z]   "method": "POST",
+[2025-09-30T14:54:26.995Z]   "userAgent": "axios/1.12.2",
+
+[2025-09-30T14:54:27.002Z]   "uri": "/api/alto/fetch-tenancy/1565002"
+[2025-09-30T14:54:27.006Z] }
+[2025-09-30T14:54:27.025Z] Executing 'Functions.AltoIntegration' (Reason='This function was programmatically called via the host APIs.', Id=b9b840e1-c940-4630-b472-ff97f1233dbd)
+[2025-09-30T14:54:27.228Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId b9b840e1-c940-4630-b472-ff97f1233dbd
+[2025-09-30T14:54:28.359Z] Executed 'Functions.AltoIntegration' (Succeeded, Id=b9b840e1-c940-4630-b472-ff97f1233dbd, Duration=1336ms)
+[2025-09-30T14:54:28.363Z] Executed HTTP request: {
+[2025-09-30T14:54:28.367Z]   "requestId": "71f839d4-562b-4218-ad73-36de969e35f0",
+[2025-09-30T14:54:28.370Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T14:54:28.375Z]   "status": "200",
+[2025-09-30T14:54:28.378Z]   "duration": "1390"
+[2025-09-30T14:54:28.382Z] }
+[2025-09-30T14:54:28.409Z] ✅ Validating and enriching data...
+[2025-09-30T14:54:28.417Z] 🔍 Alto API Response Structure:
+[2025-09-30T14:54:28.421Z] 📋 Tenancy: {
+  "id": 1565002,
+  "groupId": 2419,
+  "branchId": 8283,
+  "propertyId": 18856763,
+  "termYears": 1,
+  "termMonths": 0,
+  "occupantCount": 0,
+  "rent": 745,
+  "rentalFrequency": "Monthly",
+  "depositRequested": 0,
+  "currencyCode": "GBP",
+  "rentalAddress": {
+    "subDwelling": "",
+    "nameNo": "78",
+    "street": "Gweal Wartha",
+    "locality": "",
+    "town": "Helston",
+    "county": "",
+    "postcode": "TR13 0SN",
+    "country": "GB"
+  },
+  "startDate": "2025-10-14T00:00:00+00:00",
+  "targetVacateDate": null,
+  "firstFullRentDate": "2025-10-14T00:00:00+00:00",
+  "noticeToQuitDate": "2026-08-13T00:00:00+00:00",
+  "endDate": "2026-10-13T00:00:00+00:00",
+  "renewalDate": "2026-10-14T00:00:00+00:00",
+  "nextTermTenancyId": 0
+}
+[2025-09-30T14:54:28.556Z] 🏠 Property: {
+  "id": "18856763",
+  "branchId": "8283",
+  "category": "Residential",
+  "recordType": "Rent",
+  "address": {
+    "subDwelling": "",
+    "nameNo": "78",
+    "street": "Gweal Wartha",
+    "locality": "",
+    "town": "Helston",
+    "county": "",
+    "postcode": "TR13 0SN",
+    "countryCode": "GB"
+  },
+  "priceQualifier": "Unspecified",
+  "currency": "GBP",
+  "yearBuilt": null,
+  "newBuild": false,
+  "floorAreaInSquareFeet": null,
+  "landAreaInAcres": null,
+  "price": 745,
+  "bedrooms": 3,
+  "receptions": 2,
+  "bathrooms": 1,
+  "propertySubTypeId": 5,
+  "propertyType": "House - Terraced",
+  "status": "Let Agreed",
+  "inventoryStatus": "LetAgreed",
+  "archived": false,
+  "isAtActiveStatus": true,
+  "tenureId": 0,
+  "tenure": "",
+  "rentalFrequency": "Monthly",
+  "owners": [
+    {
+      "ownerId": "42641295-1",
+      "contactId": 42641295,
+      "name": {
+        "title": "Miss",
+        "forename": "Cerys",
+        "surname": "Moran"
+      },
+      "phoneNumbers": [
+        {
+          "preferenceOrder": 1,
+          "type": "Mobile",
+          "description": "Home",
+          "number": "07725396644"
+        }
+      ],
+      "emailAddresses": []
+    }
+  ],
+  "taxBand": "",
+  "taxBandExemptReason": "",
+  "serviceCharge": null,
+  "groundRent": null,
+  "localAuthority": "",
+  "leaseRemainingYears": null,
+  "leaseTerm": null,
+  "leaseEndDate": null,
+  "groundRentReviewPeriod": null,
+  "groundRentPercentageIncrease": null,
+  "sharedOwnership": null,
+  "sharedOwnershipPercentageShare": null,
+  "sharedOwnershipRent": null,
+  "sharedOwnershipRentFrequencyId": null,
+  "leaseNotes": "",
+  "privateViewingNotes": "",
+  "displayAddress": "Gweal Wartha, Helston",
+  "hasAsbestos": false,
+  "rentalDateAvailable": null,
+  "groundRentFixedForTerm": null,
+  "groundRentNotes": null,
+  "serviceChargeNotes": null,
+  "negotiator": {
+    "id": 90735,
+    "name": ""
+  },
+  "negotiatorName": "",
+  "instructionDate": "2025-09-30T15:52:04.973",
+  "managementType": "Unspecified",
+  "maintenanceType": "Unspecified",
+  "accessibilityRequirements": {
+    "accessibility": []
+  },
+  "broadband": {
+    "supply": [],
+    "speed": null
+  },
+  "buildingSafety": {
+    "issue": []
+  },
+  "construction": {
+    "material": []
+  },
+  "coastalErosion": null,
+  "electricity": {
+    "supply": []
+  },
+  "floodingRisks": {
+    "sourcesOfFlooding": {
+      "source": []
+    },
+    "floodedWithinLast5Years": null,
+    "floodDefensesPresent": null
+  },
+  "heating": {
+    "source": []
+  },
+  "knownPlanningConsiderations": null,
+  "miningRisks": {
+    "coalfields": null,
+    "otherMiningActivities": null
+  },
+  "mobileCoverage": null,
+  "parking": {
+    "parkingType": []
+  },
+  "restrictions": {
+    "conservationArea": null,
+    "leaseRestrictions": null,
+    "listedBuilding": null,
+    "permittedDevelopment": null,
+    "realBurdens": null,
+    "holidayHomeRental": null,
+    "restrictiveCovenant": null,
+    "businessFromProperty": null,
+    "propertySubletting": null,
+    "treePreservationOrder": null,
+    "other": null
+  },
+  "rightsAndEasements": {
+    "rightOfWayPublic": null,
+    "rightOfWayPrivate": null,
+    "registeredEasementsHmlr": null,
+    "servitudes": null,
+    "sharedDriveway": null,
+    "loftAccess": null,
+    "drainAccess": null,
+    "other": null
+  },
+  "sewerage": {
+    "supply": []
+  },
+  "water": {
+    "supply": []
+  },
+  "epc": {
+    "energyEfficiencyRatingCurrent": null,
+    "energyEfficiencyRatingPotential": null,
+    "exempt": false,
+    "exemptionReason": null
+  },
+  "uprn": null,
+  "createdDate": "2025-09-30T15:50:26.633",
+  "modifiedDate": "2025-09-30T15:53:03.96"
+}
+[2025-09-30T14:54:28.575Z] 👤 Landlord: null
+[2025-09-30T14:54:28.579Z] 👥 Tenants: [
+  {
+    "items": [
+      {
+        "address": {
+          "subDwelling": "",
+          "nameNumber": "",
+          "street": "",
+          "locality": "",
+          "town": "",
+          "county": "",
+          "postcode": "",
+          "countryCode": "GB"
+        },
+        "branch": {
+          "id": "8282"
+        },
+        "people": [
+          {
+            "title": "Mrs",
+            "forename": "Shannon",
+            "surname": "Powell",
+            "phoneNumbers": [],
+            "emailAddresses": [
+              {
+                "preferenceOrder": 1,
+                "type": "Personal",
+                "address": "ShannonPowell@jourrapide.com"
+              }
+            ],
+            "id": "1",
+            "links": [
+              {
+                "href": "/contacts/42641296/persons/1",
+                "rel": "self"
+              }
+            ]
+          }
+        ],
+        "category": "Client",
+        "intention": {
+          "code": "89",
+          "name": "Not looking"
+        },
+        "notes": "",
+        "archived": false,
+        "applicantRequirements": [
+          {
+            "profileIntention": "Buy",
+            "isNewBuild": null,
+            "priceFrom": null,
+            "priceTo": null,
+            "bedsMin": null,
+            "isActiveProfile": true,
+            "rentalIntention": null,
+            "id": "32809585",
+            "links": []
+          }
+        ],
+        "id": "42641296",
+        "links": [
+          {
+            "href": "/contacts/42641296",
+            "rel": "self"
+          }
+        ]
+      }
+    ]
+  }
+]
+[2025-09-30T14:54:28.589Z] 🔍 Deposit availability check: { depositRequested: 0, depositAmount: undefined, hasDeposit: false }
+[2025-09-30T14:54:28.595Z] 💤 Data incomplete but suitable for delayed processing
+[2025-09-30T14:54:28.603Z] 💤 Creating pending integration for missing data...
+[2025-09-30T14:54:28.609Z] 💤 Created pending integration record: pending_1759244068394_zdxu29ob for tenancy: 1565002
+[2025-09-30T14:54:28.636Z] 📋 Missing data: deposit: deposit amount
+[2025-09-30T14:54:28.642Z] Executed 'Functions.WorkflowOrchestrator' (Succeeded, Id=76357ea1-70a0-4d23-bfb5-6bc6eb0fc6bf, Duration=1770ms)
+[2025-09-30T14:54:28.649Z] Executed HTTP request: {
+[2025-09-30T14:54:28.654Z]   "requestId": "7ec70095-d6de-4680-9776-603e85e707f0",
+[2025-09-30T14:54:28.660Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T14:54:28.666Z]   "status": "500",
+[2025-09-30T14:54:28.670Z]   "duration": "1864"
+[2025-09-30T14:54:28.674Z] }
+[2025-09-30T14:54:36.509Z] Executing HTTP request: {
+[2025-09-30T14:54:36.510Z]   "requestId": "9375f802-b5f9-47c0-9ef4-2780c0981980",
+[2025-09-30T14:54:36.513Z]   "method": "GET",
+[2025-09-30T14:54:36.515Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T14:54:36.518Z]   "uri": "/api/health"
+[2025-09-30T14:54:36.520Z] }
+[2025-09-30T14:54:36.523Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=3e8c8edf-4797-466c-9891-a048b978871f)
+[2025-09-30T14:54:36.532Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 3e8c8edf-4797-466c-9891-a048b978871f
+[2025-09-30T14:54:36.534Z] Executed 'Functions.health' (Succeeded, Id=3e8c8edf-4797-466c-9891-a048b978871f, Duration=11ms)
+[2025-09-30T14:54:36.539Z] Executed HTTP request: {
+[2025-09-30T14:54:36.541Z]   "requestId": "9375f802-b5f9-47c0-9ef4-2780c0981980",
+[2025-09-30T14:54:36.544Z]   "identities": "",
+[2025-09-30T14:54:36.546Z]   "status": "200",
+[2025-09-30T14:54:36.550Z]   "duration": "30"
+[2025-09-30T14:54:36.552Z] }
+[2025-09-30T14:54:36.509Z] Executing HTTP request: {
+[2025-09-30T14:54:36.510Z]   "requestId": "9375f802-b5f9-47c0-9ef4-2780c0981980",
+[2025-09-30T14:54:36.513Z]   "method": "GET",
+[2025-09-30T14:54:36.515Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T14:54:36.518Z]   "uri": "/api/health"
+[2025-09-30T14:54:36.520Z] }
+[2025-09-30T14:54:36.523Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=3e8c8edf-4797-466c-9891-a048b978871f)
+[2025-09-30T14:54:36.532Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 3e8c8edf-4797-466c-9891-a048b978871f
+[2025-09-30T14:54:36.534Z] Executed 'Functions.health' (Succeeded, Id=3e8c8edf-4797-466c-9891-a048b978871f, Duration=11ms)
+[2025-09-30T14:54:36.539Z] Executed HTTP request: {
+[2025-09-30T14:54:36.541Z]   "requestId": "9375f802-b5f9-47c0-9ef4-2780c0981980",
+[2025-09-30T14:54:36.544Z]   "identities": "",
+[2025-09-30T14:54:36.546Z]   "status": "200",
+[2025-09-30T14:54:36.550Z]   "duration": "30"
+[2025-09-30T14:54:36.552Z] }
+[2025-09-30T14:54:46.658Z] Executing HTTP request: {
+[2025-09-30T14:54:46.693Z]   "requestId": "d415ac4a-5582-43dd-97ec-b211ea8cd4f0",
+[2025-09-30T14:54:46.710Z]   "method": "GET",
+[2025-09-30T14:54:46.728Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T14:54:46.741Z]   "uri": "/api/health"
+[2025-09-30T14:54:46.755Z] }
+[2025-09-30T14:54:46.778Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=6651f865-a0c8-4674-90be-abacb238a4f2)
+[2025-09-30T14:54:46.810Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 6651f865-a0c8-4674-90be-abacb238a4f2
+[2025-09-30T14:54:46.812Z] Executed 'Functions.health' (Succeeded, Id=6651f865-a0c8-4674-90be-abacb238a4f2, Duration=34ms)
+[2025-09-30T14:54:46.842Z] Executed HTTP request: {
+[2025-09-30T14:54:46.848Z]   "requestId": "d415ac4a-5582-43dd-97ec-b211ea8cd4f0",
+[2025-09-30T14:54:46.851Z]   "identities": "",
+[2025-09-30T14:54:46.855Z]   "status": "200",
+[2025-09-30T14:54:46.860Z]   "duration": "183"
+[2025-09-30T14:54:46.863Z] }
+[2025-09-30T14:54:56.687Z] Executing HTTP request: {
+[2025-09-30T14:54:56.690Z]   "requestId": "a3ca845b-4e77-4b89-984b-ccac4226b390",
+[2025-09-30T14:54:56.693Z]   "method": "GET",
+[2025-09-30T14:54:56.699Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T14:54:56.702Z]   "uri": "/api/health"
+[2025-09-30T14:54:56.705Z] }
+[2025-09-30T14:54:56.710Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=1e40a8cf-0ac1-474c-9649-05124cf94daf)
+[2025-09-30T14:54:56.721Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 1e40a8cf-0ac1-474c-9649-05124cf94daf
+[2025-09-30T14:54:56.724Z] Executed 'Functions.health' (Succeeded, Id=1e40a8cf-0ac1-474c-9649-05124cf94daf, Duration=13ms)
+[2025-09-30T14:54:56.730Z] Executed HTTP request: {
+[2025-09-30T14:54:56.733Z]   "requestId": "a3ca845b-4e77-4b89-984b-ccac4226b390",
+[2025-09-30T14:54:56.736Z]   "identities": "",
+[2025-09-30T14:54:56.739Z]   "status": "200",
+[2025-09-30T14:54:56.741Z]   "duration": "42"
+[2025-09-30T14:54:56.744Z] }
+[2025-09-30T14:55:00.037Z] Executing 'Functions.PendingPollingService' (Reason='Timer fired at 2025-09-30T15:55:00.0281769+01:00', Id=74e16696-478d-46b5-b9d7-d85d415e122d)
+[2025-09-30T14:55:00.065Z] Trigger Details: ScheduleStatus: {"Last":"2025-09-30T15:50:00.0062946+01:00","Next":"2025-09-30T15:55:00+01:00","LastUpdated":"2025-09-30T15:50:00.0062946+01:00"}
+[2025-09-30T14:55:00.128Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 74e16696-478d-46b5-b9d7-d85d415e122d
+[2025-09-30T14:55:00.129Z] 🔄 Starting pending integration polling service...
+[2025-09-30T14:55:00.216Z] 🔍 Checking for pending integrations ready for polling...
+[2025-09-30T14:55:00.230Z] ✅ Pending integrations table initialized
+[2025-09-30T14:55:00.239Z] ✅ Table 'PollingSettings' ready
+[2025-09-30T14:55:00.245Z] ✅ Pending integrations archive table initialized
+[2025-09-30T14:55:00.253Z] 📊 Loaded polling settings: pendingPollInterval=10min, maxPollAttempts=5
+[2025-09-30T14:55:00.261Z] 🧹 Running cleanup for stale integrations...
+[2025-09-30T14:55:00.271Z] 🔍 Checking pending_1759228947550_usn3pxfv: status=PROCESSING, pollCount=1/5
+[2025-09-30T14:55:00.285Z] ⏭️ Skipping pending_1759228947550_usn3pxfv: currently PROCESSING
+[2025-09-30T14:55:00.294Z] 🔍 Checking pending_1759244068394_zdxu29ob: status=PENDING_DEPOSIT, pollCount=0/5
+[2025-09-30T14:55:00.305Z] ⏭️ Skipping pending_1759244068394_zdxu29ob: still active (status=PENDING_DEPOSIT)
+[2025-09-30T14:55:00.312Z] 🧹 Cleanup complete: Checked 2 integrations, archived 0
+[2025-09-30T14:55:00.323Z] 📭 No pending integrations ready for polling
+[2025-09-30T14:55:00.329Z] ✅ Polling service completed: { processed: 0, completed: 0, failed: 0, stillPending: 0 }
+[2025-09-30T14:55:00.343Z] Executed 'Functions.PendingPollingService' (Succeeded, Id=74e16696-478d-46b5-b9d7-d85d415e122d, Duration=315ms)
+[2025-09-30T14:55:06.514Z] Executing HTTP request: {
+[2025-09-30T14:55:06.519Z]   "requestId": "f0493a5f-96dc-4358-b8e8-733664040fd8",
+[2025-09-30T14:55:06.523Z]   "method": "GET",
+[2025-09-30T14:55:06.527Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T14:55:06.531Z]   "uri": "/api/health"
+[2025-09-30T14:55:06.535Z] }
+[2025-09-30T14:55:06.544Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=7713df99-f4c1-46b4-8178-86251a1cde8d)
+[2025-09-30T14:55:06.559Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 7713df99-f4c1-46b4-8178-86251a1cde8d
+[2025-09-30T14:55:06.560Z] Executed 'Functions.health' (Succeeded, Id=7713df99-f4c1-46b4-8178-86251a1cde8d, Duration=16ms)
+[2025-09-30T14:55:06.577Z] Executed HTTP request: {
+[2025-09-30T14:55:06.580Z]   "requestId": "f0493a5f-96dc-4358-b8e8-733664040fd8",
+[2025-09-30T14:55:06.586Z]   "identities": "",
+[2025-09-30T14:55:06.591Z]   "status": "200",
+[2025-09-30T14:55:06.596Z]   "duration": "62"
+[2025-09-30T14:55:06.601Z] }
+
+
+[2025-09-30T14:56:17.751Z] 🔄 Starting immediate retry for integration pending_1759244068394_zdxu29ob
+[2025-09-30T14:56:17.754Z] Executing HTTP request: {
+[2025-09-30T14:56:17.766Z]   "requestId": "bbfd3bf1-daf1-4535-b153-caa9e175314c",
+[2025-09-30T14:56:17.770Z]   "method": "POST",
+[2025-09-30T14:56:17.781Z]   "userAgent": "axios/1.12.2",
+[2025-09-30T14:56:17.790Z]   "uri": "/api/alto/fetch-tenancy/1565002"
+[2025-09-30T14:56:17.795Z] }
+[2025-09-30T14:56:17.813Z] Executing 'Functions.AltoIntegration' (Reason='This function was programmatically called via the host APIs.', Id=dfbb842f-ee27-4879-b46d-4c0b58dfede9)
+[2025-09-30T14:56:17.975Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId dfbb842f-ee27-4879-b46d-4c0b58dfede9
+[2025-09-30T14:56:18.755Z] Executed 'Functions.AltoIntegration' (Succeeded, Id=dfbb842f-ee27-4879-b46d-4c0b58dfede9, Duration=955ms)
+[2025-09-30T14:56:18.760Z] Executed HTTP request: {
+[2025-09-30T14:56:18.769Z]   "requestId": "bbfd3bf1-daf1-4535-b153-caa9e175314c",
+[2025-09-30T14:56:18.774Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T14:56:18.780Z]   "status": "200",
+[2025-09-30T14:56:18.785Z]   "duration": "1005"
+[2025-09-30T14:56:18.792Z] }
+[2025-09-30T14:56:18.806Z] Executing HTTP request: {
+[2025-09-30T14:56:18.814Z]   "requestId": "f50d01d7-0bd0-4b97-86c3-ee6a4a0095f6",
+[2025-09-30T14:56:18.815Z] 🔍 Fresh Alto data for 1565002:
+[2025-09-30T14:56:18.824Z]   "method": "POST",
+[2025-09-30T14:56:18.829Z]    Deposit Requested: 859.61
+[2025-09-30T14:56:18.833Z]   "userAgent": "axios/1.12.2",
+[2025-09-30T14:56:18.840Z]   "uri": "/api/workflows/alto-tds"
+[2025-09-30T14:56:18.838Z]    Deposit Amount: undefined
+[2025-09-30T14:56:18.843Z] }
+[2025-09-30T14:56:18.846Z] 🔍 Validation result for 1565002:
+[2025-09-30T14:56:18.852Z] Executing 'Functions.WorkflowOrchestrator' (Reason='This function was programmatically called via the host APIs.', Id=75ded95a-7482-448e-93d6-e47fa6c720c2)
+[2025-09-30T14:56:18.854Z]    Is Complete: true
+[2025-09-30T14:56:18.865Z]    Missing Fields: {"tenancy":[],"property":[],"contacts":[],"deposit":[]}
+[2025-09-30T14:56:18.870Z]    Summary: 
+[2025-09-30T14:56:18.874Z] 🚀 Starting Alto → TDS workflow: {
+  tenancyId: '1565002',
+  agencyRef: '1af89d60-662c-475b-bcc8-9bcbf04b6322',
+  branchId: '8283'
+}
+[2025-09-30T14:56:18.870Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 75ded95a-7482-448e-93d6-e47fa6c720c2
+[2025-09-30T14:56:18.874Z] Executing HTTP request: {
+[2025-09-30T14:56:18.887Z]   "requestId": "b5433e09-7bc0-4130-9078-04e0617042d7",
+[2025-09-30T14:56:18.876Z] ✅ Data now complete for 1565002 - triggering workflow
+[2025-09-30T14:56:18.892Z]   "method": "POST",
+[2025-09-30T14:56:18.900Z]   "userAgent": "axios/1.12.2",
+[2025-09-30T14:56:18.880Z] 🔄 Executing workflow wf_1759244178864_5ai69l03 for tenancy 1565002
+[2025-09-30T14:56:18.904Z]   "uri": "/api/alto/fetch-tenancy/1565002"
+[2025-09-30T14:56:18.909Z] 📡 Fetching Alto tenancy data...
+[2025-09-30T14:56:18.913Z] }
+[2025-09-30T14:56:18.923Z] Executing 'Functions.AltoIntegration' (Reason='This function was programmatically called via the host APIs.', Id=9477b724-3f60-4016-a6a1-27a6a7189475)
+[2025-09-30T14:56:18.940Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 9477b724-3f60-4016-a6a1-27a6a7189475
+[2025-09-30T14:56:19.283Z] Executed 'Functions.AltoIntegration' (Succeeded, Id=9477b724-3f60-4016-a6a1-27a6a7189475, Duration=360ms)
+[2025-09-30T14:56:19.289Z] Executed HTTP request: {
+[2025-09-30T14:56:19.293Z]   "requestId": "b5433e09-7bc0-4130-9078-04e0617042d7",
+[2025-09-30T14:56:19.297Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T14:56:19.302Z]   "status": "200",
+[2025-09-30T14:56:19.308Z]   "duration": "414"
+[2025-09-30T14:56:19.312Z] }
+[2025-09-30T14:56:19.329Z] ✅ Validating and enriching data...
+[2025-09-30T14:56:19.334Z] 🔍 Alto API Response Structure:
+[2025-09-30T14:56:19.341Z] Executing HTTP request: {
+[2025-09-30T14:56:19.343Z] 📋 Tenancy: {
+  "id": 1565002,
+  "groupId": 2419,
+  "branchId": 8283,
+  "propertyId": 18856763,
+  "termYears": 1,
+  "termMonths": 0,
+  "occupantCount": 0,
+  "rent": 745,
+  "rentalFrequency": "Monthly",
+  "depositRequested": 859.61,
+  "currencyCode": "GBP",
+  "rentalAddress": {
+    "subDwelling": "",
+    "nameNo": "78",
+    "street": "Gweal Wartha",
+    "locality": "",
+    "town": "Helston",
+    "county": "",
+    "postcode": "TR13 0SN",
+    "country": "GB"
+  },
+  "startDate": "2025-10-14T00:00:00+00:00",
+  "targetVacateDate": null,
+  "firstFullRentDate": "2025-10-14T00:00:00+00:00",
+  "noticeToQuitDate": "2026-08-13T00:00:00+00:00",
+  "endDate": "2026-10-13T00:00:00+00:00",
+  "renewalDate": "2026-10-14T00:00:00+00:00",
+  "nextTermTenancyId": 0
+}
+[2025-09-30T14:56:19.347Z]   "requestId": "e26aaee6-b8f5-4d15-94f3-20d6b6c29a8f",
+[2025-09-30T14:56:19.354Z] 🏠 Property: {
+  "id": "18856763",
+  "branchId": "8283",
+  "category": "Residential",
+  "recordType": "Rent",
+  "address": {
+    "subDwelling": "",
+    "nameNo": "78",
+    "street": "Gweal Wartha",
+    "locality": "",
+    "town": "Helston",
+    "county": "",
+    "postcode": "TR13 0SN",
+    "countryCode": "GB"
+  },
+  "priceQualifier": "Unspecified",
+  "currency": "GBP",
+  "yearBuilt": null,
+  "newBuild": false,
+  "floorAreaInSquareFeet": null,
+  "landAreaInAcres": null,
+  "price": 745,
+  "bedrooms": 3,
+  "receptions": 2,
+  "bathrooms": 1,
+  "propertySubTypeId": 5,
+  "propertyType": "House - Terraced",
+  "status": "Let Agreed",
+  "inventoryStatus": "LetAgreed",
+  "archived": false,
+  "isAtActiveStatus": true,
+  "tenureId": 0,
+  "tenure": "",
+  "rentalFrequency": "Monthly",
+  "owners": [
+    {
+      "ownerId": "42641295-1",
+      "contactId": 42641295,
+      "name": {
+        "title": "Miss",
+        "forename": "Cerys",
+        "surname": "Moran"
+      },
+      "phoneNumbers": [
+        {
+          "preferenceOrder": 1,
+          "type": "Mobile",
+          "description": "Home",
+          "number": "07725396644"
+        }
+      ],
+      "emailAddresses": []
+    }
+  ],
+  "taxBand": "",
+  "taxBandExemptReason": "",
+  "serviceCharge": null,
+  "groundRent": null,
+  "localAuthority": "",
+  "leaseRemainingYears": null,
+  "leaseTerm": null,
+  "leaseEndDate": null,
+  "groundRentReviewPeriod": null,
+  "groundRentPercentageIncrease": null,
+  "sharedOwnership": null,
+  "sharedOwnershipPercentageShare": null,
+  "sharedOwnershipRent": null,
+  "sharedOwnershipRentFrequencyId": null,
+  "leaseNotes": "",
+  "privateViewingNotes": "",
+  "displayAddress": "Gweal Wartha, Helston",
+  "hasAsbestos": false,
+  "rentalDateAvailable": null,
+  "groundRentFixedForTerm": null,
+  "groundRentNotes": null,
+  "serviceChargeNotes": null,
+  "negotiator": {
+    "id": 90735,
+    "name": ""
+  },
+  "negotiatorName": "",
+  "instructionDate": "2025-09-30T15:52:04.973",
+  "managementType": "Unspecified",
+  "maintenanceType": "Unspecified",
+  "accessibilityRequirements": {
+    "accessibility": []
+  },
+  "broadband": {
+    "supply": [],
+    "speed": null
+  },
+  "buildingSafety": {
+    "issue": []
+  },
+  "construction": {
+    "material": []
+  },
+  "coastalErosion": null,
+  "electricity": {
+    "supply": []
+  },
+  "floodingRisks": {
+    "sourcesOfFlooding": {
+      "source": []
+    },
+    "floodedWithinLast5Years": null,
+    "floodDefensesPresent": null
+  },
+  "heating": {
+    "source": []
+  },
+  "knownPlanningConsiderations": null,
+  "miningRisks": {
+    "coalfields": null,
+    "otherMiningActivities": null
+  },
+  "mobileCoverage": null,
+  "parking": {
+    "parkingType": []
+  },
+  "restrictions": {
+    "conservationArea": null,
+    "leaseRestrictions": null,
+    "listedBuilding": null,
+    "permittedDevelopment": null,
+    "realBurdens": null,
+    "holidayHomeRental": null,
+    "restrictiveCovenant": null,
+    "businessFromProperty": null,
+    "propertySubletting": null,
+    "treePreservationOrder": null,
+    "other": null
+  },
+  "rightsAndEasements": {
+    "rightOfWayPublic": null,
+    "rightOfWayPrivate": null,
+    "registeredEasementsHmlr": null,
+    "servitudes": null,
+    "sharedDriveway": null,
+    "loftAccess": null,
+    "drainAccess": null,
+    "other": null
+  },
+  "sewerage": {
+    "supply": []
+  },
+  "water": {
+    "supply": []
+  },
+  "epc": {
+    "energyEfficiencyRatingCurrent": null,
+    "energyEfficiencyRatingPotential": null,
+    "exempt": false,
+    "exemptionReason": null
+  },
+  "uprn": null,
+  "createdDate": "2025-09-30T15:50:26.633",
+  "modifiedDate": "2025-09-30T15:53:03.96"
+}
+[2025-09-30T14:56:19.357Z]   "method": "GET",
+[2025-09-30T14:56:19.371Z] 👤 Landlord: null
+[2025-09-30T14:56:19.374Z]   "userAgent": "axios/1.12.2",
+[2025-09-30T14:56:19.378Z] 👥 Tenants: [
+  {
+    "items": [
+      {
+        "address": {
+          "subDwelling": "",
+          "nameNumber": "",
+          "street": "",
+          "locality": "",
+          "town": "",
+          "county": "",
+          "postcode": "",
+          "countryCode": "GB"
+        },
+        "branch": {
+          "id": "8282"
+        },
+        "people": [
+          {
+            "title": "Mrs",
+            "forename": "Shannon",
+            "surname": "Powell",
+            "phoneNumbers": [],
+            "emailAddresses": [
+              {
+                "preferenceOrder": 1,
+                "type": "Personal",
+                "address": "ShannonPowell@jourrapide.com"
+              }
+            ],
+            "id": "1",
+            "links": [
+              {
+                "href": "/contacts/42641296/persons/1",
+                "rel": "self"
+              }
+            ]
+          }
+        ],
+        "category": "Client",
+        "intention": {
+          "code": "89",
+          "name": "Not looking"
+        },
+        "notes": "",
+        "archived": false,
+        "applicantRequirements": [
+          {
+            "profileIntention": "Buy",
+            "isNewBuild": null,
+            "priceFrom": null,
+            "priceTo": null,
+            "bedsMin": null,
+            "isActiveProfile": true,
+            "rentalIntention": null,
+            "id": "32809585",
+            "links": []
+          }
+        ],
+        "id": "42641296",
+        "links": [
+          {
+            "href": "/contacts/42641296",
+            "rel": "self"
+          }
+        ]
+      }
+    ]
+  }
+]
+[2025-09-30T14:56:19.381Z]   "uri": "/api/postcode/TR13%200SN"
+[2025-09-30T14:56:19.387Z] 🔍 Deposit availability check: {
+  depositRequested: 859.61,
+  depositAmount: undefined,
+  hasDeposit: true
+}
+[2025-09-30T14:56:19.391Z] }
+[2025-09-30T14:56:19.403Z] Executing 'Functions.PostcodeLookup' (Reason='This function was programmatically called via the host APIs.', Id=bafb67f0-bf26-42da-b21f-931fac68a261)
+[2025-09-30T14:56:19.433Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId bafb67f0-bf26-42da-b21f-931fac68a261
+[2025-09-30T14:56:19.483Z] Postcode lookup: TR13 0SN (district: TR13) -> Cornwall (4ms)
+[2025-09-30T14:56:19.491Z] Executed 'Functions.PostcodeLookup' (Succeeded, Id=bafb67f0-bf26-42da-b21f-931fac68a261, Duration=89ms)
+[2025-09-30T14:56:19.496Z] Executed HTTP request: {
+[2025-09-30T14:56:19.505Z]   "requestId": "e26aaee6-b8f5-4d15-94f3-20d6b6c29a8f",
+[2025-09-30T14:56:19.510Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T14:56:19.514Z]   "status": "200",
+[2025-09-30T14:56:19.519Z]   "duration": "154"
+[2025-09-30T14:56:19.523Z] }
+[2025-09-30T14:56:19.540Z] Executing HTTP request: {
+[2025-09-30T14:56:19.540Z] 📝 Preparing TDS deposit payload...
+[2025-09-30T14:56:19.546Z]   "requestId": "48cf5a49-8e28-4eaf-b9f7-d7859983c038",
+[2025-09-30T14:56:19.551Z] 💰 Creating TDS deposit...
+[2025-09-30T14:56:19.555Z]   "method": "POST",
+[2025-09-30T14:56:19.564Z]   "userAgent": "axios/1.12.2",
+[2025-09-30T14:56:19.570Z]   "uri": "/api/tds/create"
+[2025-09-30T14:56:19.571Z] 📋 Prepared TDS Payload Data:
+[2025-09-30T14:56:19.574Z] }
+[2025-09-30T14:56:19.580Z] {
+[2025-09-30T14:56:19.595Z] Executing 'Functions.TDSAdapter' (Reason='This function was programmatically called via the host APIs.', Id=d0d59719-50ef-4a50-8e7b-08ff0b1a6850)
+[2025-09-30T14:56:19.598Z]   "tenancyId": 1565002,
+[2025-09-30T14:56:19.616Z]   "depositAmount": 859.61,
+[2025-09-30T14:56:19.623Z]   "rentAmount": 745,
+[2025-09-30T14:56:19.628Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId d0d59719-50ef-4a50-8e7b-08ff0b1a6850
+[2025-09-30T14:56:19.628Z]   "tenancyStartDate": "2025-10-14T00:00:00+00:00",
+[2025-09-30T14:56:19.638Z]   "tenancyEndDate": "2026-10-13T00:00:00+00:00",
+[2025-09-30T14:56:19.638Z] Executing HTTP request: {
+[2025-09-30T14:56:19.643Z]   "property": {
+[2025-09-30T14:56:19.647Z]   "requestId": "8c6bd253-7fc2-41a8-9ca2-7aed0a41fef4",
+[2025-09-30T14:56:19.656Z]   "method": "GET",
+[2025-09-30T14:56:19.660Z]   "userAgent": "node",
+[2025-09-30T14:56:19.653Z]     "address": {
+[2025-09-30T14:56:19.664Z]   "uri": "/api/organization/lookup"
+[2025-09-30T14:56:19.673Z] }
+[2025-09-30T14:56:19.669Z]       "subDwelling": "",
+[2025-09-30T14:56:19.685Z]       "nameNo": "78",
+[2025-09-30T14:56:19.692Z]       "street": "Gweal Wartha",
+[2025-09-30T14:56:19.702Z]       "locality": "",
+[2025-09-30T14:56:19.708Z]       "town": "Helston",
+[2025-09-30T14:56:19.715Z]       "county": "",
+[2025-09-30T14:56:19.725Z] Executing 'Functions.OrganizationMapping' (Reason='This function was programmatically called via the host APIs.', Id=c7f9b2a7-8855-472e-9bc0-7e2e472df501)
+[2025-09-30T14:56:19.725Z]       "postcode": "TR13 0SN",
+[2025-09-30T14:56:19.736Z]       "countryCode": "GB"
+[2025-09-30T14:56:19.741Z]     },
+[2025-09-30T14:56:19.747Z]     "county": "Cornwall",
+[2025-09-30T14:56:19.753Z] 🔍 Lookup request - Full request.query: {}
+[2025-09-30T14:56:19.754Z]     "propertyType": "House - Terraced",
+[2025-09-30T14:56:19.761Z] 🔍 Lookup request - URL: http://localhost:7071/api/organization/lookup?agencyRef=1af89d60-662c-475b-bcc8-9bcbf04b6322&branchId=8283
+[2025-09-30T14:56:19.768Z]     "bedrooms": 3
+[2025-09-30T14:56:19.773Z] 🔧 Manually parsed from URL - agencyRef: 1af89d60-662c-475b-bcc8-9bcbf04b6322 branchId: 8283
+[2025-09-30T14:56:19.779Z]   },
+[2025-09-30T14:56:19.783Z] 🔍 Parsed agencyRef: 1af89d60-662c-475b-bcc8-9bcbf04b6322
+[2025-09-30T14:56:19.785Z]   "landlord": {
+[2025-09-30T14:56:19.789Z] 🔍 Parsed branchId: 8283
+[2025-09-30T14:56:19.792Z]     "title": "Miss",
+[2025-09-30T14:56:19.796Z] 🔍 agencyRef type: string
+[2025-09-30T14:56:19.800Z]     "firstName": "Cerys",
+[2025-09-30T14:56:19.804Z] ✅ Organization mappings table initialized
+[2025-09-30T14:56:19.808Z]     "lastName": "Moran",
+[2025-09-30T14:56:19.816Z] Executed 'Functions.OrganizationMapping' (Succeeded, Id=c7f9b2a7-8855-472e-9bc0-7e2e472df501, Duration=135ms)
+[2025-09-30T14:56:19.823Z]     "email": "landlord@example.com",
+[2025-09-30T14:56:19.833Z]     "phone": "07725396644"
+[2025-09-30T14:56:19.828Z] Executed HTTP request: {
+[2025-09-30T14:56:19.847Z]   "requestId": "8c6bd253-7fc2-41a8-9ca2-7aed0a41fef4",
+[2025-09-30T14:56:19.838Z]   },
+[2025-09-30T14:56:19.851Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T14:56:19.855Z]   "tenants": [
+[2025-09-30T14:56:19.858Z]   "status": "200",
+[2025-09-30T14:56:19.868Z]   "duration": "190"
+[2025-09-30T14:56:19.864Z]     {[2025-09-30T14:56:19.752Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId c7f9b2a7-8855-472e-9bc0-7e2e472df501
+
+[2025-09-30T14:56:19.872Z] }
+[2025-09-30T14:56:19.879Z]       "title": "Mrs",
+[2025-09-30T14:56:19.888Z]       "firstName": "Shannon",
+[2025-09-30T14:56:19.894Z]       "lastName": "Powell",
+[2025-09-30T14:56:19.899Z]       "email": "ShannonPowell@jourrapide.com",
+[2025-09-30T14:56:19.900Z] Using TDS credentials for Member 1960473, Branch 1960693
+[2025-09-30T14:56:19.905Z]       "phone": null
+[2025-09-30T14:56:19.914Z] TDS operation: create using current provider
+[2025-09-30T14:56:19.921Z]     }
+[2025-09-30T14:56:19.925Z] ✅ Table 'PollingSettings' ready
+[2025-09-30T14:56:19.930Z]   ],
+[2025-09-30T14:56:19.934Z] 📊 Using deposit check interval: 5 minutes, max attempts: 5
+[2025-09-30T14:56:19.940Z]   "agencyRef": "1af89d60-662c-475b-bcc8-9bcbf04b6322",
+[2025-09-30T14:56:19.948Z]   "branchId": 8283,
+[2025-09-30T14:56:19.957Z]   "agency": {
+[2025-09-30T14:56:19.963Z]     "ref": "1af89d60-662c-475b-bcc8-9bcbf04b6322",
+[2025-09-30T14:56:19.970Z]     "branchId": 8283
+[2025-09-30T14:56:19.976Z]   },
+[2025-09-30T14:56:19.984Z]   "createdAt": "2025-09-30T14:56:19.530Z"
+[2025-09-30T14:56:19.989Z] }
+[2025-09-30T14:56:19.997Z] 📦 TDS Payload Structure:
+[2025-09-30T14:56:20.005Z] {
+[2025-09-30T14:56:20.013Z]   "member_id": "1960473",
+[2025-09-30T14:56:20.019Z]   "branch_id": "1960693",
+[2025-09-30T14:56:20.022Z]   "api_key": "SJKFW-4782P-3D7DJ-ADDSD-3S78F",
+[2025-09-30T14:56:20.025Z]   "region": "EW",
+[2025-09-30T14:56:20.032Z]   "scheme_type": "Custodial",
+[2025-09-30T14:56:20.037Z]   "tenancy": [
+[2025-09-30T14:56:20.041Z]     {
+[2025-09-30T14:56:20.046Z]       "user_tenancy_reference": 1565002,
+[2025-09-30T14:56:20.050Z]       "property_id": 1,
+[2025-09-30T14:56:20.054Z]       "property_paon": "78",
+[2025-09-30T14:56:20.058Z]       "property_saon": "",
+[2025-09-30T14:56:20.062Z]       "property_street": "Gweal Wartha",
+[2025-09-30T14:56:20.066Z]       "property_town": "Helston",
+[2025-09-30T14:56:20.071Z]       "property_administrative_area": "Cornwall",
+[2025-09-30T14:56:20.077Z]       "property_postcode": "TR13 0SN",
+[2025-09-30T14:56:20.083Z]       "tenancy_start_date": "14/10/2025",
+[2025-09-30T14:56:20.086Z]       "tenancy_expected_end_date": "13/10/2026",
+[2025-09-30T14:56:20.092Z]       "number_of_bedrooms": 3,
+[2025-09-30T14:56:20.097Z]       "number_of_living_rooms": 1,
+[2025-09-30T14:56:20.101Z]       "furnished_status": "furnished",
+[2025-09-30T14:56:20.104Z]       "rent_amount": 745,
+[2025-09-30T14:56:20.110Z]       "deposit_amount": 859.61,
+[2025-09-30T14:56:20.115Z]       "deposit_amount_to_protect": 859.61,
+[2025-09-30T14:56:20.120Z]       "deposit_received_date": "30/09/2025",
+[2025-09-30T14:56:20.126Z]       "number_of_tenants": 1,
+[2025-09-30T14:56:20.134Z]       "number_of_landlords": 1,
+[2025-09-30T14:56:20.140Z]       "people": [
+[2025-09-30T14:56:20.147Z]         {
+[2025-09-30T14:56:20.155Z]           "person_classification": "Lead Tenant",
+[2025-09-30T14:56:20.161Z]           "person_title": "Mrs",
+[2025-09-30T14:56:20.167Z]           "person_firstname": "Shannon",
+[2025-09-30T14:56:20.172Z]           "person_surname": "Powell",
+[2025-09-30T14:56:20.179Z]           "is_business": "N",
+[2025-09-30T14:56:20.186Z]           "person_email": "ShannonPowell@jourrapide.com",
+[2025-09-30T14:56:20.191Z]           "person_mobile": "07700900000"
+[2025-09-30T14:56:20.197Z]         },
+[2025-09-30T14:56:20.203Z]         {
+[2025-09-30T14:56:20.207Z]           "person_classification": "Primary Landlord",
+[2025-09-30T14:56:20.211Z]           "person_title": "Miss",
+[2025-09-30T14:56:20.216Z]           "person_firstname": "Cerys",
+[2025-09-30T14:56:20.220Z]           "person_surname": "Moran",
+[2025-09-30T14:56:20.224Z]           "is_business": "N",
+[2025-09-30T14:56:20.230Z]           "person_paon": "78",
+[2025-09-30T14:56:20.235Z]           "person_street": "Gweal Wartha",
+[2025-09-30T14:56:20.241Z]           "person_town": "Helston",
+[2025-09-30T14:56:20.246Z]           "person_administrative_area": "Cornwall",
+[2025-09-30T14:56:20.250Z]           "person_postcode": "TR13 0SN",
+[2025-09-30T14:56:20.254Z]           "person_country": "United Kingdom",
+[2025-09-30T14:56:20.257Z]           "person_email": "landlord@example.com",
+[2025-09-30T14:56:20.261Z]           "person_mobile": "07725396644"
+[2025-09-30T14:56:20.265Z]         }
+[2025-09-30T14:56:20.268Z]       ]
+[2025-09-30T14:56:20.276Z]     }
+[2025-09-30T14:56:20.281Z]   ]
+[2025-09-30T14:56:20.287Z] }
+[2025-09-30T14:56:20.292Z] 📤 Submitting deposit to TDS CreateDeposit endpoint
+[2025-09-30T14:56:22.141Z] 📨 TDS Submit Response: {
+[2025-09-30T14:56:22.146Z]   "batch_id": "3315025",
+[2025-09-30T14:56:22.156Z]   "success": true
+[2025-09-30T14:56:22.164Z] }
+[2025-09-30T14:56:22.172Z] ✅ Deposit submitted successfully with batch_id: 3315025
+[2025-09-30T14:56:22.177Z] ⏳ Waiting 10 seconds before starting status polling...
+[2025-09-30T14:56:26.096Z] Executing HTTP request: {
+[2025-09-30T14:56:26.101Z]   "requestId": "22486c87-27d7-460c-b67c-c058a2cfa1cb",
+[2025-09-30T14:56:26.105Z]   "method": "GET",
+[2025-09-30T14:56:26.108Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T14:56:26.111Z]   "uri": "/api/health"
+[2025-09-30T14:56:26.114Z] }
+[2025-09-30T14:56:26.125Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=dfcd90e3-35c9-4f26-946e-33a1d010e8a3)
+[2025-09-30T14:56:26.140Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId dfcd90e3-35c9-4f26-946e-33a1d010e8a3
+[2025-09-30T14:56:26.142Z] Executed 'Functions.health' (Succeeded, Id=dfcd90e3-35c9-4f26-946e-33a1d010e8a3, Duration=21ms)
+[2025-09-30T14:56:26.149Z] Executed HTTP request: {
+[2025-09-30T14:56:26.153Z]   "requestId": "22486c87-27d7-460c-b67c-c058a2cfa1cb",
+[2025-09-30T14:56:26.158Z]   "identities": "",
+[2025-09-30T14:56:26.161Z]   "status": "200",
+[2025-09-30T14:56:26.165Z]   "duration": "53"
+[2025-09-30T14:56:26.168Z] }
+[2025-09-30T14:56:32.144Z] 📊 Checking status at: https://sandbox.api.custodial.tenancydepositscheme.com/v1.2/CreateDepositStatus/1960473/1960693/SJKFW-4782P-3D7DJ-ADDSD-3S78F/3315025
+[2025-09-30T14:56:33.775Z] 📊 Status Response: {
+[2025-09-30T14:56:33.786Z]   "batch_id": "3315025",
+[2025-09-30T14:56:33.794Z]   "success": true,
+[2025-09-30T14:56:33.798Z]   "status": "pending"
+[2025-09-30T14:56:33.801Z] }
+[2025-09-30T14:56:33.805Z] ⏳ TDS still processing... attempt 1/5, waiting 300s
+[2025-09-30T14:56:35.792Z] Executing HTTP request: {
+[2025-09-30T14:56:35.797Z]   "requestId": "7569e9f1-e117-4f6f-9c57-043cba5b8ddd",
+[2025-09-30T14:56:35.801Z]   "method": "GET",
+[2025-09-30T14:56:35.804Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T14:56:35.807Z]   "uri": "/api/health"
+[2025-09-30T14:56:35.810Z] }
+[2025-09-30T14:56:35.816Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=c2376f38-2d9c-4042-8008-9593846969e3)
+[2025-09-30T14:56:35.828Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId c2376f38-2d9c-4042-8008-9593846969e3
+[2025-09-30T14:56:35.829Z] Executed 'Functions.health' (Succeeded, Id=c2376f38-2d9c-4042-8008-9593846969e3, Duration=13ms)
+[2025-09-30T14:56:35.840Z] Executed HTTP request: {
+[2025-09-30T14:56:35.844Z]   "requestId": "7569e9f1-e117-4f6f-9c57-043cba5b8ddd",
+[2025-09-30T14:56:35.849Z]   "identities": "",
+[2025-09-30T14:56:35.855Z]   "status": "200",
+[2025-09-30T14:56:35.858Z]   "duration": "46"
+[2025-09-30T14:56:35.861Z] }
+[2025-09-30T14:56:45.787Z] Executing HTTP request: {
+[2025-09-30T14:56:45.790Z]   "requestId": "01258f30-ab81-46a0-9d93-bc2af9a16687",
+[2025-09-30T14:56:45.793Z]   "method": "GET",
+[2025-09-30T14:56:45.796Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T14:56:45.799Z]   "uri": "/api/health"
+[2025-09-30T14:56:45.801Z] }
+[2025-09-30T14:56:45.815Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=988671be-b9f8-46d6-bf50-ae59ad34ed52)
+[2025-09-30T14:56:45.828Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 988671be-b9f8-46d6-bf50-ae59ad34ed52
+[2025-09-30T14:56:45.829Z] Executed 'Functions.health' (Succeeded, Id=988671be-b9f8-46d6-bf50-ae59ad34ed52, Duration=14ms)
+[2025-09-30T14:56:45.839Z] Executed HTTP request: {
+[2025-09-30T14:56:45.843Z]   "requestId": "01258f30-ab81-46a0-9d93-bc2af9a16687",
+[2025-09-30T14:56:45.846Z]   "identities": "",
+[2025-09-30T14:56:45.851Z]   "status": "200",
+[2025-09-30T14:56:45.855Z]   "duration": "51"
+[2025-09-30T14:56:45.857Z] }
+[2025-09-30T14:56:55.796Z] Executing HTTP request: {
+[2025-09-30T14:56:55.800Z]   "requestId": "b8c576d3-d0a9-4d99-84e5-b570ca1c9555",
+[2025-09-30T14:56:55.804Z]   "method": "GET",
+[2025-09-30T14:56:55.808Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T14:56:55.813Z]   "uri": "/api/health"
+[2025-09-30T14:56:55.816Z] }
+[2025-09-30T14:56:55.827Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=3383c4df-2c29-4c43-befa-350d318e6878)
+[2025-09-30T14:56:55.839Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 3383c4df-2c29-4c43-befa-350d318e6878
+[2025-09-30T14:56:55.842Z] Executed 'Functions.health' (Succeeded, Id=3383c4df-2c29-4c43-befa-350d318e6878, Duration=15ms)
+[2025-09-30T14:56:55.850Z] Executed HTTP request: {
+[2025-09-30T14:56:55.854Z]   "requestId": "b8c576d3-d0a9-4d99-84e5-b570ca1c9555",
+[2025-09-30T14:56:55.857Z]   "identities": "",
+[2025-09-30T14:56:55.861Z]   "status": "200",
+[2025-09-30T14:56:55.865Z]   "duration": "54"
+[2025-09-30T14:56:55.868Z] }
+
+[2025-09-30T15:00:00.007Z] Executing 'Functions.PendingPollingService' (Reason='Timer fired at 2025-09-30T16:00:00.0065444+01:00', Id=6b8ca86a-2002-48f8-b0dd-cab9a94b86ca)
+[2025-09-30T15:00:00.012Z] Trigger Details: ScheduleStatus: {"Last":"2025-09-30T15:55:00.0180934+01:00","Next":"2025-09-30T16:00:00+01:00","LastUpdated":"2025-09-30T15:55:00.0180934+01:00"}
+[2025-09-30T15:00:00.055Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 6b8ca86a-2002-48f8-b0dd-cab9a94b86ca
+[2025-09-30T15:00:00.058Z] 🔄 Starting pending integration polling service...
+[2025-09-30T15:00:00.071Z] 🔍 Checking for pending integrations ready for polling...
+[2025-09-30T15:00:00.083Z] ✅ Pending integrations table initialized
+[2025-09-30T15:00:00.099Z] ✅ Table 'PollingSettings' ready
+[2025-09-30T15:00:00.107Z] ✅ Pending integrations archive table initialized
+[2025-09-30T15:00:00.136Z] 📊 Loaded polling settings: pendingPollInterval=10min, maxPollAttempts=5
+[2025-09-30T15:00:00.141Z] 🧹 Running cleanup for stale integrations...
+[2025-09-30T15:00:00.184Z] 🔍 Checking pending_1759228947550_usn3pxfv: status=PROCESSING, pollCount=1/5
+[2025-09-30T15:00:00.206Z] ⏭️ Skipping pending_1759228947550_usn3pxfv: currently PROCESSING
+[2025-09-30T15:00:00.222Z] 🔍 Checking pending_1759244068394_zdxu29ob: status=PENDING_DEPOSIT, pollCount=0/5
+[2025-09-30T15:00:00.250Z] ⏭️ Skipping pending_1759244068394_zdxu29ob: still active (status=PENDING_DEPOSIT)
+[2025-09-30T15:00:00.255Z] Executing HTTP request: {
+[2025-09-30T15:00:00.267Z] 🧹 Cleanup complete: Checked 2 integrations, archived 0
+[2025-09-30T15:00:00.272Z]   "requestId": "bdea154c-4348-4e89-8f38-5e3c4ecd0f54",
+[2025-09-30T15:00:00.281Z]   "method": "POST",
+[2025-09-30T15:00:00.277Z] 📋 Processing 1 integrations ready for polling
+[2025-09-30T15:00:00.286Z]   "userAgent": "axios/1.12.2",
+[2025-09-30T15:00:00.293Z]   "uri": "/api/alto/fetch-tenancy/1565002"
+[2025-09-30T15:00:00.298Z] }
+[2025-09-30T15:00:00.290Z] 📋 Found 1 pending integrations to check
+[2025-09-30T15:00:00.306Z] Executing 'Functions.AltoIntegration' (Reason='This function was programmatically called via the host APIs.', Id=01e9c6d3-3a1e-45d4-8cca-f5f353b19edb)[2025-09-30T15:00:00.308Z] 🔄 Processing pending_1759244068394_zdxu29ob: attempt 1
+
+[2025-09-30T15:00:00.317Z] ✅ Updated integration pending_1759244068394_zdxu29ob
+[2025-09-30T15:00:00.333Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 01e9c6d3-3a1e-45d4-8cca-f5f353b19edb
+[2025-09-30T15:00:02.639Z] Executed 'Functions.AltoIntegration' (Succeeded, Id=01e9c6d3-3a1e-45d4-8cca-f5f353b19edb, Duration=2333ms)
+[2025-09-30T15:00:02.644Z] Executed HTTP request: {
+[2025-09-30T15:00:02.648Z]   "requestId": "bdea154c-4348-4e89-8f38-5e3c4ecd0f54",
+[2025-09-30T15:00:02.653Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T15:00:02.658Z]   "status": "200",
+[2025-09-30T15:00:02.662Z]   "duration": "2388"
+[2025-09-30T15:00:02.667Z] }
+[2025-09-30T15:00:02.683Z] ✅ pending_1759244068394_zdxu29ob data complete - triggering workflow
+[2025-09-30T15:00:02.697Z] Executing HTTP request: {
+[2025-09-30T15:00:02.703Z]   "requestId": "da9f0a27-e6eb-47c6-a3bb-6be7940f51d0",
+[2025-09-30T15:00:02.698Z] ✅ Updated integration pending_1759244068394_zdxu29ob
+[2025-09-30T15:00:02.707Z]   "method": "POST",
+[2025-09-30T15:00:02.715Z]   "userAgent": "axios/1.12.2",
+[2025-09-30T15:00:02.718Z]   "uri": "/api/workflows/alto-tds"
+[2025-09-30T15:00:02.722Z] }
+[2025-09-30T15:00:02.728Z] Executing 'Functions.WorkflowOrchestrator' (Reason='This function was programmatically called via the host APIs.', Id=b80b68f9-1867-4955-92bb-c052f035f8a1)
+[2025-09-30T15:00:02.749Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId b80b68f9-1867-4955-92bb-c052f035f8a1[2025-09-30T15:00:02.750Z] 🚀 Starting Alto → TDS workflow: {
+  tenancyId: '1565002',
+  agencyRef: '1af89d60-662c-475b-bcc8-9bcbf04b6322',
+  branchId: '8283'
+}
+[2025-09-30T15:00:02.754Z] Executing HTTP request: {
+[2025-09-30T15:00:02.757Z] 🔄 Executing workflow wf_1759244402739_z1af3cpd for tenancy 1565002
+[2025-09-30T15:00:02.763Z]   "requestId": "65da0574-7d4d-4ff2-a7db-acf4f57a2215",
+[2025-09-30T15:00:02.771Z]   "method": "POST",
+[2025-09-30T15:00:02.767Z] 📡 Fetching Alto tenancy data...
+[2025-09-30T15:00:02.775Z]   "userAgent": "axios/1.12.2",
+
+[2025-09-30T15:00:02.783Z]   "uri": "/api/alto/fetch-tenancy/1565002"
+[2025-09-30T15:00:02.789Z] }
+[2025-09-30T15:00:02.796Z] Executing 'Functions.AltoIntegration' (Reason='This function was programmatically called via the host APIs.', Id=47dc6221-8044-4d91-97fe-2d295379a761)
+[2025-09-30T15:00:02.812Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 47dc6221-8044-4d91-97fe-2d295379a761
+[2025-09-30T15:00:03.439Z] Executed 'Functions.AltoIntegration' (Succeeded, Id=47dc6221-8044-4d91-97fe-2d295379a761, Duration=643ms)
+[2025-09-30T15:00:03.444Z] Executed HTTP request: {
+[2025-09-30T15:00:03.447Z]   "requestId": "65da0574-7d4d-4ff2-a7db-acf4f57a2215",
+[2025-09-30T15:00:03.451Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T15:00:03.456Z]   "status": "200",
+[2025-09-30T15:00:03.460Z]   "duration": "689"
+[2025-09-30T15:00:03.464Z] }
+[2025-09-30T15:00:03.475Z] Executing HTTP request: {
+[2025-09-30T15:00:03.476Z] ✅ Validating and enriching data...
+[2025-09-30T15:00:03.484Z]   "requestId": "4e16e076-ed66-4318-bb99-7e6b402c8208",
+[2025-09-30T15:00:03.488Z] 🔍 Alto API Response Structure:
+[2025-09-30T15:00:03.491Z]   "method": "GET",
+[2025-09-30T15:00:03.496Z] 📋 Tenancy: {
+  "id": 1565002,
+  "groupId": 2419,
+  "branchId": 8283,
+  "propertyId": 18856763,
+  "termYears": 1,
+  "termMonths": 0,
+  "occupantCount": 0,
+  "rent": 745,
+  "rentalFrequency": "Monthly",
+  "depositRequested": 859.61,
+  "currencyCode": "GBP",
+  "rentalAddress": {
+    "subDwelling": "",
+    "nameNo": "78",
+    "street": "Gweal Wartha",
+    "locality": "",
+    "town": "Helston",
+    "county": "",
+    "postcode": "TR13 0SN",
+    "country": "GB"
+  },
+  "startDate": "2025-10-14T00:00:00+00:00",
+  "targetVacateDate": null,
+  "firstFullRentDate": "2025-10-14T00:00:00+00:00",
+  "noticeToQuitDate": "2026-08-13T00:00:00+00:00",
+  "endDate": "2026-10-13T00:00:00+00:00",
+  "renewalDate": "2026-10-14T00:00:00+00:00",
+  "nextTermTenancyId": 0
+}
+[2025-09-30T15:00:03.501Z]   "userAgent": "axios/1.12.2",
+[2025-09-30T15:00:03.507Z] 🏠 Property: {
+  "id": "18856763",
+  "branchId": "8283",
+  "category": "Residential",
+  "recordType": "Rent",
+  "address": {
+    "subDwelling": "",
+    "nameNo": "78",
+    "street": "Gweal Wartha",
+    "locality": "",
+    "town": "Helston",
+    "county": "",
+    "postcode": "TR13 0SN",
+    "countryCode": "GB"
+  },
+  "priceQualifier": "Unspecified",
+  "currency": "GBP",
+  "yearBuilt": null,
+  "newBuild": false,
+  "floorAreaInSquareFeet": null,
+  "landAreaInAcres": null,
+  "price": 745,
+  "bedrooms": 3,
+  "receptions": 2,
+  "bathrooms": 1,
+  "propertySubTypeId": 5,
+  "propertyType": "House - Terraced",
+  "status": "Let Agreed",
+  "inventoryStatus": "LetAgreed",
+  "archived": false,
+  "isAtActiveStatus": true,
+  "tenureId": 0,
+  "tenure": "",
+  "rentalFrequency": "Monthly",
+  "owners": [
+    {
+      "ownerId": "42641295-1",
+      "contactId": 42641295,
+      "name": {
+        "title": "Miss",
+        "forename": "Cerys",
+        "surname": "Moran"
+      },
+      "phoneNumbers": [
+        {
+          "preferenceOrder": 1,
+          "type": "Mobile",
+          "description": "Home",
+          "number": "07725396644"
+        }
+      ],
+      "emailAddresses": []
+    }
+  ],
+  "taxBand": "",
+  "taxBandExemptReason": "",
+  "serviceCharge": null,
+  "groundRent": null,
+  "localAuthority": "",
+  "leaseRemainingYears": null,
+  "leaseTerm": null,
+  "leaseEndDate": null,
+  "groundRentReviewPeriod": null,
+  "groundRentPercentageIncrease": null,
+  "sharedOwnership": null,
+  "sharedOwnershipPercentageShare": null,
+  "sharedOwnershipRent": null,
+  "sharedOwnershipRentFrequencyId": null,
+  "leaseNotes": "",
+  "privateViewingNotes": "",
+  "displayAddress": "Gweal Wartha, Helston",
+  "hasAsbestos": false,
+  "rentalDateAvailable": null,
+  "groundRentFixedForTerm": null,
+  "groundRentNotes": null,
+  "serviceChargeNotes": null,
+  "negotiator": {
+    "id": 90735,
+    "name": ""
+  },
+  "negotiatorName": "",
+  "instructionDate": "2025-09-30T15:52:04.973",
+  "managementType": "Unspecified",
+  "maintenanceType": "Unspecified",
+  "accessibilityRequirements": {
+    "accessibility": []
+  },
+  "broadband": {
+    "supply": [],
+    "speed": null
+  },
+  "buildingSafety": {
+    "issue": []
+  },
+  "construction": {
+    "material": []
+  },
+  "coastalErosion": null,
+  "electricity": {
+    "supply": []
+  },
+  "floodingRisks": {
+    "sourcesOfFlooding": {
+      "source": []
+    },
+    "floodedWithinLast5Years": null,
+    "floodDefensesPresent": null
+  },
+  "heating": {
+    "source": []
+  },
+  "knownPlanningConsiderations": null,
+  "miningRisks": {
+    "coalfields": null,
+    "otherMiningActivities": null
+  },
+  "mobileCoverage": null,
+  "parking": {
+    "parkingType": []
+  },
+  "restrictions": {
+    "conservationArea": null,
+    "leaseRestrictions": null,
+    "listedBuilding": null,
+    "permittedDevelopment": null,
+    "realBurdens": null,
+    "holidayHomeRental": null,
+    "restrictiveCovenant": null,
+    "businessFromProperty": null,
+    "propertySubletting": null,
+    "treePreservationOrder": null,
+    "other": null
+  },
+  "rightsAndEasements": {
+    "rightOfWayPublic": null,
+    "rightOfWayPrivate": null,
+    "registeredEasementsHmlr": null,
+    "servitudes": null,
+    "sharedDriveway": null,
+    "loftAccess": null,
+    "drainAccess": null,
+    "other": null
+  },
+  "sewerage": {
+    "supply": []
+  },
+  "water": {
+    "supply": []
+  },
+  "epc": {
+    "energyEfficiencyRatingCurrent": null,
+    "energyEfficiencyRatingPotential": null,
+    "exempt": false,
+    "exemptionReason": null
+  },
+  "uprn": null,
+  "createdDate": "2025-09-30T15:50:26.633",
+  "modifiedDate": "2025-09-30T15:53:03.96"
+}
+[2025-09-30T15:00:03.511Z]   "uri": "/api/postcode/TR13%200SN"
+[2025-09-30T15:00:03.531Z] }
+[2025-09-30T15:00:03.526Z] 👤 Landlord: null
+[2025-09-30T15:00:03.540Z] Executing 'Functions.PostcodeLookup' (Reason='This function was programmatically called via the host APIs.', Id=32f9bd6d-c667-498b-8a74-fed8e724c0a0)
+[2025-09-30T15:00:03.540Z] 👥 Tenants: [
+  {
+    "items": [
+      {
+        "address": {
+          "subDwelling": "",
+          "nameNumber": "",
+          "street": "",
+          "locality": "",
+          "town": "",
+          "county": "",
+          "postcode": "",
+          "countryCode": "GB"
+        },
+        "branch": {
+          "id": "8282"
+        },
+        "people": [
+          {
+            "title": "Mrs",
+            "forename": "Shannon",
+            "surname": "Powell",
+            "phoneNumbers": [],
+            "emailAddresses": [
+              {
+                "preferenceOrder": 1,
+                "type": "Personal",
+                "address": "ShannonPowell@jourrapide.com"
+              }
+            ],
+            "id": "1",
+            "links": [
+              {
+                "href": "/contacts/42641296/persons/1",
+                "rel": "self"
+              }
+            ]
+          }
+        ],
+        "category": "Client",
+        "intention": {
+          "code": "89",
+          "name": "Not looking"
+        },
+        "notes": "",
+        "archived": false,
+        "applicantRequirements": [
+          {
+            "profileIntention": "Buy",
+            "isNewBuild": null,
+            "priceFrom": null,
+            "priceTo": null,
+            "bedsMin": null,
+            "isActiveProfile": true,
+            "rentalIntention": null,
+            "id": "32809585",
+            "links": []
+          }
+        ],
+        "id": "42641296",
+        "links": [
+          {
+            "href": "/contacts/42641296",
+            "rel": "self"
+          }
+        ]
+      }
+    ]
+  }
+]
+[2025-09-30T15:00:03.553Z] 🔍 Deposit availability check: {
+  depositRequested: 859.61,
+  depositAmount: undefined,
+  hasDeposit: true
+}
+[2025-09-30T15:00:03.557Z] Postcode lookup: TR13 0SN (district: TR13) -> Cornwall (0ms)
+[2025-09-30T15:00:03.555Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 32f9bd6d-c667-498b-8a74-fed8e724c0a0
+[2025-09-30T15:00:03.562Z] Executed 'Functions.PostcodeLookup' (Succeeded, Id=32f9bd6d-c667-498b-8a74-fed8e724c0a0, Duration=22ms)
+[2025-09-30T15:00:03.570Z] Executed HTTP request: {
+[2025-09-30T15:00:03.575Z]   "requestId": "4e16e076-ed66-4318-bb99-7e6b402c8208",
+[2025-09-30T15:00:03.578Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T15:00:03.584Z]   "status": "200",
+[2025-09-30T15:00:03.589Z]   "duration": "94"
+[2025-09-30T15:00:03.593Z] }
+[2025-09-30T15:00:03.605Z] 📋 Prepared TDS Payload Data:
+[2025-09-30T15:00:03.611Z] 📝 Preparing TDS deposit payload...
+[2025-09-30T15:00:03.609Z] Executing HTTP request: {
+[2025-09-30T15:00:03.617Z] 💰 Creating TDS deposit...
+[2025-09-30T15:00:03.622Z]   "requestId": "b0a40c3b-c526-4f13-84d9-a5b314d506a9",
+[2025-09-30T15:00:03.614Z] {
+[2025-09-30T15:00:03.632Z]   "method": "POST",
+[2025-09-30T15:00:03.644Z]   "userAgent": "axios/1.12.2",
+[2025-09-30T15:00:03.639Z]   "tenancyId": 1565002,
+[2025-09-30T15:00:03.649Z]   "uri": "/api/tds/create"[2025-09-30T15:00:03.654Z]   "depositAmount": 859.61,
+
+[2025-09-30T15:00:03.661Z] }
+[2025-09-30T15:00:03.662Z]   "rentAmount": 745,
+[2025-09-30T15:00:03.673Z]   "tenancyStartDate": "2025-10-14T00:00:00+00:00",
+[2025-09-30T15:00:03.676Z] Executing 'Functions.TDSAdapter' (Reason='This function was programmatically called via the host APIs.', Id=8bd67799-ff6c-4da9-8872-40aacb389b84)
+[2025-09-30T15:00:03.676Z]   "tenancyEndDate": "2026-10-13T00:00:00+00:00",
+[2025-09-30T15:00:03.684Z]   "property": {
+[2025-09-30T15:00:03.688Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 8bd67799-ff6c-4da9-8872-40aacb389b84
+[2025-09-30T15:00:03.688Z]     "address": {
+[2025-09-30T15:00:03.693Z] Executing HTTP request: {
+[2025-09-30T15:00:03.695Z]       "subDwelling": "",
+[2025-09-30T15:00:03.699Z]   "requestId": "7f640555-8f72-44f3-bfa2-79e4fa21d169",
+[2025-09-30T15:00:03.703Z]       "nameNo": "78",
+[2025-09-30T15:00:03.707Z]   "method": "GET",
+[2025-09-30T15:00:03.714Z]   "userAgent": "node",
+[2025-09-30T15:00:03.710Z]       "street": "Gweal Wartha",
+[2025-09-30T15:00:03.717Z]   "uri": "/api/organization/lookup"
+[2025-09-30T15:00:03.725Z] }
+[2025-09-30T15:00:03.721Z]       "locality": "",
+[2025-09-30T15:00:03.732Z] Executing 'Functions.OrganizationMapping' (Reason='This function was programmatically called via the host APIs.', Id=fcbe31b3-3464-49f1-9963-a1f9510caf05)
+[2025-09-30T15:00:03.736Z]       "town": "Helston",
+[2025-09-30T15:00:03.744Z]       "county": "",
+[2025-09-30T15:00:03.749Z]       "postcode": "TR13 0SN",
+[2025-09-30T15:00:03.753Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId fcbe31b3-3464-49f1-9963-a1f9510caf05
+[2025-09-30T15:00:03.761Z]       "countryCode": "GB"
+[2025-09-30T15:00:03.756Z] 🔍 Lookup request - Full request.query: {}
+[2025-09-30T15:00:03.773Z]     },
+[2025-09-30T15:00:03.777Z] 🔍 Lookup request - URL: http://localhost:7071/api/organization/lookup?agencyRef=1af89d60-662c-475b-bcc8-9bcbf04b6322&branchId=8283
+[2025-09-30T15:00:03.781Z]     "county": "Cornwall",
+[2025-09-30T15:00:03.785Z] 🔧 Manually parsed from URL - agencyRef: 1af89d60-662c-475b-bcc8-9bcbf04b6322 branchId: 8283
+[2025-09-30T15:00:03.789Z]     "propertyType": "House - Terraced",
+[2025-09-30T15:00:03.793Z] 🔍 Parsed agencyRef: 1af89d60-662c-475b-bcc8-9bcbf04b6322
+[2025-09-30T15:00:03.797Z]     "bedrooms": 3
+[2025-09-30T15:00:03.801Z] 🔍 Parsed branchId: 8283
+[2025-09-30T15:00:03.805Z]   },
+[2025-09-30T15:00:03.809Z] 🔍 agencyRef type: string
+[2025-09-30T15:00:03.813Z]   "landlord": {
+[2025-09-30T15:00:03.829Z]     "title": "Miss",
+[2025-09-30T15:00:03.835Z]     "firstName": "Cerys",
+[2025-09-30T15:00:03.824Z] ✅ Organization mappings table initialized
+[2025-09-30T15:00:03.841Z]     "lastName": "Moran",
+[2025-09-30T15:00:03.846Z] Executed 'Functions.OrganizationMapping' (Succeeded, Id=fcbe31b3-3464-49f1-9963-a1f9510caf05, Duration=114ms)
+[2025-09-30T15:00:03.850Z]     "email": "landlord@example.com",[2025-09-30T15:00:03.854Z] Executed HTTP request: {
+
+[2025-09-30T15:00:03.861Z]   "requestId": "7f640555-8f72-44f3-bfa2-79e4fa21d169",
+[2025-09-30T15:00:03.862Z]     "phone": "07725396644"
+[2025-09-30T15:00:03.868Z]   "identities": "(WebJobsAuthLevel:Admin)",[2025-09-30T15:00:03.873Z]   },
+
+[2025-09-30T15:00:03.881Z]   "tenants": [
+[2025-09-30T15:00:03.882Z]   "status": "200",
+[2025-09-30T15:00:03.886Z]     {
+[2025-09-30T15:00:03.890Z]   "duration": "161"
+[2025-09-30T15:00:03.897Z]       "title": "Mrs",
+[2025-09-30T15:00:03.901Z] }
+[2025-09-30T15:00:03.905Z]       "firstName": "Shannon",
+[2025-09-30T15:00:03.915Z]       "lastName": "Powell",
+[2025-09-30T15:00:03.919Z]       "email": "ShannonPowell@jourrapide.com",
+[2025-09-30T15:00:03.923Z]       "phone": null
+[2025-09-30T15:00:03.925Z] Using TDS credentials for Member 1960473, Branch 1960693
+[2025-09-30T15:00:03.929Z]     }
+[2025-09-30T15:00:03.933Z] TDS operation: create using current provider
+[2025-09-30T15:00:03.937Z]   ],
+[2025-09-30T15:00:03.940Z] ✅ Table 'PollingSettings' ready
+[2025-09-30T15:00:03.944Z]   "agencyRef": "1af89d60-662c-475b-bcc8-9bcbf04b6322",
+[2025-09-30T15:00:03.948Z] 📊 Using deposit check interval: 5 minutes, max attempts: 5
+[2025-09-30T15:00:03.954Z]   "branchId": 8283,
+[2025-09-30T15:00:03.968Z]   "agency": {
+[2025-09-30T15:00:03.974Z]     "ref": "1af89d60-662c-475b-bcc8-9bcbf04b6322",
+[2025-09-30T15:00:03.978Z]     "branchId": 8283
+[2025-09-30T15:00:03.983Z]   },
+[2025-09-30T15:00:03.988Z]   "createdAt": "2025-09-30T15:00:03.602Z"
+[2025-09-30T15:00:03.994Z] }
+[2025-09-30T15:00:03.998Z] 📦 TDS Payload Structure:
+[2025-09-30T15:00:04.003Z] {
+[2025-09-30T15:00:04.006Z]   "member_id": "1960473",
+[2025-09-30T15:00:04.012Z]   "branch_id": "1960693",
+[2025-09-30T15:00:04.016Z]   "api_key": "SJKFW-4782P-3D7DJ-ADDSD-3S78F",
+[2025-09-30T15:00:04.020Z]   "region": "EW",
+[2025-09-30T15:00:04.025Z]   "scheme_type": "Custodial",
+[2025-09-30T15:00:04.030Z]   "tenancy": [
+[2025-09-30T15:00:04.034Z]     {
+[2025-09-30T15:00:04.039Z]       "user_tenancy_reference": 1565002,
+[2025-09-30T15:00:04.044Z]       "property_id": 1,
+[2025-09-30T15:00:04.048Z]       "property_paon": "78",
+[2025-09-30T15:00:04.052Z]       "property_saon": "",
+[2025-09-30T15:00:04.057Z]       "property_street": "Gweal Wartha",
+[2025-09-30T15:00:04.061Z]       "property_town": "Helston",
+[2025-09-30T15:00:04.065Z]       "property_administrative_area": "Cornwall",
+[2025-09-30T15:00:04.069Z]       "property_postcode": "TR13 0SN",
+[2025-09-30T15:00:04.073Z]       "tenancy_start_date": "14/10/2025",
+[2025-09-30T15:00:04.077Z]       "tenancy_expected_end_date": "13/10/2026",
+[2025-09-30T15:00:04.081Z]       "number_of_bedrooms": 3,
+[2025-09-30T15:00:04.085Z]       "number_of_living_rooms": 1,
+[2025-09-30T15:00:04.091Z]       "furnished_status": "furnished",
+[2025-09-30T15:00:04.095Z]       "rent_amount": 745,
+[2025-09-30T15:00:04.100Z]       "deposit_amount": 859.61,
+[2025-09-30T15:00:04.104Z]       "deposit_amount_to_protect": 859.61,
+[2025-09-30T15:00:04.108Z]       "deposit_received_date": "30/09/2025",
+[2025-09-30T15:00:04.117Z]       "number_of_tenants": 1,
+[2025-09-30T15:00:04.125Z]       "number_of_landlords": 1,
+[2025-09-30T15:00:04.128Z]       "people": [
+[2025-09-30T15:00:04.133Z]         {
+[2025-09-30T15:00:04.138Z]           "person_classification": "Lead Tenant",
+[2025-09-30T15:00:04.142Z]           "person_title": "Mrs",
+[2025-09-30T15:00:04.146Z]           "person_firstname": "Shannon",
+[2025-09-30T15:00:04.150Z]           "person_surname": "Powell",
+[2025-09-30T15:00:04.156Z]           "is_business": "N",
+[2025-09-30T15:00:04.161Z]           "person_email": "ShannonPowell@jourrapide.com",
+[2025-09-30T15:00:04.166Z]           "person_mobile": "07700900000"
+[2025-09-30T15:00:04.286Z]         },
+[2025-09-30T15:00:04.341Z]         {
+[2025-09-30T15:00:04.392Z]           "person_classification": "Primary Landlord",
+[2025-09-30T15:00:04.455Z]           "person_title": "Miss",
+[2025-09-30T15:00:04.465Z]           "person_firstname": "Cerys",
+[2025-09-30T15:00:04.471Z]           "person_surname": "Moran",
+[2025-09-30T15:00:04.494Z]           "is_business": "N",
+[2025-09-30T15:00:04.506Z]           "person_paon": "78",
+[2025-09-30T15:00:04.514Z]           "person_street": "Gweal Wartha",
+[2025-09-30T15:00:04.521Z]           "person_town": "Helston",
+[2025-09-30T15:00:04.527Z]           "person_administrative_area": "Cornwall",
+[2025-09-30T15:00:04.538Z]           "person_postcode": "TR13 0SN",
+[2025-09-30T15:00:04.543Z]           "person_country": "United Kingdom",
+[2025-09-30T15:00:04.551Z]           "person_email": "landlord@example.com",
+[2025-09-30T15:00:04.556Z]           "person_mobile": "07725396644"
+[2025-09-30T15:00:04.561Z]         }
+[2025-09-30T15:00:04.568Z]       ]
+[2025-09-30T15:00:04.574Z]     }
+[2025-09-30T15:00:04.594Z]   ]
+[2025-09-30T15:00:04.611Z] }
+[2025-09-30T15:00:04.615Z] 📤 Submitting deposit to TDS CreateDeposit endpoint
+[2025-09-30T15:00:05.506Z] 📨 TDS Submit Response: {
+[2025-09-30T15:00:05.512Z]   "batch_id": "3315033",
+[2025-09-30T15:00:05.517Z]   "success": true
+[2025-09-30T15:00:05.522Z] }
+[2025-09-30T15:00:05.528Z] ✅ Deposit submitted successfully with batch_id: 3315033
+[2025-09-30T15:00:05.533Z] ⏳ Waiting 10 seconds before starting status polling...
+[2025-09-30T15:00:05.791Z] Executing HTTP request: {
+[2025-09-30T15:00:05.795Z]   "requestId": "e9ca5728-e91d-48d0-b24f-91f2e3eb0516",
+[2025-09-30T15:00:05.798Z]   "method": "GET",
+[2025-09-30T15:00:05.802Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T15:00:05.806Z]   "uri": "/api/health"
+[2025-09-30T15:00:05.810Z] }
+[2025-09-30T15:00:05.816Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=3c83dd23-897f-44b8-8bbb-d825ad019ade)
+[2025-09-30T15:00:05.827Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 3c83dd23-897f-44b8-8bbb-d825ad019ade
+[2025-09-30T15:00:05.828Z] Executed 'Functions.health' (Succeeded, Id=3c83dd23-897f-44b8-8bbb-d825ad019ade, Duration=12ms)
+[2025-09-30T15:00:05.835Z] Executed HTTP request: {
+[2025-09-30T15:00:05.839Z]   "requestId": "e9ca5728-e91d-48d0-b24f-91f2e3eb0516",
+[2025-09-30T15:00:05.843Z]   "identities": "",
+[2025-09-30T15:00:05.848Z]   "status": "200",
+[2025-09-30T15:00:05.850Z]   "duration": "44"
+[2025-09-30T15:00:05.854Z] }
+[2025-09-30T15:00:15.508Z] 📊 Checking status at: https://sandbox.api.custodial.tenancydepositscheme.com/v1.2/CreateDepositStatus/1960473/1960693/SJKFW-4782P-3D7DJ-ADDSD-3S78F/3315033
+[2025-09-30T15:00:15.791Z] Executing HTTP request: {
+[2025-09-30T15:00:15.795Z]   "requestId": "7a735ddb-649f-4987-b303-0b057f18c0a6",
+[2025-09-30T15:00:15.800Z]   "method": "GET",
+[2025-09-30T15:00:15.803Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T15:00:15.808Z]   "uri": "/api/health"
+[2025-09-30T15:00:15.812Z] }
+[2025-09-30T15:00:15.822Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=6db02423-425b-4b64-a756-0d69cbb42971)
+[2025-09-30T15:00:15.838Z] Executed 'Functions.health' (Succeeded, Id=6db02423-425b-4b64-a756-0d69cbb42971, Duration=18ms)[2025-09-30T15:00:15.839Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 6db02423-425b-4b64-a756-0d69cbb42971
+
+[2025-09-30T15:00:15.851Z] Executed HTTP request: {
+[2025-09-30T15:00:15.856Z]   "requestId": "7a735ddb-649f-4987-b303-0b057f18c0a6",
+[2025-09-30T15:00:15.861Z]   "identities": "",
+[2025-09-30T15:00:15.866Z]   "status": "200",
+[2025-09-30T15:00:15.871Z]   "duration": "60"
+[2025-09-30T15:00:15.875Z] }
+[2025-09-30T15:00:17.043Z] 📊 Status Response: {
+[2025-09-30T15:00:17.049Z]   "batch_id": "3315033",
+[2025-09-30T15:00:17.055Z]   "success": true,
+[2025-09-30T15:00:17.059Z]   "status": "pending"
+[2025-09-30T15:00:17.063Z] }
+[2025-09-30T15:00:17.068Z] ⏳ TDS still processing... attempt 1/5, waiting 300s
+
+[2025-09-30T15:01:33.778Z] 📊 Checking status at: https://sandbox.api.custodial.tenancydepositscheme.com/v1.2/CreateDepositStatus/1960473/1960693/SJKFW-4782P-3D7DJ-ADDSD-3S78F/3315025
+[2025-09-30T15:01:35.788Z] Executing HTTP request: {
+[2025-09-30T15:01:35.791Z]   "requestId": "e30fa2a2-aed0-4c35-98e1-c2e1c409d083",
+[2025-09-30T15:01:35.794Z]   "method": "GET",
+[2025-09-30T15:01:35.796Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T15:01:35.800Z]   "uri": "/api/health"
+[2025-09-30T15:01:35.801Z] }
+[2025-09-30T15:01:35.804Z] Executing 'Functions.health' (Reason='This function was programmatically called via the host APIs.', Id=1164df08-fa75-41be-9392-62e414096d1a)
+[2025-09-30T15:01:35.811Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 1164df08-fa75-41be-9392-62e414096d1a
+[2025-09-30T15:01:35.812Z] Executed 'Functions.health' (Succeeded, Id=1164df08-fa75-41be-9392-62e414096d1a, Duration=7ms)
+[2025-09-30T15:01:35.818Z] Executed HTTP request: {
+[2025-09-30T15:01:35.822Z]   "requestId": "e30fa2a2-aed0-4c35-98e1-c2e1c409d083",
+[2025-09-30T15:01:35.825Z]   "identities": "",
+[2025-09-30T15:01:35.827Z]   "status": "200",
+[2025-09-30T15:01:35.831Z]   "duration": "29"
+[2025-09-30T15:01:35.835Z] }
+[2025-09-30T15:01:37.767Z] 📊 Status Response: {
+[2025-09-30T15:01:37.770Z]   "batch_id": "3315025",
+[2025-09-30T15:01:37.770Z] Executed 'Functions.TDSAdapter' (Succeeded, Id=d0d59719-50ef-4a50-8e7b-08ff0b1a6850, Duration=318185ms)
+[2025-09-30T15:01:37.772Z]   "success": true,
+[2025-09-30T15:01:37.775Z] Executed HTTP request: {
+[2025-09-30T15:01:37.777Z]   "status": "created",
+[2025-09-30T15:01:37.779Z]   "requestId": "48cf5a49-8e28-4eaf-b9f7-d7859983c038",
+[2025-09-30T15:01:37.782Z]   "dan": "EW14315029",
+[2025-09-30T15:01:37.784Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T15:01:37.787Z]   "branch_id": "1960693"
+[2025-09-30T15:01:37.789Z]   "status": "201",
+[2025-09-30T15:01:37.792Z] }
+[2025-09-30T15:01:37.794Z]   "duration": "318234"
+[2025-09-30T15:01:37.797Z] ✅ Deposit created successfully! DAN: EW14315029
+[2025-09-30T15:01:37.799Z] }
+[2025-09-30T15:01:37.813Z] 💾 Storing integration record...
+[2025-09-30T15:01:37.817Z] 📝 Integration record created: int_1759244497807_tzc9b63x
+[2025-09-30T15:01:37.820Z]    ✅ Audit logging will be handled by IntegrationAuditLogger
+[2025-09-30T15:01:37.836Z] 📝 [AUDIT] Logged successful integration for 1565002 (DIRECT_WEBHOOK)
+[2025-09-30T15:01:37.838Z]     DAN: EW14315029, Deposit: DEP_1759244497766, Steps: 6/6
+[2025-09-30T15:01:37.841Z] Executed 'Functions.WorkflowOrchestrator' (Succeeded, Id=75ded95a-7482-448e-93d6-e47fa6c720c2, Duration=318990ms)
+[2025-09-30T15:01:37.844Z] Executed HTTP request: {
+[2025-09-30T15:01:37.846Z]   "requestId": "f50d01d7-0bd0-4b97-86c3-ee6a4a0095f6",
+[2025-09-30T15:01:37.849Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T15:01:37.851Z]   "status": "200",
+[2025-09-30T15:01:37.854Z]   "duration": "319036"
+[2025-09-30T15:01:37.855Z] }
+[2025-09-30T15:01:37.873Z] 🎉 Integration pending_1759244068394_zdxu29ob completed successfully with DAN: EW14315029
+[2025-09-30T15:01:37.876Z] Executed 'Functions.PendingIntegrationsManager' (Succeeded, Id=e28939cd-0612-4132-af42-c507e666f4a4, Duration=320171ms)
+[2025-09-30T15:01:37.879Z] Executed HTTP request: {
+[2025-09-30T15:01:37.883Z]   "requestId": "5fd03f25-6eee-4e6a-917d-b6cbf515e316",
+[2025-09-30T15:01:37.886Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T15:01:37.889Z]   "status": "200",
+[2025-09-30T15:01:37.892Z]   "duration": "320222"
+[2025-09-30T15:01:37.894Z] }
+[2025-09-30T15:01:37.917Z] Executing HTTP request: {
+[2025-09-30T15:01:37.920Z]   "requestId": "cd838c60-5014-4de6-b9ae-61c15dbd6da4",
+[2025-09-30T15:01:37.922Z]   "method": "GET",
+[2025-09-30T15:01:37.924Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T15:01:37.926Z]   "uri": "/api/pending-integrations/list"
+[2025-09-30T15:01:37.928Z] }
+[2025-09-30T15:01:37.932Z] Executing 'Functions.PendingIntegrationsManager' (Reason='This function was programmatically called via the host APIs.', Id=503d0662-a66d-45c7-8cac-1cf28ec64720)
+[2025-09-30T15:01:37.942Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 503d0662-a66d-45c7-8cac-1cf28ec64720
+[2025-09-30T15:01:37.959Z] 🔍 Found integration pending_1759228947550_usn3pxfv with status: PROCESSING
+[2025-09-30T15:01:37.962Z] ⏭️ Skipping integration pending_1759228947550_usn3pxfv with status: PROCESSING (not pending)
+[2025-09-30T15:01:37.965Z] 🔍 Found integration pending_1759244068394_zdxu29ob with status: COMPLETED
+[2025-09-30T15:01:37.974Z] ⏭️ Skipping integration pending_1759244068394_zdxu29ob with status: COMPLETED (not pending)
+[2025-09-30T15:01:37.977Z] 📊 Retrieved 0 truly pending integrations
+[2025-09-30T15:01:37.980Z] Executed 'Functions.PendingIntegrationsManager' (Succeeded, Id=503d0662-a66d-45c7-8cac-1cf28ec64720, Duration=47ms)
+[2025-09-30T15:01:37.983Z] Executed HTTP request: {
+[2025-09-30T15:01:37.985Z]   "requestId": "cd838c60-5014-4de6-b9ae-61c15dbd6da4",
+[2025-09-30T15:01:37.988Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T15:01:37.990Z]   "status": "200",
+[2025-09-30T15:01:37.992Z]   "duration": "65"
+[2025-09-30T15:01:37.995Z] }
+[2025-09-30T15:01:38.019Z] Executing HTTP request: {
+[2025-09-30T15:01:38.021Z]   "requestId": "aba24de9-072d-4542-8940-c9e8fd0cd778",
+[2025-09-30T15:01:38.024Z]   "method": "GET",
+[2025-09-30T15:01:38.026Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T15:01:38.028Z]   "uri": "/api/pending-integrations/stats"
+[2025-09-30T15:01:38.031Z] }
+[2025-09-30T15:01:38.035Z] Executing 'Functions.PendingIntegrationsManager' (Reason='This function was programmatically called via the host APIs.', Id=3ddc4530-0a49-4bde-9634-4ef2f73de0e5)
+[2025-09-30T15:01:38.044Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 3ddc4530-0a49-4bde-9634-4ef2f73de0e5
+[2025-09-30T15:01:38.051Z] 🔍 Found integration pending_1759228947550_usn3pxfv with status: PROCESSING
+[2025-09-30T15:01:38.054Z] ⏭️ Skipping integration pending_1759228947550_usn3pxfv with status: PROCESSING (not pending)
+[2025-09-30T15:01:38.056Z] 🔍 Found integration pending_1759244068394_zdxu29ob with status: COMPLETED
+[2025-09-30T15:01:38.060Z] ⏭️ Skipping integration pending_1759244068394_zdxu29ob with status: COMPLETED (not pending)
+[2025-09-30T15:01:38.063Z] 📊 Retrieved 0 truly pending integrations
+[2025-09-30T15:01:38.066Z] Executed 'Functions.PendingIntegrationsManager' (Succeeded, Id=3ddc4530-0a49-4bde-9634-4ef2f73de0e5, Duration=31ms)
+[2025-09-30T15:01:38.069Z] Executed HTTP request: {
+[2025-09-30T15:01:38.072Z]   "requestId": "aba24de9-072d-4542-8940-c9e8fd0cd778",
+[2025-09-30T15:01:38.074Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T15:01:38.077Z]   "status": "200",
+[2025-09-30T15:01:38.080Z]   "duration": "50"
+[2025-09-30T15:01:38.083Z] }
+
+[2025-09-30T15:05:15.849Z] }
+[2025-09-30T15:05:17.049Z] 📊 Checking status at: https://sandbox.api.custodial.tenancydepositscheme.com/v1.2/CreateDepositStatus/1960473/1960693/SJKFW-4782P-3D7DJ-ADDSD-3S78F/3315033
+[2025-09-30T15:05:19.315Z] 📊 Status Response: {
+[2025-09-30T15:05:19.320Z]   "batch_id": "3315033",
+[2025-09-30T15:05:19.324Z]   "success": true,
+[2025-09-30T15:05:19.328Z]   "status": "failed",
+[2025-09-30T15:05:19.328Z] Executed 'Functions.TDSAdapter' (Succeeded, Id=8bd67799-ff6c-4da9-8872-40aacb389b84, Duration=315655ms)
+[2025-09-30T15:05:19.332Z]   "errors": [
+[2025-09-30T15:05:19.336Z] Executed HTTP request: {
+[2025-09-30T15:05:19.339Z]     {
+[2025-09-30T15:05:19.342Z]   "requestId": "b0a40c3b-c526-4f13-84d9-a5b314d506a9",
+[2025-09-30T15:05:19.345Z]       "name": "validation",
+[2025-09-30T15:05:19.349Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T15:05:19.354Z]       "value": "Attempt to update an existing tenancy"
+[2025-09-30T15:05:19.357Z]   "status": "400",
+[2025-09-30T15:05:19.364Z]   "duration": "315726"
+[2025-09-30T15:05:19.361Z]     }
+[2025-09-30T15:05:19.368Z] }
+[2025-09-30T15:05:19.372Z]   ]
+[2025-09-30T15:05:19.379Z] }
+[2025-09-30T15:05:19.384Z] ❌ Permanent TDS error detected: validation: Attempt to update an existing tenancy
+[2025-09-30T15:05:19.388Z] ❌ Permanent error detected, stopping retries: TDS validation error: validation: Attempt to update an existing tenancy
+[2025-09-30T15:05:19.414Z] ❌ Workflow failed at step 'create_tds_deposit': Error: TDS deposit creation failed: TDS validation error: validation: Attempt to update an existing tenancy
+    at AltoTDSOrchestrator.execute (C:\Users\Omar.Lodhi\OneDrive - The Dispute Service\Projects\Alto Jupix Integration\Production Ready Concept\azure-functions\src\functions\WorkflowOrchestrator.js:146:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async handler (C:\Users\Omar.Lodhi\OneDrive - The Dispute Service\Projects\Alto Jupix Integration\Production Ready Concept\azure-functions\src\functions\WorkflowOrchestrator.js:19:28)
+[2025-09-30T15:05:19.455Z] 📝 [AUDIT] Logged failed integration for 1565002 (DIRECT_WEBHOOK)
+[2025-09-30T15:05:19.459Z]     Reason: TDS_VALIDATION_ERROR, Steps: 4/6, Failed at: create_tds_deposit
+[2025-09-30T15:05:19.463Z] Executed 'Functions.WorkflowOrchestrator' (Succeeded, Id=b80b68f9-1867-4955-92bb-c052f035f8a1, Duration=316735ms)
+[2025-09-30T15:05:19.469Z] Executed HTTP request: {
+[2025-09-30T15:05:19.472Z]   "requestId": "da9f0a27-e6eb-47c6-a3bb-6be7940f51d0",
+[2025-09-30T15:05:19.476Z]   "identities": "(WebJobsAuthLevel:Admin)",
+[2025-09-30T15:05:19.480Z]   "status": "500",
+[2025-09-30T15:05:19.485Z]   "duration": "316771"
+[2025-09-30T15:05:19.489Z] }
+[2025-09-30T15:05:19.502Z] 🚫 pending_1759244068394_zdxu29ob permanent error - archiving: TDS deposit creation failed: TDS validation error: validation: Attempt to update an existing tenancy
+[2025-09-30T15:05:19.524Z] 📝 [AUDIT] Logged failed integration for 1565002 (PENDING_POLLING)
+[2025-09-30T15:05:19.528Z]     Reason: TDS_VALIDATION_ERROR, Steps: 0/6, Failed at: create_tds_deposit
+[2025-09-30T15:05:19.556Z] 📦 Archived integration pending_1759244068394_zdxu29ob with status FAILED
+[2025-09-30T15:05:19.560Z] ✅ Polling service completed: { processed: 1, completed: 0, failed: 1, stillPending: 0 }
+[2025-09-30T15:05:19.574Z] Executed 'Functions.PendingPollingService' (Succeeded, Id=6b8ca86a-2002-48f8-b0dd-cab9a94b86ca, Duration=319567ms)
+[2025-09-30T15:05:19.669Z] Executing 'Functions.PendingPollingService' (Reason='Timer fired at 2025-09-30T16:05:19.6683515+01:00', Id=8c067406-8dde-4906-b4ac-006dc0de67c5)
+[2025-09-30T15:05:19.673Z] Trigger Details: ScheduleStatus: {"Last":"2025-09-30T16:00:00.0036792+01:00","Next":"2025-09-30T16:05:00+01:00","LastUpdated":"2025-09-30T16:00:00.0036792+01:00"}
+[2025-09-30T15:05:19.690Z] Worker 0b0f0ba6-1a06-4c3c-b72e-b0bd6662d192 received FunctionInvocationRequest with invocationId 8c067406-8dde-4906-b4ac-006dc0de67c5
+[2025-09-30T15:05:19.690Z] 🔄 Starting pending integration polling service...
+[2025-09-30T15:05:19.701Z] 🔍 Checking for pending integrations ready for polling...
+[2025-09-30T15:05:19.705Z] ✅ Pending integrations table initialized
+[2025-09-30T15:05:19.708Z] ✅ Table 'PollingSettings' ready
+[2025-09-30T15:05:19.712Z] ✅ Pending integrations archive table initialized
+[2025-09-30T15:05:19.716Z] 📊 Loaded polling settings: pendingPollInterval=10min, maxPollAttempts=5
+[2025-09-30T15:05:19.719Z] 🧹 Running cleanup for stale integrations...
+[2025-09-30T15:05:19.723Z] 🔍 Checking pending_1759228947550_usn3pxfv: status=PROCESSING, pollCount=1/5
+[2025-09-30T15:05:19.727Z] ⏭️ Skipping pending_1759228947550_usn3pxfv: currently PROCESSING
+[2025-09-30T15:05:19.732Z] 🧹 Cleanup complete: Checked 1 integrations, archived 0
+[2025-09-30T15:05:19.736Z] 📭 No pending integrations ready for polling
+[2025-09-30T15:05:19.739Z] ✅ Polling service completed: { processed: 0, completed: 0, failed: 0, stillPending: 0 }
+[2025-09-30T15:05:19.742Z] Executed 'Functions.PendingPollingService' (Succeeded, Id=8c067406-8dde-4906-b4ac-006dc0de67c5, Duration=74ms)
+[2025-09-30T15:05:25.790Z] Executing HTTP request: {
+[2025-09-30T15:05:25.794Z]   "requestId": "26936e03-0b40-454d-9b15-c8aa9cadfbbf",
+[2025-09-30T15:05:25.797Z]   "method": "GET",
+[2025-09-30T15:05:25.801Z]   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+[2025-09-30T15:05:25.805Z]   "uri": "/api/health"
+[2025-09-30T15:05:25.809Z] }
+
+

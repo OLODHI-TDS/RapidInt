@@ -1,0 +1,3036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <title>TDS RapidInt - Alto Integration Dashboard</title>
+    <link rel="stylesheet" href="shared-styles.css">
+    <style>
+        /* Alto Integration Dashboard - Page-specific styles */
+
+        /* Service Cards Grid */
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--space-lg);
+            margin-bottom: var(--space-lg);
+        }
+
+        .service-card {
+            padding: var(--space-lg);
+            border-radius: var(--radius-xl);
+        }
+
+        .service-card h4 {
+            margin-bottom: var(--space-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Status Badges */
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status.running {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--color-success-light);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status.pending {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--color-warning-light);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        /* Endpoints */
+        .endpoints {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+
+        .endpoint {
+            background: var(--glass-bg-light);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            text-decoration: none;
+            border: 1px solid var(--glass-border);
+            transition: all var(--transition-fast);
+        }
+
+        .endpoint:hover {
+            background: var(--glass-bg-medium);
+            color: var(--text-primary);
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-lg);
+        }
+
+        /* Form Groups */
+        .form-group label {
+            display: block;
+            margin-bottom: var(--space-sm);
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            margin-bottom: var(--space-md);
+        }
+
+        /* Results Display */
+        .result {
+            padding: var(--space-md);
+            border-radius: var(--radius-lg);
+            margin-top: var(--space-md);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--color-success);
+            color: var(--color-success-light);
+        }
+
+        .result.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--color-error);
+            color: var(--color-error-light);
+        }
+
+        .result.info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid var(--color-info);
+            color: var(--color-info-light);
+        }
+
+        /* Workflow Steps */
+        .workflow-step {
+            background: var(--glass-bg-light);
+            padding: var(--space-md);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-sm);
+            border-left: 4px solid var(--glass-border);
+        }
+
+        .workflow-step .step-header {
+            display: flex;
+            gap: var(--space-sm);
+            align-items: center;
+        }
+
+        .workflow-step .step-status {
+            font-size: 20px;
+        }
+
+        /* Pending Integrations Table */
+        .pending-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: var(--space-md);
+        }
+
+        .pending-table th,
+        .pending-table td {
+            padding: var(--space-md);
+            text-align: left;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .pending-table th {
+            background: var(--glass-bg-medium);
+            font-weight: 600;
+        }
+
+        .pending-table tr:hover {
+            background: var(--glass-bg-light);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .two-column,
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header glass-heavy card-lg">
+            <div class="flex justify-between items-center">
+                <div class="logo-container">
+                    <img src="tds-rapidint-logo-white.svg" alt="TDS RapidInt Logo" class="logo" />
+                    <h1 class="header-title" style="margin: 0;">Alto Integration Dashboard</h1>
+                </div>
+                <div>
+                    <button class="btn btn-secondary" onclick="goBackToHub()">
+                        ← Back to Integration Hub
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="tabs glass">
+            <div class="tab tab-active" onclick="showTab('overview')">📊 Alto Overview</div>
+            <div class="tab" onclick="showTab('workflow')">🔄 Alto Workflow</div>
+            <div class="tab" onclick="showTab('pending')">⏳ Pending Integrations</div>
+            <div class="tab" onclick="showTab('alto')">🔗 Alto Integration Log</div>
+            <div class="tab" onclick="showTab('settings')">⚙️ Settings</div>
+        </div>
+
+        <!-- Service Overview Tab -->
+        <div id="overview" class="tab-content tab-content-active">
+            <div class="service-grid">
+                <div class="service-card glass card">
+                    <h4>📦 Azure Functions <span class="status running badge badge-success" id="functions-status">Checking...</span></h4>
+            flex: 1;
+            padding: 12px 18px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 500;
+            border: 1px solid transparent;
+            min-width: 120px;
+        }
+        .settings-tab.active {
+            background: var(--glass-accent);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 4px 20px rgba(56, 142, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        .settings-tab:hover:not(.active) {
+            background: var(--glass-hover);
+            color: var(--text-primary);
+            transform: translateY(-1px);
+        }
+        .settings-tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        .settings-tab-content.active {
+            display: block;
+        }
+        .environment-section {
+            padding: 20px;
+            background: var(--glass-surface);
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(20px);
+        }
+        .environment-section h4 {
+            color: var(--text-primary);
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px; margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--glass-surface);
+            border: 1px solid var(--glass-border);
+            padding: 25px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                0 12px 40px rgba(0, 0, 0, 0.18),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .card h3 {
+            margin: 0 0 20px 0;
+            color: var(--text-primary);
+            font-size: 1.4em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--tds-light);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow:
+                0 0 0 3px rgba(56, 142, 255, 0.2),
+                0 4px 16px rgba(56, 142, 255, 0.1);
+        }
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: var(--neutral-gray);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin: 5px;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            backdrop-filter: blur(20px);
+            box-shadow:
+                0 4px 16px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary {
+            background: var(--glass-accent);
+            color: var(--text-primary);
+            border-color: rgba(56, 142, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: rgba(56, 142, 255, 0.8);
+            transform: translateY(-2px);
+            box-shadow:
+                0 8px 24px rgba(56, 142, 255, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-success {
+            background: rgba(0, 200, 81, 0.6);
+            color: var(--text-primary);
+            border-color: rgba(0, 200, 81, 0.3);
+        }
+
+        .btn-success:hover {
+            background: rgba(0, 200, 81, 0.8);
+            transform: translateY(-2px);
+            box-shadow:
+                0 8px 24px rgba(0, 200, 81, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-warning {
+            background: rgba(255, 136, 0, 0.6);
+            color: var(--text-primary);
+            border-color: rgba(255, 136, 0, 0.3);
+        }
+
+        .btn-warning:hover {
+            background: rgba(255, 136, 0, 0.8);
+            transform: translateY(-2px);
+            box-shadow:
+                0 8px 24px rgba(255, 136, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--glass-hover);
+            color: var(--text-primary);
+            border-color: var(--glass-border);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow:
+                0 8px 24px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status.running {
+            background: rgba(0, 200, 81, 0.3);
+            color: rgba(255, 255, 255, 0.9);
+            border-color: rgba(0, 200, 81, 0.5);
+        }
+
+        .status.stopped {
+            background: rgba(255, 53, 71, 0.3);
+            color: rgba(255, 255, 255, 0.9);
+            border-color: rgba(255, 53, 71, 0.5);
+        }
+
+        .status.pending {
+            background: rgba(255, 136, 0, 0.3);
+            color: rgba(255, 255, 255, 0.9);
+            border-color: rgba(255, 136, 0, 0.5);
+        }
+
+        .endpoint {
+            display: block; padding: 8px 12px; margin: 8px 0;
+            background: #e3f2fd; border-radius: 4px;
+            font-family: 'Consolas', monospace; font-size: 13px;
+            text-decoration: none; color: #1976d2;
+        }
+
+        .endpoint:hover { background: #bbdefb; }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+        }
+
+        .result.success {
+            background: rgba(0, 200, 81, 0.15);
+            color: rgba(255, 255, 255, 0.9);
+            border-left: 4px solid var(--success-green);
+        }
+
+        .result.error {
+            background: rgba(255, 53, 71, 0.15);
+            color: rgba(255, 255, 255, 0.9);
+            border-left: 4px solid var(--error-red);
+        }
+
+        .result.info {
+            background: rgba(56, 142, 255, 0.15);
+            color: rgba(255, 255, 255, 0.9);
+            border-left: 4px solid var(--tds-light);
+        }
+
+        .workflow-step {
+            margin: 10px 0;
+            border-radius: 12px;
+            border-left: 4px solid var(--neutral-gray);
+            background: var(--glass-hover);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-left: 4px solid var(--neutral-gray);
+            box-shadow:
+                0 4px 16px rgba(0, 0, 0, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .workflow-step.completed {
+            border-left-color: var(--success-green);
+            background: rgba(0, 200, 81, 0.1);
+        }
+
+        .workflow-step.failed {
+            border-left-color: var(--error-red);
+            background: rgba(255, 53, 71, 0.1);
+        }
+
+        .workflow-step.running {
+            border-left-color: var(--warning-orange);
+            background: rgba(255, 136, 0, 0.1);
+            animation: pulse-step 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-step {
+            0%, 100% { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.15); }
+            50% { box-shadow: 0 8px 24px rgba(255, 136, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+        }
+
+        .step-header {
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-primary);
+        }
+
+        .step-header:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        .step-status {
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+
+
+
+        .service-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .service-card {
+            background: white; padding: 20px; border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .service-card h4 {
+            margin: 0 0 10px 0; color: var(--primary-blue);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .two-column {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .two-column, .grid { grid-template-columns: 1fr; }
+            .tabs { flex-direction: column; }
+        }
+
+        .mapping-table {
+            width: 100%; border-collapse: collapse; margin-top: 15px;
+        }
+
+        .mapping-table th, .mapping-table td {
+            padding: 12px; text-align: left; border-bottom: 1px solid #e1dfdd;
+        }
+
+        .mapping-table th {
+            background: var(--light-gray); font-weight: 600;
+            color: var(--neutral-gray);
+        }
+
+        .mapping-table tr { color: var(--text-primary); }
+
+        .badge {
+            display: inline-block; padding: 4px 8px; border-radius: 12px;
+            font-size: 11px; font-weight: bold;
+        }
+
+        .badge.active { background: var(--success-green); color: white; }
+        .badge.inactive { background: var(--neutral-gray); color: white; }
+
+        /* Audit Table Styles */
+        .status-badge {
+            display: inline-block; padding: 4px 8px; border-radius: 12px;
+            font-size: 11px; font-weight: bold; text-transform: uppercase;
+        }
+        .status-badge.success { background: var(--success-green); color: white; }
+        .status-badge.failed { background: var(--error-red); color: white; }
+        .status-badge.pending { background: #ff9800; color: white; }
+        .status-badge.pending-deposit { background: #ff9800; color: white; }
+        .status-badge.pending-data { background: #2196f3; color: white; }
+        .status-badge.processing { background: #9c27b0; color: white; animation: pulse 2s ease-in-out infinite; }
+        .status-badge.expired { background: #9e9e9e; color: white; }
+        .status-badge.cancelled { background: #607d8b; color: white; }
+
+        .success-row {
+            background-color: rgba(0, 200, 81, 0.1);
+            color: var(--text-primary);
+        }
+        .error-row {
+            background-color: rgba(255, 53, 71, 0.1);
+            color: var(--text-primary);
+        }
+        .pending-row {
+            background-color: rgba(255, 136, 0, 0.1);
+            color: var(--text-primary);
+        }
+        .processing-row {
+            background-color: rgba(156, 39, 176, 0.1);
+            color: var(--text-primary);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .btn-small {
+            padding: 4px 8px; font-size: 12px; border-radius: 3px;
+            background: var(--primary-blue); color: white; border: none; cursor: pointer;
+        }
+        .btn-small:hover { opacity: 0.8; }
+
+        .btn-danger {
+            background: #dc3545 !important;
+            color: white !important;
+        }
+        .btn-danger:hover {
+            background: #c82333 !important;
+            opacity: 1 !important;
+        }
+
+        .btn-warning {
+            background: #ffc107 !important;
+            color: #212529 !important;
+        }
+        .btn-warning:hover {
+            background: #e0a800 !important;
+            opacity: 1 !important;
+        }
+
+        /* Audit Modal Styles */
+        .audit-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .audit-modal-content {
+            background: white; border-radius: 8px; max-width: 800px; width: 90%;
+            max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .audit-modal-header {
+            padding: 20px; border-bottom: 1px solid #eee;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .audit-modal-header h3 { margin: 0; }
+
+        .close-modal {
+            background: none; border: none; font-size: 24px; cursor: pointer;
+            color: #999; padding: 0; width: 30px; height: 30px;
+        }
+        .close-modal:hover { color: #333; }
+
+        .audit-modal-body { padding: 20px; }
+
+        .audit-detail-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .audit-detail-grid > div {
+            padding: 8px; background: #f8f9fa; border-radius: 4px;
+        }
+
+        .error-detail { grid-column: 1 / -1; background-color: #fff3cd !important; }
+
+        .full-result {
+            border-top: 1px solid #eee; padding-top: 20px;
+        }
+
+        .full-result pre {
+            background: #f8f9fa; padding: 15px; border-radius: 4px;
+            overflow-x: auto; font-size: 12px; max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* Edit Organization Modal Styles */
+        .edit-org-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .edit-org-modal-content {
+            background: white; border-radius: 12px; max-width: 500px; width: 90%;
+            max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border: 1px solid var(--glass-border);
+        }
+
+        .edit-org-modal-header {
+            padding: 20px; border-bottom: 1px solid #eee;
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--glass-surface);
+            border-radius: 12px 12px 0 0;
+        }
+
+        .edit-org-modal-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        .edit-org-modal-body {
+            padding: 20px;
+        }
+
+        .edit-org-modal .form-group {
+            margin-bottom: 15px;
+        }
+
+        .edit-org-modal .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .edit-org-modal .form-group input,
+        .edit-org-modal .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #333 !important;
+            background: white !important;
+        }
+
+        .edit-org-modal .form-group input:focus,
+        .edit-org-modal .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 2px rgba(13, 71, 161, 0.2);
+        }
+
+        .edit-org-modal .form-group input[readonly] {
+            background: #f8f9fa !important;
+            color: #6c757d !important;
+        }
+
+        .edit-org-modal .form-actions {
+            padding: 15px 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            background: #f8f9fa;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .edit-org-modal .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .edit-org-modal .btn-primary {
+            background: #0d47a1 !important;
+            color: white !important;
+            border: 1px solid #0d47a1 !important;
+        }
+
+        .edit-org-modal .btn-primary:hover {
+            background: #0b3d91 !important;
+            border-color: #0b3d91 !important;
+        }
+
+        .edit-org-modal .btn-secondary {
+            background: #6c757d !important;
+            color: white !important;
+            border: 1px solid #6c757d !important;
+        }
+
+        .edit-org-modal .btn-secondary:hover {
+            background: #5a6268 !important;
+            border-color: #545b62 !important;
+        }
+
+        /* Pending Integrations Dashboard - Secondary Navbar Style */
+        .pending-dashboard-navbar {
+            background: var(--glass-surface);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(40px) saturate(180%);
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pending-dashboard-navbar:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                0 12px 40px rgba(0, 0, 0, 0.18),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .dashboard-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .dashboard-header h3 {
+            color: var(--text-primary);
+            margin: 0 0 5px 0;
+            font-weight: 600;
+            font-size: 1.3em;
+        }
+
+        .dashboard-header p {
+            color: var(--text-secondary);
+            margin: 0;
+            font-size: 0.9em;
+        }
+
+        .dashboard-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .dashboard-actions .btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            border-radius: 8px;
+            background: var(--glass-accent);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(20px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow:
+                0 4px 16px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .dashboard-actions .btn:hover {
+            transform: translateY(-1px);
+            box-shadow:
+                0 6px 20px rgba(0, 0, 0, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+
+        /* Pending Integrations Main Section - Increased Height */
+        /* Removed pending-integrations-main - now uses standard card layout */
+
+
+
+
+
+
+        /* Responsive adjustments for pending dashboard */
+        @media (max-width: 768px) {
+            .dashboard-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .dashboard-actions {
+                width: 100%;
+                justify-content: center;
+            }
+
+            /* Pending integrations now use standard card layout */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                        <img src="tds-rapidint-logo-white.svg" alt="TDS RapidInt Logo" style="height: 50px; width: auto; opacity: 0.95; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.2));" />
+                        <h1 style="color: var(--text-primary); font-weight: 700; background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.8) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">Alto Integration Dashboard</h1>
+                    </div>
+                </div>
+                <div>
+                    <button class="btn btn-secondary" onclick="goBackToHub()" style="background: var(--glass-hover); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 10px 20px; border-radius: 12px; cursor: pointer; backdrop-filter: blur(20px);">
+                        ← Back to Integration Hub
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('overview')">📊 Alto Overview</div>
+            <div class="tab" onclick="showTab('workflow')">🔄 Alto Workflow</div>
+            <div class="tab" onclick="showTab('pending')">⏳ Pending Integrations</div>
+            <div class="tab" onclick="showTab('alto')">🔗 Alto Integration Log</div>
+            <div class="tab" onclick="showTab('settings')">⚙️ Settings</div>
+        </div>
+
+        <!-- Service Overview Tab -->
+        <div id="overview" class="tab-content active">
+            <div class="service-grid">
+                <div class="service-card">
+                    <h4>📦 Azure Functions <span class="status running" id="functions-status">Checking...</span></h4>
+                    <div class="endpoints">
+                        <a href="http://localhost:7071/api/health" class="endpoint" target="_blank">GET /api/health</a>
+                        <a href="http://localhost:7071/admin/functions" class="endpoint" target="_blank">Admin Dashboard</a>
+                    </div>
+                </div>
+
+                <div class="service-card">
+                    <h4>💾 Azurite Storage <span class="status running">Running</span></h4>
+                    <div class="endpoints">
+                        <div class="endpoint">Blob: http://127.0.0.1:10000</div>
+                        <div class="endpoint">Queue: http://127.0.0.1:10001</div>
+                        <div class="endpoint">Table: http://127.0.0.1:10002</div>
+                    </div>
+                </div>
+
+                <div class="service-card">
+                    <h4>🔗 Integration Services <span class="status running">Active</span></h4>
+                    <div style="margin-top: 10px;">
+                        <div>✅ Postcode Lookup Service</div>
+                        <div>✅ TDS Adapter (Multi-Provider)</div>
+                        <div>✅ Organization Mapping</div>
+                        <div>✅ Alto API Integration</div>
+                        <div>✅ Webhook Receiver</div>
+                        <div>✅ Workflow Orchestrator</div>
+                    </div>
+                </div>
+
+                <div class="service-card">
+                    <h4>📈 Quick Stats <span class="status pending" id="stats-status">Loading...</span></h4>
+                    <div id="stats-content">
+                        <div>Functions: <span id="function-count">-</span></div>
+                        <div>Organization Mappings: <span id="org-count">-</span></div>
+                        <div>Node Version: <span id="node-version">-</span></div>
+                        <div>Uptime: <span id="uptime">-</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🧪 Quick Function Tests</h3>
+                <button class="btn btn-primary" onclick="testAllServices()">Test All Services</button>
+                <button class="btn btn-secondary" onclick="viewFunctionList()">View Function List</button>
+                <button class="btn btn-warning" onclick="clearResults()">Clear Results</button>
+                <div id="test-results" class="result info" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Workflow Testing Tab -->
+        <div id="workflow" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h3>🔄 Complete Alto → TDS Workflow</h3>
+                    <div class="form-group">
+                        <label>Agency Reference</label>
+                        <input type="text" id="workflow-agencyRef" value="1af89d60-662c-475b-bcc8-9bcbf04b6322" placeholder="Enter agency reference">
+                    </div>
+                    <div class="form-group">
+                        <label>Tenancy ID/Subject ID</label>
+                        <input type="text" id="workflow-tenancyId" placeholder="Enter tenancy ID" title="Example: TEN_123456">
+                    </div>
+                    <div class="form-group">
+                        <label>Branch ID</label>
+                        <input type="text" id="workflow-branchId" placeholder="Enter branch ID" title="Example: MAIN, NORTH, SOUTH">
+                    </div>
+                    <button class="btn btn-success" onclick="runWorkflow()">🚀 Execute Workflow</button>
+                    <div id="workflow-results"></div>
+                </div>
+
+                <div class="card">
+                    <h3>📋 Interactive Workflow Steps</h3>
+                    <div id="workflow-steps">
+                        <div class="workflow-step" id="step-1">
+                            <div class="step-header">
+                                <span class="step-status" id="status-1">⏳</span>
+                                <strong>Step 1:</strong> Fetch Alto tenancy data
+                            </div>
+                        </div>
+                        <div class="workflow-step" id="step-2">
+                            <div class="step-header">
+                                <span class="step-status" id="status-2">⏳</span>
+                                <strong>Step 2:</strong> Validate and enrich data
+                            </div>
+                        </div>
+                        <div class="workflow-step" id="step-3">
+                            <div class="step-header">
+                                <span class="step-status" id="status-3">⏳</span>
+                                <strong>Step 3:</strong> Lookup postcode county
+                            </div>
+                        </div>
+                        <div class="workflow-step" id="step-4">
+                            <div class="step-header">
+                                <span class="step-status" id="status-4">⏳</span>
+                                <strong>Step 4:</strong> Prepare TDS deposit payload
+                            </div>
+                        </div>
+                        <div class="workflow-step" id="step-5">
+                            <div class="step-header">
+                                <span class="step-status" id="status-5">⏳</span>
+                                <strong>Step 5:</strong> Create TDS deposit
+                            </div>
+                        </div>
+                        <div class="workflow-step" id="step-6">
+                            <div class="step-header">
+                                <span class="step-status" id="status-6">⏳</span>
+                                <strong>Step 6:</strong> Store integration record
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Workflow Testing Tab -->
+        <div id="workflow" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h3>🔄 Complete Alto → TDS Workflow</h3>
+                    <div class="form-group">
+                        <label>Agency Reference</label>
+                        <input type="text" id="workflow-agencyRef" value="1af89d60-662c-475b-bcc8-9bcbf04b6322" placeholder="Enter agency reference">
+                    </div>
+                    <div class="form-group">
+                        <label>Tenancy ID/Subject ID</label>
+                        <input type="text" id="workflow-tenancyId" placeholder="Enter tenancy ID" title="Example: TEN_123456">
+                    </div>
+                    <div class="form-group">
+                        <label>Branch ID</label>
+                        <input type="text" id="workflow-branchId" placeholder="Enter branch ID" title="Example: MAIN, NORTH, SOUTH">
+                    </div>
+                    <button class="btn btn-success" onclick="runWorkflow()">🚀 Execute Workflow</button>
+                    <div id="workflow-results"></div>
+                </div>
+
+                <div class="card">
+                    <h3>📋 Interactive Workflow Steps</h3>
+                    <div id="workflow-steps">
+                        <div class="workflow-step" id="step-1">
+                            <div class="step-header">
+                                <span class="step-status" id="status-1">⏳</span>
+                                <strong>Step 1:</strong> Fetch Alto tenancy data
+                            </div>
+                        </div>
+                        <div class="workflow-step" id="step-2">
+                            <div class="step-header">
+                                <span class="step-status" id="status-2">⏳</span>
+                                <strong>Step 2:</strong> Validate and enrich data
+                            </div>
+                        </div>
+                        <div class="workflow-step" id="step-3">
+                            <div class="step-header">
+                                <span class="step-status" id="status-3">⏳</span>
+                                <strong>Step 3:</strong> Create TDS deposit
+                            </div>
+                        </div>
+                        <div class="workflow-step" id="step-4">
+                            <div class="step-header">
+                                <span class="step-status" id="status-4">⏳</span>
+                                <strong>Step 4:</strong> Return DAN to Alto
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Postcode Lookup Tab -->
+        <div id="postcode" class="tab-content">
+            <div class="two-column">
+                <div class="card">
+                    <h3>📍 Single Postcode Lookup</h3>
+                    <div class="form-group">
+                        <label>Postcode</label>
+                        <input type="text" id="single-postcode" value="MK18 1AA" placeholder="Enter UK postcode">
+                    </div>
+                    <button class="btn btn-primary" onclick="lookupPostcode()">🔍 Lookup</button>
+                    <div id="postcode-result"></div>
+                </div>
+
+                <div class="card">
+                    <h3>📍 Batch Postcode Lookup</h3>
+                    <div class="form-group">
+                        <label>Postcodes (one per line)</label>
+                        <textarea id="batch-postcodes" rows="5" placeholder="MK18 1AA&#10;SW1A 1AA&#10;M1 1AA"></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="batchLookupPostcodes()">🔍 Batch Lookup</button>
+                    <div id="batch-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TDS Operations Tab -->
+        <div id="tds" class="tab-content">
+            <div class="two-column">
+                <div class="card">
+                    <h3>💰 Create TDS Deposit</h3>
+                    <div class="form-group">
+                        <label>Agency Reference (for organization mapping)</label>
+                        <input type="text" id="tds-agencyRef" value="1af89d60-662c-475b-bcc8-9bcbf04b6322">
+                    </div>
+                    <div class="form-group">
+                        <label>Branch ID</label>
+                        <input type="text" id="tds-branchId" value="MAIN">
+                    </div>
+                    <div class="form-group">
+                        <label>Tenancy ID</label>
+                        <input type="text" id="tds-tenancyId" value="TEN_123456">
+                    </div>
+                    <div class="form-group">
+                        <label>Deposit Amount (£)</label>
+                        <input type="number" id="tds-amount" value="1500" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Property Postcode</label>
+                        <input type="text" id="tds-postcode" value="MK18 1AA">
+                    </div>
+                    <button class="btn btn-success" onclick="createTDSDeposit()">💰 Create Deposit</button>
+                    <div id="tds-result"></div>
+                </div>
+
+                <div class="card">
+                    <h3>📊 TDS Status Check</h3>
+                    <div class="form-group">
+                        <label>Deposit ID</label>
+                        <input type="text" id="tds-depositId" placeholder="Enter deposit ID">
+                    </div>
+                    <button class="btn btn-primary" onclick="checkTDSStatus()">📊 Check Status</button>
+                    <button class="btn btn-secondary" onclick="checkTDSHealth()">🏥 Health Check</button>
+                    <div id="tds-status-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Integrations Tab -->
+        <div id="pending" class="tab-content">
+            <!-- Pending Integrations Dashboard - Secondary Navbar Style -->
+            <div class="pending-dashboard-navbar">
+                <div class="dashboard-content">
+                    <div class="dashboard-header">
+                        <h3>⏳ Pending Integrations Dashboard</h3>
+                    </div>
+
+                    <div class="dashboard-actions">
+                        <!-- Actions moved to main table area for consistency -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Statistics Card -->
+            <div class="card">
+                <h3>📊 Statistics</h3>
+                <div id="pending-stats-content">
+                    <p style="color: var(--text-secondary);">Loading statistics...</p>
+                </div>
+            </div>
+
+            <!-- Pending Integrations Table -->
+            <div class="card">
+                <h3>📋 Pending Integrations</h3>
+                <p style="color: var(--text-secondary); padding-bottom: 25px;">All integrations waiting for missing data or delayed processing</p>
+                <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="loadPendingIntegrations()">🔄 Refresh</button>
+                    <button class="btn btn-warning" onclick="forcePollAll()">⚡ Force Poll All</button>
+                    <button class="btn btn-secondary" onclick="showTab('archive')">📦 View Archive</button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="mapping-table" id="pending-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tenancy ID</th>
+                                <th>Status</th>
+                                <th>Reason</th>
+                                <th>Poll Count</th>
+                                <th>Next Poll</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pending-table-body">
+                            <!-- Pending integrations will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Integration Log Tab -->
+        <div id="alto" class="tab-content">
+            <!-- Integration Audit Table -->
+            <div class="card">
+                <h3>📋 Integration Audit Log</h3>
+                <p style="color: white; padding-bottom: 25px;">Workflow test results and production audit trail</p>
+
+                <div style="margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="refreshAuditLog()">🔄 Refresh</button>
+                    <button class="btn btn-secondary" onclick="clearAuditLog()">🗑️ Clear Log</button>
+                    <button class="btn btn-warning" onclick="exportAuditLog()">📥 Export CSV</button>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="mapping-table" id="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Tenancy ID</th>
+                                <th>Status</th>
+                                <th>DAN</th>
+                                <th>Processing Time</th>
+                                <th>Steps</th>
+                                <th>Error</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-table-body">
+                            <!-- Audit entries will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="audit-details" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px;">
+                    <h4>Workflow Details</h4>
+                    <pre id="audit-details-content" style="font-size: 12px; overflow-x: auto;"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Webhook Testing Tab -->
+        <div id="webhooks" class="tab-content">
+            <div class="two-column">
+                <div class="card">
+                    <h3>🔔 Send Test Webhook</h3>
+                    <div class="form-group">
+                        <label>Tenancy ID</label>
+                        <input type="text" id="webhook-tenancyId" value="TEN_123456">
+                    </div>
+                    <div class="form-group">
+                        <label>Agency Reference</label>
+                        <input type="text" id="webhook-agencyRef" value="1af89d60-662c-475b-bcc8-9bcbf04b6322">
+                    </div>
+                    <div class="form-group">
+                        <label>Branch ID</label>
+                        <input type="text" id="webhook-branchId" value="MAIN">
+                    </div>
+                    <div class="form-group">
+                        <label>Event Type</label>
+                        <select id="webhook-eventType">
+                            <option value="Tenancy.Created">Tenancy.Created</option>
+                            <option value="Tenancy.Updated">Tenancy.Updated</option>
+                            <option value="Tenancy.Cancelled">Tenancy.Cancelled</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-success" onclick="sendTestWebhook()">🔔 Send Webhook</button>
+                    <div id="webhook-result"></div>
+                </div>
+
+                <div class="card">
+                    <h3>📡 Webhook Endpoint</h3>
+                    <div class="endpoints">
+                        <div class="endpoint">POST http://localhost:7071/api/webhooks/alto</div>
+                        <div class="endpoint">GET http://localhost:7071/api/webhooks/alto (Status)</div>
+                    </div>
+                    <p><strong>CloudEvents Format:</strong> Supports CloudEvents v1.0 specification</p>
+                    <p><strong>Signature Verification:</strong> HMAC SHA-256 with webhook secret</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content">
+            <!-- Settings Sub-tabs -->
+                <div class="settings-tabs">
+                    <div class="settings-tab active" onclick="showSettingsTab('organization-settings')">🏢 Organization Mapping</div>
+                    <div class="settings-tab" onclick="showSettingsTab('polling-settings')">⏱️ Polling Configuration</div>
+                    <div class="settings-tab" onclick="showSettingsTab('environment-settings')">🌍 Environment Settings</div>
+                </div>
+
+                <!-- Organization Mapping Settings -->
+                <div id="organization-settings" class="settings-tab-content active">
+                    <div class="two-column">
+                        <div class="card">
+                            <h3>🏢 Add Organization Mapping</h3>
+                            <div class="form-group">
+                                <label>Member Name</label>
+                                <input type="text" id="org-memberName" placeholder="e.g., Demo Estate Agency">
+                            </div>
+                            <div class="form-group">
+                                <label>Alto Agency Reference</label>
+                                <input type="text" id="org-agencyRef" placeholder="e.g., 1af89d60-662c-475b-bcc8-9bcbf04b6322">
+                            </div>
+                            <div class="form-group">
+                                <label>Alto Branch ID</label>
+                                <input type="text" id="org-branchId" placeholder="e.g., MAIN, NORTH, SOUTH (or DEFAULT)">
+                            </div>
+                            <div class="form-group">
+                                <label>TDS Member ID</label>
+                                <input type="text" id="org-tdsMemberId" placeholder="e.g., TDS001">
+                            </div>
+                            <div class="form-group">
+                                <label>TDS Branch ID</label>
+                                <input type="text" id="org-tdsBranchId" placeholder="e.g., MAIN">
+                            </div>
+                            <div class="form-group">
+                                <label>TDS API Key</label>
+                                <input type="password" id="org-tdsApiKey" placeholder="TDS API Key for this member">
+                            </div>
+                            <button class="btn btn-success" onclick="addOrganizationMapping()">➕ Add Mapping</button>
+                            <div id="org-add-result"></div>
+                        </div>
+                        <div class="card">
+                            <h3>🔍 Lookup Organization Mapping</h3>
+                            <div class="form-group">
+                                <label>Agency Reference</label>
+                                <input type="text" id="lookup-agencyRef" value="1af89d60-662c-475b-bcc8-9bcbf04b6322">
+                            </div>
+                            <div class="form-group">
+                                <label>Branch ID (Optional)</label>
+                                <input type="text" id="lookup-branchId" value="MAIN">
+                            </div>
+                            <button class="btn btn-primary" onclick="lookupOrganization()">🔍 Lookup</button>
+                            <button class="btn btn-secondary" onclick="listAllOrganizations()">📋 List All</button>
+                            <div id="org-lookup-result"></div>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-top: 30px;">
+                        <h3>📊 Current Organization Mappings</h3>
+                        <button class="btn btn-secondary" onclick="loadOrganizationTable()">🔄 Refresh</button>
+                        <div id="organization-table"></div>
+                    </div>
+                </div>
+
+                <!-- Polling Configuration Settings -->
+                <div id="polling-settings" class="settings-tab-content">
+                    <div class="card">
+                        <h3>⏱️ Polling Duration Configuration</h3>
+                        <p style="color: var(--text-primary); margin-bottom: 25px;">Configure how often the system checks for pending integrations and deposit status</p>
+
+                        <div class="two-column">
+                            <div class="form-group">
+                                <label>Pending Integration Polling Interval (minutes)</label>
+                                <input type="number" id="pending-poll-interval" value="5" min="1" max="60" placeholder="5">
+                                <small>How often to process pending integrations. Timer runs every 5 minutes but only processes when interval has elapsed.</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Deposit Status Check Interval (minutes)</label>
+                                <input type="number" id="deposit-check-interval" value="10" min="1" max="9" placeholder="10">
+                                <small>How often to check TDS deposit status for pending deposits</small>
+                            </div>
+                        </div>
+
+                        <div class="two-column">
+                            <div class="form-group">
+                                <label>Maximum Poll Attempts</label>
+                                <input type="number" id="max-poll-attempts" value="20" min="5" max="100" placeholder="20">
+                                <small>Maximum number of polling attempts before marking as failed</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Exponential Backoff Multiplier</label>
+                                <input type="number" id="backoff-multiplier" value="1.5" min="1" max="3" step="0.1" placeholder="1.5">
+                                <small>Factor by which polling interval increases after each failed attempt</small>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <button class="btn btn-primary" onclick="savePollingSettings()">💾 Save Polling Settings</button>
+                            <button class="btn btn-secondary" onclick="resetPollingSettings()">🔄 Reset to Defaults</button>
+                        </div>
+
+                        <div id="polling-settings-result"></div>
+                    </div>
+                </div>
+
+                <!-- Environment Settings -->
+                <div id="environment-settings" class="settings-tab-content">
+                    <div class="card">
+                        <h3>🌍 Environment Configuration</h3>
+                        <p style="color: white; margin-bottom: 25px;">Configure sandbox and production environment settings for deployment</p>
+
+                        <div class="environment-section">
+                            <h4>🧪 Development Environment</h4>
+                            <div class="form-group">
+                                <label>Alto API Base URL</label>
+                                <input type="url" id="development-alto-api" placeholder="https://sandbox-api.alto.property" value="https://sandbox-api.alto.property">
+                                <small style="color: var(--text-secondary); margin-top: 5px; display: block;">
+                                    Base URL for Alto API in development/sandbox environment
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="environment-section" style="margin-top: 30px;">
+                            <h4>🚀 Production Environment</h4>
+                            <div class="form-group">
+                                <label>Alto API Base URL</label>
+                                <input type="url" id="production-alto-api" placeholder="https://api.alto.property" value="">
+                                <small style="color: var(--text-secondary); margin-top: 5px; display: block;">
+                                    Base URL for Alto API in production environment
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 30px;">
+                            <button class="btn btn-primary" onclick="saveEnvironmentSettings()">💾 Save Environment Settings</button>
+                            <button class="btn btn-warning" onclick="exportEnvironmentConfig()">📥 Export Configuration</button>
+                            <button class="btn btn-secondary" onclick="testEnvironmentConnections()">🔗 Test Connections</button>
+                        </div>
+
+                        <div id="environment-settings-result"></div>
+                    </div>
+                </div>
+        </div>
+
+        <!-- Archive Tab -->
+        <div id="archive" class="tab-content">
+            <!-- Archive Dashboard -->
+            <div class="pending-dashboard-navbar">
+                <div class="dashboard-content">
+                    <div class="dashboard-header">
+                        <h3>📦 Integration Archive</h3>
+                        <p>View completed and failed integrations that have been archived</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Archive Table -->
+            <div class="card">
+                <h3>📋 Archived Integrations</h3>
+                <p style="color: var(--text-secondary); padding-bottom: 25px;">Historical record of completed and failed pending integrations</p>
+                <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="loadArchivedIntegrations()">🔄 Refresh</button>
+                    <button class="btn btn-secondary" onclick="showTab('pending')">⏳ Back to Pending</button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="mapping-table" id="archive-table">
+                        <thead>
+                            <tr>
+                                <th>Tenancy ID</th>
+                                <th>Status</th>
+                                <th>Reason</th>
+                                <th>Created</th>
+                                <th>Archived</th>
+                                <th>Poll Count</th>
+                                <th>DAN</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="archive-table-body">
+                            <!-- Archived integrations will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:7071/api';
+
+        // Global variable to store merged audit log for viewAuditDetails function
+        let currentMergedAuditLog = [];
+
+        function goBackToHub() {
+            window.location.href = 'multi-integration-dashboard.html';
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Content-Type': 'application/json' },
+                    ...options
+                });
+                return await response.json();
+            } catch (error) {
+                return { error: error.message, success: false };
+            }
+        }
+
+        function showResult(elementId, data, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${type}`;
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // Service Overview Functions
+        async function testAllServices() {
+            const result = await makeRequest(`${API_BASE}/health`);
+            showResult('test-results', result, result.status === 'healthy' ? 'success' : 'error');
+            loadStats();
+        }
+
+        async function loadStats() {
+            const health = await makeRequest(`${API_BASE}/health`);
+            const orgList = await makeRequest(`${API_BASE}/organization/list`);
+
+            document.getElementById('function-count').textContent =
+                Object.keys(health.functions || {}).length;
+            document.getElementById('org-count').textContent =
+                orgList.count || 0;
+            document.getElementById('node-version').textContent =
+                health.nodeVersion || 'Unknown';
+            document.getElementById('uptime').textContent =
+                health.timestamp ? new Date(health.timestamp).toLocaleTimeString() : 'Unknown';
+
+            document.getElementById('stats-status').className = 'status running';
+            document.getElementById('stats-status').textContent = 'Updated';
+        }
+
+        function viewFunctionList() {
+            window.open('http://localhost:7071/admin/functions', '_blank');
+        }
+
+        function clearResults() {
+            document.querySelectorAll('.result').forEach(el => el.style.display = 'none');
+        }
+
+        // Enhanced Workflow Functions with Real Backend Integration
+        async function runWorkflow() {
+            const tenancyId = document.getElementById('workflow-tenancyId').value.trim();
+            const agencyRef = document.getElementById('workflow-agencyRef').value.trim();
+            const branchId = document.getElementById('workflow-branchId').value.trim();
+
+            // Validate required fields
+            if (!tenancyId) {
+                showToast('Tenancy ID/Subject ID is required', 'error');
+                return;
+            }
+            if (!agencyRef) {
+                showToast('Agency Reference is required', 'error');
+                return;
+            }
+            if (!branchId) {
+                showToast('Branch ID is required', 'error');
+                return;
+            }
+
+            const workflowData = {
+                tenancyId,
+                agencyRef,
+                branchId
+            };
+
+            // Reset all steps
+            resetWorkflowSteps();
+
+            const startTime = Date.now();
+
+            try {
+                // Call the actual backend workflow API
+                const result = await makeRequest(`${API_BASE}/workflows/alto-tds`, {
+                    method: 'POST',
+                    body: JSON.stringify(workflowData)
+                });
+
+                // Process the result and show interactive steps
+                if (result.success || result.steps) {
+                    await displayWorkflowSteps(result, workflowData);
+
+                    // Capture workflow result in audit log
+                    // Determine proper status based on new response format
+                    let auditStatus;
+                    if (result.success) {
+                        auditStatus = 'Success';
+                    } else if (result.pendingCreated) {
+                        auditStatus = 'Pending'; // New status for pending integrations
+                    } else {
+                        auditStatus = 'Failed';
+                    }
+
+                    const auditEntry = {
+                        timestamp: new Date().toISOString(),
+                        tenancyId: workflowData.tenancyId,
+                        agencyRef: workflowData.agencyRef,
+                        branchId: workflowData.branchId,
+                        status: auditStatus,
+                        dan: result.dan || '-',
+                        depositId: result.depositId || '-',
+                        processingTime: result.processingTime || `${Date.now() - startTime}ms`,
+                        steps: result.steps ? result.steps.length : 0,
+                        completedSteps: result.steps ? result.steps.filter(s => s.status === 'completed').length : 0,
+                        failedStep: result.failedStep || '-',
+                        error: result.error || '',
+                        workflowId: result.workflowId || '',
+                        fullResult: result
+                    };
+
+                    addToAuditLog(auditEntry);
+                    showResult('workflow-results', result, result.success ? 'success' : 'error');
+                } else {
+                    showResult('workflow-results', result, 'error');
+                }
+
+            } catch (error) {
+                showResult('workflow-results', { error: error.message, success: false }, 'error');
+            }
+        }
+
+        // Display workflow steps with real data from backend
+        async function displayWorkflowSteps(result, workflowData) {
+            // Show steps based on actual backend response
+            if (result.steps && result.steps.length > 0) {
+                for (let i = 0; i < result.steps.length; i++) {
+                    const step = result.steps[i];
+                    const stepNumber = i + 1;
+
+                    updateStepStatus(stepNumber, 'running');
+
+                    // Show step-specific data based on step name/description
+                    await showRealStepData(stepNumber, step, result);
+
+                    // Update status based on backend result
+                    updateStepStatus(stepNumber, step.status);
+
+                    // Add delay for visual effect
+                    await delay(800);
+                }
+            } else {
+                // Fallback: show basic progression if no detailed steps
+                await showBasicProgression(result, workflowData);
+            }
+        }
+
+        // Show step status only (no data display)
+        async function showRealStepData(stepNumber, step, result) {
+            // Just update the status - no data display needed
+            // Status is already handled by updateStepStatus function
+        }
+
+        // Fallback progression if no detailed steps from backend
+        async function showBasicProgression(result, workflowData) {
+            for (let i = 1; i <= 6; i++) {
+                updateStepStatus(i, 'running');
+                await delay(800);
+
+                const status = result.success && (i < 6) ? 'completed' :
+                              (i === 5 && !result.success) ? 'failed' : 'completed';
+
+                updateStepStatus(i, status);
+            }
+        }
+
+        // Utility function for delays in UI updates
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+
+        function updateStepStatus(stepNumber, status) {
+            const step = document.getElementById(`step-${stepNumber}`);
+            const statusIcon = document.getElementById(`status-${stepNumber}`);
+
+            // Remove existing status classes
+            step.classList.remove('completed', 'failed', 'running');
+
+            // Add new status
+            if (status !== 'pending') {
+                step.classList.add(status);
+            }
+
+            // Update status icon
+            switch(status) {
+                case 'running':
+                    statusIcon.textContent = '⏳';
+                    break;
+                case 'completed':
+                    statusIcon.textContent = '✅';
+                    break;
+                case 'failed':
+                    statusIcon.textContent = '❌';
+                    break;
+                default:
+                    statusIcon.textContent = '⏳';
+            }
+        }
+
+
+        function resetWorkflowSteps() {
+            for (let i = 1; i <= 6; i++) {
+                updateStepStatus(i, 'pending');
+            }
+        }
+
+        // Organization Mapping Functions
+        async function addOrganizationMapping() {
+            const data = {
+                agencyRef: document.getElementById('org-agencyRef').value,
+                branchId: document.getElementById('org-branchId').value || 'DEFAULT',
+                tdsMemberId: document.getElementById('org-tdsMemberId').value,
+                tdsBranchId: document.getElementById('org-tdsBranchId').value,
+                tdsApiKey: document.getElementById('org-tdsApiKey').value,
+                memberName: document.getElementById('org-memberName').value
+            };
+
+            // Basic validation
+            if (!data.agencyRef || !data.tdsMemberId || !data.tdsBranchId || !data.tdsApiKey || !data.memberName) {
+                showResult('org-add-result', {
+                    success: false,
+                    error: 'Please fill in all required fields'
+                }, 'error');
+                return;
+            }
+
+            const result = await makeRequest(`${API_BASE}/organization/add`, {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+
+            // Enhanced error handling for duplicates
+            if (!result.success && result.duplicateType) {
+                let detailedError = result.error;
+
+                if (result.conflictingMappings && result.conflictingMappings.length > 0) {
+                    detailedError += '\n\nConflicting mappings found:';
+                    result.conflictingMappings.forEach(conflict => {
+                        detailedError += `\n• ${conflict.type}: ${conflict.mapping.memberName} (${conflict.mapping.agencyRef}:${conflict.mapping.branchId} → ${conflict.mapping.tdsMemberId}:${conflict.mapping.tdsBranchId})`;
+                    });
+                }
+
+                showResult('org-add-result', {
+                    ...result,
+                    error: detailedError
+                }, 'error');
+
+                // Show a more user-friendly toast notification
+                if (result.duplicateType.includes('ALTO_DUPLICATE') && result.duplicateType.includes('TDS_DUPLICATE')) {
+                    showToast('Both Alto and TDS mappings already exist!', 'error');
+                } else if (result.duplicateType.includes('ALTO_DUPLICATE')) {
+                    showToast('Alto agency mapping already exists!', 'error');
+                } else if (result.duplicateType.includes('TDS_DUPLICATE')) {
+                    showToast('TDS member mapping already exists!', 'error');
+                }
+            } else {
+                showResult('org-add-result', result, result.success ? 'success' : 'error');
+                if (result.success) {
+                    loadOrganizationTable();
+                    showToast('Organization mapping added successfully!', 'success');
+
+                    // Clear the form on success
+                    document.getElementById('org-agencyRef').value = '';
+                    document.getElementById('org-branchId').value = '';
+                    document.getElementById('org-tdsMemberId').value = '';
+                    document.getElementById('org-tdsBranchId').value = '';
+                    document.getElementById('org-tdsApiKey').value = '';
+                    document.getElementById('org-memberName').value = '';
+                }
+            }
+        }
+
+        async function lookupOrganization() {
+            const agencyRef = document.getElementById('lookup-agencyRef').value;
+            const branchId = document.getElementById('lookup-branchId').value || 'DEFAULT';
+
+            // Debug logging
+            console.log('Lookup - Agency Ref:', agencyRef);
+            console.log('Lookup - Branch ID:', branchId);
+            console.log('Lookup - Agency Ref length:', agencyRef.length);
+
+            if (!agencyRef || agencyRef.trim() === '') {
+                showResult('org-lookup-result', {
+                    error: 'Please enter an Agency Reference',
+                    success: false
+                }, 'error');
+                return;
+            }
+
+            // URL encode the parameters to handle special characters
+            const encodedAgencyRef = encodeURIComponent(agencyRef.trim());
+            const encodedBranchId = encodeURIComponent(branchId.trim());
+            const url = `${API_BASE}/organization/lookup?agencyRef=${encodedAgencyRef}&branchId=${encodedBranchId}`;
+
+            console.log('Lookup URL:', url);
+
+            const result = await makeRequest(url);
+
+            showResult('org-lookup-result', result, result.success ? 'success' : 'error');
+        }
+
+        async function listAllOrganizations() {
+            const result = await makeRequest(`${API_BASE}/organization/list`);
+            showResult('org-lookup-result', result, result.success ? 'success' : 'error');
+        }
+
+        async function deleteOrganizationMapping(agencyRef, branchId) {
+            if (!confirm(`Are you sure you want to delete the organization mapping for "${agencyRef}" (${branchId})?\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const result = await makeRequest(`${API_BASE}/organization/delete`, {
+                    method: 'DELETE',
+                    body: JSON.stringify({
+                        agencyRef: agencyRef,
+                        branchId: branchId
+                    })
+                });
+
+                if (result.success) {
+                    showToast(`Organization mapping deleted: ${result.deletedMapping.memberName}`, 'success');
+                    loadOrganizationTable(); // Refresh the table
+                } else {
+                    showToast(`Failed to delete mapping: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showToast('Error deleting organization mapping', 'error');
+                console.error('Error deleting organization mapping:', error);
+            }
+        }
+
+        function editOrganizationMapping(agencyRef, branchId, tdsMemberId, tdsBranchId, memberName, isActive) {
+            // Create and show edit modal
+            const modal = document.createElement('div');
+            modal.className = 'edit-org-modal';
+            modal.innerHTML = `
+                <div class="edit-org-modal-content">
+                    <div class="edit-org-modal-header">
+                        <h3>Edit Organization Mapping</h3>
+                        <button class="close-modal" onclick="this.closest('.edit-org-modal').remove()">&times;</button>
+                    </div>
+                    <div class="edit-org-modal-body">
+                        <div class="form-group">
+                            <label>Alto Agency Reference</label>
+                            <input type="text" id="edit-agencyRef" value="${agencyRef}" readonly style="background: #f8f9fa;">
+                        </div>
+                        <div class="form-group">
+                            <label>Alto Branch ID</label>
+                            <input type="text" id="edit-branchId" value="${branchId}" readonly style="background: #f8f9fa;">
+                        </div>
+                        <div class="form-group">
+                            <label>TDS Member ID</label>
+                            <input type="text" id="edit-tdsMemberId" value="${tdsMemberId}" placeholder="e.g., TDS001">
+                        </div>
+                        <div class="form-group">
+                            <label>TDS Branch ID</label>
+                            <input type="text" id="edit-tdsBranchId" value="${tdsBranchId}" placeholder="e.g., MAIN">
+                        </div>
+                        <div class="form-group">
+                            <label>TDS API Key</label>
+                            <input type="password" id="edit-tdsApiKey" placeholder="Leave blank to keep existing key">
+                        </div>
+                        <div class="form-group">
+                            <label>Member Name</label>
+                            <input type="text" id="edit-memberName" value="${memberName}" placeholder="e.g., Demo Estate Agency">
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="edit-isActive">
+                                <option value="true" ${isActive ? 'selected' : ''}>Active</option>
+                                <option value="false" ${!isActive ? 'selected' : ''}>Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-secondary" onclick="this.closest('.edit-org-modal').remove()">Cancel</button>
+                        <button class="btn btn-primary" onclick="saveOrganizationMapping()">Save Changes</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Focus first editable field
+            document.getElementById('edit-tdsMemberId').focus();
+        }
+
+        async function saveOrganizationMapping() {
+            const agencyRef = document.getElementById('edit-agencyRef').value;
+            const branchId = document.getElementById('edit-branchId').value;
+            const tdsMemberId = document.getElementById('edit-tdsMemberId').value;
+            const tdsBranchId = document.getElementById('edit-tdsBranchId').value;
+            const tdsApiKey = document.getElementById('edit-tdsApiKey').value;
+            const memberName = document.getElementById('edit-memberName').value;
+            const isActive = document.getElementById('edit-isActive').value === 'true';
+
+            // Validation
+            if (!tdsMemberId || !tdsBranchId || !memberName) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+
+            try {
+                const updateData = {
+                    agencyRef,
+                    branchId,
+                    tdsMemberId,
+                    tdsBranchId,
+                    memberName,
+                    isActive
+                };
+
+                // Only include API key if provided
+                if (tdsApiKey.trim()) {
+                    updateData.tdsApiKey = tdsApiKey;
+                }
+
+                const result = await makeRequest(`${API_BASE}/organization/update`, {
+                    method: 'PUT',
+                    body: JSON.stringify(updateData)
+                });
+
+                // Enhanced error handling for duplicates during edits
+                if (!result.success && result.duplicateType) {
+                    let detailedError = result.error;
+
+                    if (result.conflictingMappings && result.conflictingMappings.length > 0) {
+                        detailedError += '\n\nConflicting mappings found:';
+                        result.conflictingMappings.forEach(conflict => {
+                            detailedError += `\n• ${conflict.type}: ${conflict.mapping.memberName} (${conflict.mapping.agencyRef}:${conflict.mapping.branchId} → ${conflict.mapping.tdsMemberId}:${conflict.mapping.tdsBranchId})`;
+                        });
+                    }
+
+                    // Show detailed error in modal
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.cssText = 'margin-top: 15px; padding: 10px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24; font-size: 13px; white-space: pre-wrap;';
+                    errorDiv.textContent = detailedError;
+
+                    // Remove any existing error displays
+                    const existingError = document.querySelector('.edit-org-modal .duplicate-error');
+                    if (existingError) existingError.remove();
+
+                    errorDiv.className = 'duplicate-error';
+                    document.querySelector('.edit-org-modal-body').appendChild(errorDiv);
+
+                    // Show toast notifications based on duplicate type
+                    if (result.duplicateType.includes('ALTO_DUPLICATE') && result.duplicateType.includes('TDS_DUPLICATE')) {
+                        showToast('Cannot update: Both Alto and TDS mappings would be duplicated!', 'error');
+                    } else if (result.duplicateType.includes('ALTO_DUPLICATE')) {
+                        showToast('Cannot update: Alto agency mapping already exists!', 'error');
+                    } else if (result.duplicateType.includes('TDS_DUPLICATE')) {
+                        showToast('Cannot update: TDS member mapping already exists!', 'error');
+                    }
+                } else if (result.success) {
+                    showToast(`Organization mapping updated: ${memberName}`, 'success');
+                    document.querySelector('.edit-org-modal').remove();
+                    loadOrganizationTable(); // Refresh the table
+                } else {
+                    showToast(`Failed to update mapping: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showToast('Error updating organization mapping', 'error');
+                console.error('Error updating organization mapping:', error);
+            }
+        }
+
+        async function loadOrganizationTable() {
+            const result = await makeRequest(`${API_BASE}/organization/list`);
+
+            if (result.success && result.mappings) {
+                let tableHTML = `
+                    <table class="mapping-table">
+                        <thead>
+                            <tr>
+                                <th>Member Name</th>
+                                <th>Agency Ref</th>
+                                <th>Branch ID</th>
+                                <th>TDS Member</th>
+                                <th>TDS Branch</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                result.mappings.forEach(mapping => {
+                    tableHTML += `
+                        <tr>
+                            <td>${mapping.memberName}</td>
+                            <td>${mapping.agencyRef}</td>
+                            <td>${mapping.branchId}</td>
+                            <td>${mapping.tdsMemberId}</td>
+                            <td>${mapping.tdsBranchId}</td>
+                            <td><span class="badge ${mapping.isActive ? 'active' : 'inactive'}">${mapping.isActive ? 'Active' : 'Inactive'}</span></td>
+                            <td>
+                                <button class="btn btn-small btn-warning" onclick="editOrganizationMapping('${mapping.agencyRef}', '${mapping.branchId}', '${mapping.tdsMemberId}', '${mapping.tdsBranchId}', '${mapping.memberName.replace(/'/g, "\\'")}', ${mapping.isActive})" title="Edit this mapping">
+                                    ✏️ Edit
+                                </button>
+                                <button class="btn btn-small btn-danger" onclick="deleteOrganizationMapping('${mapping.agencyRef}', '${mapping.branchId}')" title="Delete this mapping" style="margin-left: 5px;">
+                                    🗑️ Delete
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tableHTML += '</tbody></table>';
+                document.getElementById('organization-table').innerHTML = tableHTML;
+            }
+        }
+
+        // Postcode Functions
+        async function lookupPostcode() {
+            const postcode = document.getElementById('single-postcode').value;
+            const result = await makeRequest(`${API_BASE}/postcode/${postcode}`);
+            showResult('postcode-result', result, result.success ? 'success' : 'error');
+        }
+
+        async function batchLookupPostcodes() {
+            const postcodes = document.getElementById('batch-postcodes').value
+                .split('\n')
+                .map(p => p.trim())
+                .filter(p => p);
+
+            const result = await makeRequest(`${API_BASE}/postcode`, {
+                method: 'POST',
+                body: JSON.stringify({ postcodes })
+            });
+
+            showResult('batch-result', result, result.success ? 'success' : 'error');
+        }
+
+        // TDS Functions
+        async function createTDSDeposit() {
+            const data = {
+                agencyRef: document.getElementById('tds-agencyRef').value,
+                branchId: document.getElementById('tds-branchId').value,
+                tenancyId: document.getElementById('tds-tenancyId').value,
+                depositAmount: parseFloat(document.getElementById('tds-amount').value),
+                property: {
+                    address: { postcode: document.getElementById('tds-postcode').value }
+                },
+                landlord: { name: 'Test Landlord' },
+                tenants: [{ name: 'Test Tenant' }]
+            };
+
+            const result = await makeRequest(`${API_BASE}/tds/create`, {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+
+            showResult('tds-result', result, result.success ? 'success' : 'error');
+            if (result.depositId) {
+                document.getElementById('tds-depositId').value = result.depositId;
+            }
+        }
+
+        async function checkTDSStatus() {
+            const depositId = document.getElementById('tds-depositId').value;
+            const result = await makeRequest(`${API_BASE}/tds/status/${depositId}`);
+            showResult('tds-status-result', result, result.success ? 'success' : 'error');
+        }
+
+        async function checkTDSHealth() {
+            const result = await makeRequest(`${API_BASE}/tds/health`);
+            showResult('tds-status-result', result, 'info');
+        }
+
+        // Pending Integrations Functions
+        async function loadPendingIntegrations(showToastNotification = true) {
+            try {
+                console.log('Loading pending integrations from:', `${API_BASE}/pending-integrations/list`);
+                const result = await makeRequest(`${API_BASE}/pending-integrations/list`);
+                console.log('Pending integrations API response:', result);
+
+                if (result && result.success) {
+                    displayPendingIntegrations(result.integrations || []);
+                    // Auto-load statistics when pending integrations are loaded
+                    try {
+                        await loadPendingStats();
+                    } catch (statsError) {
+                        console.warn('Failed to load pending stats:', statsError);
+                        // Don't let stats failure break the main function
+                    }
+                    if (showToastNotification) {
+                        showToast('Pending integrations refreshed', 'success');
+                    }
+                } else {
+                    console.error('API returned unsuccessful response:', result);
+                    throw new Error('API returned unsuccessful response');
+                }
+            } catch (error) {
+                console.error('Error loading pending integrations:', error);
+                if (showToastNotification) {
+                    showToast(`Failed to load pending integrations: ${error.message}`, 'warning');
+                }
+                displayPendingIntegrationsRequiresRestart();
+            }
+        }
+
+        function displayPendingIntegrationsRequiresRestart() {
+            const tableBody = document.getElementById('pending-table-body');
+            const table = document.getElementById('pending-table');
+
+            // Keep table headers visible, show restart message in table body
+            table.style.display = 'table';
+            tableBody.innerHTML = `
+                <tr><td colspan="8" style="text-align: center; padding: 40px;">
+                    <h4>🔄 Azure Functions Restart Required</h4>
+                    <p>The pending integrations API has been implemented and added to the backend.</p>
+                    <p><strong>Please restart Azure Functions</strong> to enable the following endpoints:</p>
+                <ul style="text-align: left; display: inline-block; margin-top: 10px;">
+                    <li><code>GET /api/pending-integrations/list</code></li>
+                    <li><code>GET /api/pending-integrations/get/{id}</code></li>
+                    <li><code>POST /api/pending-integrations/retry/{id}</code></li>
+                    <li><code>DELETE /api/pending-integrations/cancel/{id}</code></li>
+                    <li><code>POST /api/pending-integrations/force-poll</code></li>
+                    <li><code>GET /api/pending-integrations/stats</code></li>
+                </ul>
+                    <p style="margin-top: 15px; color: #666;">After restart, you'll be able to view and manage pending integrations like <code>pending_1758918633387_piigmm7o</code></p>
+                    <button class="btn btn-primary" onclick="loadPendingIntegrations()" style="margin-top: 10px;">🔄 Try Again</button>
+                </td></tr>
+            `;
+        }
+
+        function displayPendingIntegrations(integrations) {
+            const tableBody = document.getElementById('pending-table-body');
+            const table = document.getElementById('pending-table');
+
+            // Always keep the table visible to show headers
+            table.style.display = 'table';
+
+            if (integrations.length === 0) {
+                // Clear the table body but keep headers visible
+                tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-secondary);">📭 No pending integrations found</td></tr>';
+                return;
+            }
+            tableBody.innerHTML = '';
+
+            integrations.forEach(integration => {
+                const row = document.createElement('tr');
+                row.className = getIntegrationRowClass(integration.integrationStatus);
+
+                const nextPollTime = new Date(integration.nextPollAt);
+                const isOverdue = nextPollTime < new Date() && ['PENDING_DEPOSIT', 'PENDING_DATA'].includes(integration.integrationStatus);
+                const isProcessing = integration.integrationStatus === 'PROCESSING';
+
+                row.innerHTML = `
+                    <td title="${integration.id}">${integration.id.substr(-8)}</td>
+                    <td>${integration.tenancyId}</td>
+                    <td><span class="status-badge ${integration.integrationStatus.toLowerCase().replace('_', '-')}">${integration.integrationStatus}</span></td>
+                    <td title="${integration.pendingReason}">${truncateText(integration.pendingReason, 30)}</td>
+                    <td>${integration.pollCount}/${integration.maxPollCount}</td>
+                    <td ${isOverdue ? 'style="color: red; font-weight: bold;"' : ''}>${formatDateTime(integration.nextPollAt)}</td>
+                    <td>${formatDateTime(integration.createdAt)}</td>
+                    <td>
+                        <button class="btn btn-small" onclick="retryIntegration('${integration.id}')" ${isProcessing ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>🔄 Retry</button>
+                        <button class="btn btn-small" onclick="cancelIntegration('${integration.id}')" ${isProcessing ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>❌ Cancel</button>
+                        <button class="btn btn-small" onclick="viewIntegrationDetails('${integration.id}')">👁️ View</button>
+                    </td>
+                `;
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        function getIntegrationRowClass(status) {
+            switch (status) {
+                case 'COMPLETED': return 'success-row';
+                case 'FAILED':
+                case 'EXPIRED':
+                case 'CANCELLED': return 'error-row';
+                case 'PROCESSING': return 'processing-row';
+                case 'PENDING_DEPOSIT':
+                case 'PENDING_DATA': return 'pending-row';
+                default: return '';
+            }
+        }
+
+
+        async function retryIntegration(id) {
+            if (!confirm('Are you sure you want to retry this integration?')) return;
+
+            try {
+                const result = await makeRequest(`${API_BASE}/pending-integrations/retry/${id}`, {
+                    method: 'POST'
+                });
+
+                if (result.success) {
+                    showToast('Integration scheduled for retry', 'success');
+                    loadPendingIntegrations();
+                } else {
+                    showToast('Failed to retry integration: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error retrying integration', 'error');
+                console.error('Error retrying integration:', error);
+            }
+        }
+
+        async function cancelIntegration(id) {
+            if (!confirm('Are you sure you want to cancel this integration? This cannot be undone.')) return;
+
+            try {
+                const result = await makeRequest(`${API_BASE}/pending-integrations/cancel/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (result.success) {
+                    showToast('Integration cancelled', 'warning');
+                    loadPendingIntegrations();
+                } else {
+                    showToast('Failed to cancel integration: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error cancelling integration', 'error');
+                console.error('Error cancelling integration:', error);
+            }
+        }
+
+        async function viewIntegrationDetails(id) {
+            try {
+                const result = await makeRequest(`${API_BASE}/pending-integrations/get/${id}`);
+
+                if (result.success) {
+                    const integration = result.integration;
+                    const modal = document.createElement('div');
+                    modal.className = 'audit-modal';
+                    modal.innerHTML = `
+                        <div class="audit-modal-content">
+                            <div class="audit-modal-header">
+                                <h3>Pending Integration Details - ${integration.tenancyId}</h3>
+                                <button class="close-modal" onclick="this.closest('.audit-modal').remove()">&times;</button>
+                            </div>
+                            <div class="audit-modal-body">
+                                <div class="audit-detail-grid">
+                                    <div><strong>ID:</strong> ${integration.id}</div>
+                                    <div><strong>Status:</strong> <span class="status-badge ${integration.integrationStatus.toLowerCase().replace('_', '-')}">${integration.integrationStatus}</span></div>
+                                    <div><strong>Tenancy ID:</strong> ${integration.tenancyId}</div>
+                                    <div><strong>Agency Ref:</strong> ${integration.agencyRef}</div>
+                                    <div><strong>Branch ID:</strong> ${integration.branchId}</div>
+                                    <div><strong>Poll Count:</strong> ${integration.pollCount}/${integration.maxPollCount}</div>
+                                    <div><strong>Next Poll:</strong> ${formatDateTime(integration.nextPollAt)}</div>
+                                    <div><strong>Last Polled:</strong> ${formatDateTime(integration.lastPolledAt)}</div>
+                                    <div><strong>Created:</strong> ${formatDateTime(integration.createdAt)}</div>
+                                    <div class="error-detail"><strong>Pending Reason:</strong> ${integration.pendingReason}</div>
+                                </div>
+                                ${integration.missingFields ? `
+                                    <div class="full-result">
+                                        <h4>Missing Fields:</h4>
+                                        <pre>${JSON.stringify(integration.missingFields, null, 2)}</pre>
+                                    </div>
+                                ` : ''}
+                                ${integration.webhookData ? `
+                                    <div class="full-result">
+                                        <h4>Webhook Data:</h4>
+                                        <pre>${JSON.stringify(integration.webhookData, null, 2)}</pre>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(modal);
+                } else {
+                    showToast('Failed to load integration details', 'error');
+                }
+            } catch (error) {
+                showToast('Error loading integration details', 'error');
+                console.error('Error loading integration details:', error);
+            }
+        }
+
+        async function forcePollAll() {
+            if (!confirm('Force poll all pending integrations? This will schedule them for immediate polling.')) return;
+
+            try {
+                const result = await makeRequest(`${API_BASE}/pending-integrations/force-poll`, {
+                    method: 'POST'
+                });
+
+                if (result.success) {
+                    showToast(result.result.message, 'success');
+                    loadPendingIntegrations();
+                } else {
+                    showToast('Failed to force poll integrations', 'error');
+                }
+            } catch (error) {
+                showToast('Error force polling integrations', 'error');
+                console.error('Error force polling integrations:', error);
+            }
+        }
+
+        async function loadPendingStats() {
+            try {
+                const result = await makeRequest(`${API_BASE}/pending-integrations/stats`);
+
+                if (result.success) {
+                    const stats = result.stats;
+                    const statsContent = document.getElementById('pending-stats-content');
+
+                    let statusBreakdown = '';
+                    Object.keys(stats.byStatus).forEach(status => {
+                        statusBreakdown += `<span class="status-badge ${status.toLowerCase().replace('_', '-')}">${status}: ${stats.byStatus[status]}</span> `;
+                    });
+
+                    statsContent.innerHTML = `
+                        <div class="audit-detail-grid">
+                            <div><strong>Total Integrations:</strong> ${stats.total}</div>
+                            <div><strong>Ready for Poll:</strong> ${stats.readyForPoll}</div>
+                            <div><strong>Expiring Soon:</strong> ${stats.expiredSoon}</div>
+                            <div><strong>Average Poll Count:</strong> ${stats.averagePollCount}</div>
+                            <div><strong>Oldest Pending:</strong> ${stats.oldestPending ? formatDateTime(stats.oldestPending) : 'None'}</div>
+                            <div><strong>Newest Pending:</strong> ${stats.newestPending ? formatDateTime(stats.newestPending) : 'None'}</div>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <strong style="color: white;">Status Breakdown:</strong><br>
+                            ${statusBreakdown || '<span style="color: white;">No integrations found</span>'}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('pending-stats-content').innerHTML = '<div style="color: #666;">Failed to load statistics</div>';
+                }
+            } catch (error) {
+                document.getElementById('pending-stats-content').innerHTML = '<div style="color: #666;">Error loading statistics</div>';
+                console.error('Error loading statistics:', error);
+            }
+        }
+
+        // Archive Functions
+        async function loadArchivedIntegrations() {
+            try {
+                console.log('Loading archived integrations from:', `${API_BASE}/pending-integrations/archive`);
+                const result = await makeRequest(`${API_BASE}/pending-integrations/archive`);
+                console.log('Archived integrations API response:', result);
+
+                if (result && result.success) {
+                    displayArchivedIntegrations(result.archived || []);
+                    showToast('Archived integrations loaded', 'success');
+                } else {
+                    console.error('API returned unsuccessful response:', result);
+                    throw new Error('API returned unsuccessful response');
+                }
+            } catch (error) {
+                console.error('Error loading archived integrations:', error);
+                showToast(`Failed to load archived integrations: ${error.message}`, 'warning');
+                displayArchivedIntegrationsError();
+            }
+        }
+
+        function displayArchivedIntegrations(archived) {
+            const tableBody = document.getElementById('archive-table-body');
+
+            if (!archived || archived.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-secondary);">📦 No archived integrations found</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = archived.map(item => `
+                <tr>
+                    <td>${item.tenancyId || 'N/A'}</td>
+                    <td><span class="status-badge ${item.finalStatus?.toLowerCase() || 'unknown'}">${item.finalStatus || 'UNKNOWN'}</span></td>
+                    <td>${item.archiveReason || 'N/A'}</td>
+                    <td>${formatDateTime(item.createdAt)}</td>
+                    <td>${formatDateTime(item.archivedAt)}</td>
+                    <td>${item.pollCount || 0}</td>
+                    <td>${item.danNumber || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick='viewArchivedIntegrationDetails(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
+                            👁️ View
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function displayArchivedIntegrationsError() {
+            const tableBody = document.getElementById('archive-table-body');
+            tableBody.innerHTML = `
+                <tr><td colspan="8" style="text-align: center; padding: 40px;">
+                    <h4 style="color: #ff8800; margin-bottom: 10px;">⚠️ Could not load archived integrations</h4>
+                    <p style="color: #666;">The archive endpoint may not be available. Please ensure Azure Functions is running.</p>
+                    <button class="btn btn-primary" onclick="loadArchivedIntegrations()" style="margin-top: 10px;">🔄 Try Again</button>
+                </td></tr>
+            `;
+        }
+
+        function viewArchivedIntegrationDetails(integration) {
+            const modal = document.createElement('div');
+            modal.className = 'audit-modal';
+            modal.style.display = 'flex';
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+            // Parse JSON fields if they are strings
+            let missingFields = 'N/A';
+            let lastError = 'None';
+            let tdsResponse = 'N/A';
+
+            try {
+                if (integration.missingFields) {
+                    const parsed = typeof integration.missingFields === 'string'
+                        ? JSON.parse(integration.missingFields)
+                        : integration.missingFields;
+                    missingFields = JSON.stringify(parsed, null, 2);
+                }
+            } catch (e) {
+                missingFields = integration.missingFields || 'N/A';
+            }
+
+            try {
+                if (integration.lastError) {
+                    const parsed = typeof integration.lastError === 'string'
+                        ? JSON.parse(integration.lastError)
+                        : integration.lastError;
+                    lastError = JSON.stringify(parsed, null, 2);
+                }
+            } catch (e) {
+                lastError = integration.lastError || 'None';
+            }
+
+            try {
+                if (integration.tdsResponse) {
+                    const parsed = typeof integration.tdsResponse === 'string'
+                        ? JSON.parse(integration.tdsResponse)
+                        : integration.tdsResponse;
+                    tdsResponse = JSON.stringify(parsed, null, 2);
+                }
+            } catch (e) {
+                tdsResponse = integration.tdsResponse || 'N/A';
+            }
+
+            modal.innerHTML = `
+                <div class="audit-modal-content">
+                    <div class="audit-modal-header">
+                        <h3>Archived Integration - ${integration.tenancyId}</h3>
+                        <button class="close-modal" onclick="this.closest('.audit-modal').remove()">&times;</button>
+                    </div>
+                    <div class="audit-modal-body">
+                        <div class="audit-detail-grid">
+                            <div><strong>Status:</strong> <span class="status-badge ${integration.finalStatus?.toLowerCase()}">${integration.finalStatus}</span></div>
+                            <div><strong>Tenancy ID:</strong> ${integration.tenancyId}</div>
+                            <div><strong>Agency Ref:</strong> ${integration.agencyRef || 'N/A'}</div>
+                            <div><strong>Branch ID:</strong> ${integration.branchId || 'N/A'}</div>
+                            <div><strong>Poll Count:</strong> ${integration.pollCount || 0}</div>
+                            <div><strong>DAN Number:</strong> ${integration.danNumber || 'N/A'}</div>
+                            <div><strong>Created:</strong> ${formatDateTime(integration.createdAt)}</div>
+                            <div><strong>Archived:</strong> ${formatDateTime(integration.archivedAt)}</div>
+                            <div class="error-detail"><strong>Archive Reason:</strong> ${integration.archiveReason}</div>
+                        </div>
+                        ${integration.missingFields && integration.missingFields !== 'N/A' ? `
+                            <div class="full-result">
+                                <strong>Missing Fields:</strong>
+                                <pre>${missingFields}</pre>
+                            </div>
+                        ` : ''}
+                        ${integration.lastError && integration.lastError !== 'None' ? `
+                            <div class="full-result error-detail">
+                                <strong>Last Error:</strong>
+                                <pre>${lastError}</pre>
+                            </div>
+                        ` : ''}
+                        ${integration.tdsResponse && integration.tdsResponse !== 'N/A' ? `
+                            <div class="full-result">
+                                <strong>TDS Response:</strong>
+                                <pre>${tdsResponse}</pre>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        function truncateText(text, maxLength) {
+            if (!text) return '';
+            return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+        }
+
+        function formatDateTime(dateString) {
+            if (!dateString) return '-';
+            return new Date(dateString).toLocaleString();
+        }
+
+        // Webhook Functions
+        async function sendTestWebhook() {
+            const webhookData = {
+                specversion: '1.0',
+                type: document.getElementById('webhook-eventType').value,
+                source: 'alto.property/test',
+                subject: `/tenancies/${document.getElementById('webhook-tenancyId').value}`,
+                time: new Date().toISOString(),
+                data: {
+                    subjectId: document.getElementById('webhook-tenancyId').value,
+                    agencyRef: document.getElementById('webhook-agencyRef').value,
+                    branchId: document.getElementById('webhook-branchId').value,
+                    integrationId: 'test-integration'
+                }
+            };
+
+            const result = await makeRequest(`${API_BASE}/webhooks/alto`, {
+                method: 'POST',
+                body: JSON.stringify(webhookData)
+            });
+
+            showResult('webhook-result', result, result.status === 'processed' ? 'success' : 'error');
+        }
+
+        // Integration Audit Log Functions
+        function addToAuditLog(auditEntry) {
+            const auditLog = getAuditLog();
+            auditLog.unshift(auditEntry); // Add to beginning (newest first)
+
+            // Keep only last 100 entries
+            if (auditLog.length > 100) {
+                auditLog.splice(100);
+            }
+
+            localStorage.setItem('integrationAuditLog', JSON.stringify(auditLog));
+            refreshAuditLogDisplay();
+        }
+
+        function getAuditLog() {
+            const stored = localStorage.getItem('integrationAuditLog');
+            return stored ? JSON.parse(stored) : [];
+        }
+
+        function refreshAuditLog() {
+            refreshAuditLogDisplay();
+            showToast('Audit log refreshed', 'success');
+        }
+
+        // Get audit log from backend Azure Table
+        async function getBackendAuditLog() {
+            try {
+                console.log('Fetching backend audit log from:', `${API_BASE}/pending-integrations/audit-log`);
+                const result = await makeRequest(`${API_BASE}/pending-integrations/audit-log`);
+
+                if (result && result.success) {
+                    console.log('Backend audit log fetched successfully:', result.auditLog.length, 'entries');
+                    return result.auditLog || [];
+                } else {
+                    console.warn('Backend audit log API returned unsuccessful response:', result);
+                    return [];
+                }
+            } catch (error) {
+                console.warn('Failed to fetch backend audit log, falling back to localStorage only:', error.message);
+                return [];
+            }
+        }
+
+        // Merge localStorage audit log with backend audit log
+        function mergeAuditLogs(localAuditLog, backendAuditLog) {
+            const mergedLog = [];
+            const seenEntries = new Set();
+
+            // Add backend entries (these are authoritative)
+            backendAuditLog.forEach(entry => {
+                const key = `${entry.tenancyId}-${entry.timestamp}`;
+                if (!seenEntries.has(key)) {
+                    mergedLog.push({
+                        ...entry,
+                        source: 'backend', // Mark source for debugging
+                        isComplete: entry.status === 'Success'
+                    });
+                    seenEntries.add(key);
+                }
+            });
+
+            // Add local entries that aren't already represented by backend entries
+            localAuditLog.forEach(entry => {
+                const key = `${entry.tenancyId}-${entry.timestamp}`;
+                // Only add local entry if we don't have a backend entry for the same tenancy
+                // and if the local entry is from recent activity (not superseded by backend completion)
+                const hasBackendEntryForTenancy = backendAuditLog.some(be => be.tenancyId === entry.tenancyId);
+
+                if (!seenEntries.has(key) && !hasBackendEntryForTenancy) {
+                    mergedLog.push({
+                        ...entry,
+                        source: 'local', // Mark source for debugging
+                        isComplete: entry.status === 'Success'
+                    });
+                    seenEntries.add(key);
+                }
+            });
+
+            // Sort by timestamp (newest first)
+            mergedLog.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            console.log(`Merged audit log: ${mergedLog.length} total entries (${backendAuditLog.length} backend, ${localAuditLog.length} local)`);
+
+            return mergedLog;
+        }
+
+        async function refreshAuditLogDisplay() {
+            // Get both localStorage audit log and backend audit log
+            const localAuditLog = getAuditLog();
+            const backendAuditLog = await getBackendAuditLog();
+
+            // Merge the two logs, preferring backend entries for the same tenancy/timestamp
+            const mergedAuditLog = mergeAuditLogs(localAuditLog, backendAuditLog);
+
+            // Store merged audit log globally for viewAuditDetails function
+            currentMergedAuditLog = mergedAuditLog;
+
+            const tableBody = document.querySelector('#audit-table tbody') || createAuditTableBody();
+
+            tableBody.innerHTML = '';
+
+            mergedAuditLog.forEach(entry => {
+                const row = document.createElement('tr');
+                // Set row class based on status
+                if (entry.status === 'Success') {
+                    row.className = 'success-row';
+                } else if (entry.status === 'Pending') {
+                    row.className = 'pending-row';
+                } else {
+                    row.className = 'error-row';
+                }
+
+                const stepsInfo = entry.steps > 0 ? `${entry.completedSteps}/${entry.steps}` : '-';
+                const errorText = entry.error ? (entry.error.length > 50 ? entry.error.substring(0, 50) + '...' : entry.error) : '-';
+
+                // Add small source indicator for debugging/transparency
+                const sourceIcon = entry.source === 'backend' ? '🔍' : '💾';
+                const sourceTitle = entry.source === 'backend' ? 'Data from backend (authoritative)' : 'Data from localStorage (manual trigger)';
+
+                row.innerHTML = `
+                    <td>${new Date(entry.timestamp).toLocaleString()}</td>
+                    <td>${entry.tenancyId}</td>
+                    <td><span class="status-badge ${entry.status.toLowerCase()}">${entry.status}</span> <span title="${sourceTitle}" style="opacity: 0.6;">${sourceIcon}</span></td>
+                    <td>${entry.dan}</td>
+                    <td>${entry.processingTime}</td>
+                    <td>${stepsInfo}</td>
+                    <td title="${entry.error}">${errorText}</td>
+                    <td>
+                        <button class="btn btn-small" onclick="viewAuditDetails('${entry.workflowId || entry.timestamp}')">👁️ View</button>
+                    </td>
+                `;
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        function createAuditTableBody() {
+            const table = document.getElementById('audit-table');
+            const tbody = document.createElement('tbody');
+            table.appendChild(tbody);
+            return tbody;
+        }
+
+        function clearAuditLog() {
+            if (confirm('Are you sure you want to clear the LOCAL audit log? This only clears manually triggered integration data from localStorage. Backend audit log (completed pending integrations) will remain.')) {
+                localStorage.removeItem('integrationAuditLog');
+                refreshAuditLogDisplay();
+                showToast('Local audit log cleared (backend data preserved)', 'warning');
+            }
+        }
+
+        async function exportAuditLog() {
+            // Get merged audit log (both local and backend)
+            const localAuditLog = getAuditLog();
+            const backendAuditLog = await getBackendAuditLog();
+            const auditLog = mergeAuditLogs(localAuditLog, backendAuditLog);
+
+            if (auditLog.length === 0) {
+                showToast('No audit data to export', 'warning');
+                return;
+            }
+
+            const headers = ['Timestamp', 'Tenancy ID', 'Agency Ref', 'Branch ID', 'Status', 'DAN', 'Deposit ID', 'Processing Time', 'Steps', 'Completed Steps', 'Failed Step', 'Error', 'Workflow ID'];
+            const csvData = [headers.join(',')];
+
+            auditLog.forEach(entry => {
+                const row = [
+                    `"${entry.timestamp}"`,
+                    `"${entry.tenancyId}"`,
+                    `"${entry.agencyRef}"`,
+                    `"${entry.branchId}"`,
+                    `"${entry.status}"`,
+                    `"${entry.dan}"`,
+                    `"${entry.depositId}"`,
+                    `"${entry.processingTime}"`,
+                    entry.steps,
+                    entry.completedSteps,
+                    `"${entry.failedStep}"`,
+                    `"${entry.error.replace(/"/g, '""')}"`,
+                    `"${entry.workflowId}"`
+                ];
+                csvData.push(row.join(','));
+            });
+
+            const csvString = csvData.join('\n');
+            const blob = new Blob([csvString], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `integration-audit-log-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            showToast('Audit log exported to CSV', 'success');
+        }
+
+        function viewAuditDetails(identifier) {
+            // Use the merged audit log (includes both local and backend data)
+            let entry = currentMergedAuditLog.find(e => e.workflowId === identifier || e.timestamp === identifier);
+
+            // Fallback to localStorage if merged audit log is empty (edge case)
+            if (!entry && currentMergedAuditLog.length === 0) {
+                const localAuditLog = getAuditLog();
+                entry = localAuditLog.find(e => e.workflowId === identifier || e.timestamp === identifier);
+                if (entry) {
+                    entry.source = 'local'; // Mark as local source
+                }
+            }
+
+            if (entry) {
+                const modal = document.createElement('div');
+                modal.className = 'audit-modal';
+                modal.innerHTML = `
+                    <div class="audit-modal-content">
+                        <div class="audit-modal-header">
+                            <h3>Workflow Details - ${entry.tenancyId}</h3>
+                            <button class="close-modal" onclick="this.closest('.audit-modal').remove()">&times;</button>
+                        </div>
+                        <div class="audit-modal-body">
+                            <div class="audit-detail-grid">
+                                <div><strong>Timestamp:</strong> ${new Date(entry.timestamp).toLocaleString()}</div>
+                                <div><strong>Status:</strong> <span class="status-badge ${entry.status.toLowerCase()}">${entry.status}</span></div>
+                                <div><strong>Source:</strong> ${entry.source === 'backend' ? '🔍 Backend (Authoritative)' : '💾 Local (Manual Trigger)'}</div>
+                                <div><strong>Tenancy ID:</strong> ${entry.tenancyId}</div>
+                                <div><strong>Agency Ref:</strong> ${entry.agencyRef || '-'}</div>
+                                <div><strong>Branch ID:</strong> ${entry.branchId || '-'}</div>
+                                <div><strong>DAN:</strong> ${entry.dan || '-'}</div>
+                                <div><strong>Deposit ID:</strong> ${entry.depositId || '-'}</div>
+                                <div><strong>Processing Time:</strong> ${entry.processingTime || '-'}</div>
+                                <div><strong>Workflow ID:</strong> ${entry.workflowId || '-'}</div>
+                                <div><strong>Steps:</strong> ${entry.completedSteps || 0}/${entry.steps || 0}</div>
+                                ${entry.failedStep && entry.failedStep !== '-' ? `<div><strong>Failed Step:</strong> ${entry.failedStep}</div>` : ''}
+                                ${entry.error && entry.error !== '-' && entry.error !== '' ? `<div class="error-detail"><strong>Error:</strong> ${entry.error}</div>` : ''}
+                            </div>
+                            <div class="full-result">
+                                <h4>Full Result:</h4>
+                                <pre>${JSON.stringify(entry.fullResult, null, 2)}</pre>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+            } else {
+                showToast(`Workflow details not found for identifier: ${identifier}`, 'warning');
+                console.warn('Entry not found in audit log for identifier:', identifier);
+                console.warn('Current merged audit log:', currentMergedAuditLog);
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                background: ${type === 'success' ? '#28a745' : type === 'warning' ? '#ffc107' : type === 'error' ? '#dc3545' : '#007bff'};
+                color: white;
+                border-radius: 4px;
+                z-index: 10000;
+                opacity: 0;
+                transition: opacity 0.3s;
+            `;
+
+            document.body.appendChild(toast);
+            setTimeout(() => toast.style.opacity = '1', 10);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            testAllServices();
+            loadOrganizationTable();
+            refreshAuditLogDisplay();
+            // Auto-load pending integrations and stats when page loads
+            loadPendingIntegrations();
+            // Load polling settings from backend
+            loadPollingSettings();
+            // Load Alto environment settings from backend
+            loadAltoSettings();
+        });
+
+        // Auto-refresh service status
+        setInterval(async () => {
+            try {
+                const health = await makeRequest(`${API_BASE}/health`);
+                const status = document.getElementById('functions-status');
+                if (health.status === 'healthy') {
+                    status.className = 'status running';
+                    status.textContent = 'Running';
+                } else {
+                    status.className = 'status stopped';
+                    status.textContent = 'Issues';
+                }
+            } catch {
+                document.getElementById('functions-status').className = 'status stopped';
+                document.getElementById('functions-status').textContent = 'Not Running';
+            }
+        }, 10000);
+
+        // Auto-refresh pending integrations every 5 seconds (silent refresh - no toast notifications)
+        setInterval(async () => {
+            // Only refresh if we're on the Pending Integrations tab
+            const pendingTab = document.querySelector('[onclick*="showTab(\'pending-integrations\')"]');
+            const isActive = pendingTab && pendingTab.classList.contains('active');
+
+            if (isActive) {
+                try {
+                    await loadPendingIntegrations(false); // Silent refresh
+                } catch (error) {
+                    console.error('Auto-refresh failed:', error);
+                }
+            }
+        }, 5000);
+
+        // Settings Page Functions
+        function showSettingsTab(tabName) {
+            // Remove active class from all settings tabs
+            document.querySelectorAll('.settings-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.settings-tab-content').forEach(content => content.classList.remove('active'));
+
+            // Add active class to clicked tab and corresponding content
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        async function savePollingSettings() {
+            const settings = {
+                pendingPollInterval: document.getElementById('pending-poll-interval').value,
+                depositCheckInterval: document.getElementById('deposit-check-interval').value,
+                maxPollAttempts: document.getElementById('max-poll-attempts').value,
+                backoffMultiplier: document.getElementById('backoff-multiplier').value
+            };
+
+            try {
+                const result = await makeRequest(`${API_BASE}/polling/settings`, {
+                    method: 'POST',
+                    body: JSON.stringify(settings)
+                });
+
+                if (result.success) {
+                    showResult('polling-settings-result', {
+                        success: true,
+                        message: `Polling settings saved successfully! Updated at ${new Date(result.settings.lastUpdated).toLocaleString()}`
+                    }, 'success');
+                    showToast('Polling settings saved to backend', 'success');
+                } else {
+                    showResult('polling-settings-result', result, 'error');
+                    showToast('Failed to save polling settings', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving polling settings:', error);
+                showResult('polling-settings-result', {
+                    success: false,
+                    error: 'Failed to connect to backend. Settings not saved.'
+                }, 'error');
+                showToast('Error saving polling settings', 'error');
+            }
+        }
+
+        async function resetPollingSettings() {
+            // Reset to default values
+            document.getElementById('pending-poll-interval').value = 5;
+            document.getElementById('deposit-check-interval').value = 10;
+            document.getElementById('max-poll-attempts').value = 20;
+            document.getElementById('backoff-multiplier').value = 1.5;
+
+            // Save the default values to backend
+            await savePollingSettings();
+        }
+
+        async function loadPollingSettings() {
+            try {
+                const result = await makeRequest(`${API_BASE}/polling/settings`);
+
+                if (result.success && result.settings) {
+                    const settings = result.settings;
+                    document.getElementById('pending-poll-interval').value = settings.pendingPollInterval || 5;
+                    document.getElementById('deposit-check-interval').value = settings.depositCheckInterval || 10;
+                    document.getElementById('max-poll-attempts').value = settings.maxPollAttempts || 20;
+                    document.getElementById('backoff-multiplier').value = settings.backoffMultiplier || 1.5;
+
+                    if (settings.lastUpdated) {
+                        showResult('polling-settings-result', {
+                            success: true,
+                            message: `Settings loaded. Last updated: ${new Date(settings.lastUpdated).toLocaleString()}`
+                        }, 'info');
+                    }
+                } else {
+                    console.log('No polling settings found, using defaults');
+                }
+            } catch (error) {
+                console.error('Error loading polling settings:', error);
+                // Continue with default values if backend is unavailable
+            }
+        }
+
+        /**
+         * Load Alto Settings from Backend
+         */
+        async function loadAltoSettings() {
+            try {
+                const response = await fetch(`${API_BASE}/settings/alto`);
+                const result = await response.json();
+
+                if (result.success && result.settings) {
+                    const { development, production } = result.settings;
+
+                    // Load development settings
+                    document.getElementById('development-alto-api').value = development.altoApi || 'https://sandbox-api.alto.property';
+
+                    // Load production settings
+                    document.getElementById('production-alto-api').value = production.altoApi || '';
+                }
+            } catch (error) {
+                console.error('Error loading Alto settings:', error);
+                // Try localStorage fallback
+                const localSettings = JSON.parse(localStorage.getItem('altoEnvironmentSettings') || '{}');
+                if (localSettings.development) {
+                    document.getElementById('development-alto-api').value = localSettings.development.altoApi || 'https://sandbox-api.alto.property';
+                    document.getElementById('production-alto-api').value = localSettings.production?.altoApi || '';
+                }
+            }
+        }
+
+        async function saveEnvironmentSettings() {
+            const developmentSettings = {
+                altoApi: document.getElementById('development-alto-api').value
+            };
+
+            const productionSettings = {
+                altoApi: document.getElementById('production-alto-api').value
+            };
+
+            // Validation
+            if (!developmentSettings.altoApi) {
+                showResult('environment-settings-result', {
+                    success: false,
+                    message: 'Please enter Development Alto API URL'
+                }, 'error');
+                showToast('Missing required URL', 'error');
+                return;
+            }
+
+            const environmentSettings = {
+                development: developmentSettings,
+                production: productionSettings,
+                savedAt: new Date().toISOString()
+            };
+
+            try {
+                // Save to backend
+                const response = await fetch(`${API_BASE}/settings/alto`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(environmentSettings)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showResult('environment-settings-result', {
+                        success: true,
+                        message: `✅ Alto environment settings saved successfully! Last updated: ${new Date(result.lastUpdated).toLocaleString()}`
+                    }, 'success');
+                    showToast('Alto environment settings saved', 'success');
+                } else {
+                    showResult('environment-settings-result', result, 'error');
+                    showToast('Failed to save settings', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving Alto settings:', error);
+                // Fallback to localStorage
+                localStorage.setItem('altoEnvironmentSettings', JSON.stringify(environmentSettings));
+                showResult('environment-settings-result', {
+                    success: true,
+                    message: '⚠️ Settings saved locally (backend unavailable). Changes will sync when backend is available.'
+                }, 'warning');
+                showToast('Settings saved locally', 'warning');
+            }
+        }
+
+        function exportEnvironmentConfig() {
+            const environmentSettings = JSON.parse(localStorage.getItem('altoEnvironmentSettings') || '{}');
+
+            if (!environmentSettings.development && !environmentSettings.production) {
+                showToast('No environment settings to export. Please save settings first.', 'warning');
+                return;
+            }
+
+            const configContent = {
+                "alto_environment_configuration": {
+                    "development": environmentSettings.development || {},
+                    "production": environmentSettings.production || {},
+                    "exported_at": new Date().toISOString(),
+                    "version": "1.0"
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(configContent, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `alto-environment-config-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('Alto environment configuration exported', 'success');
+        }
+
+        function testEnvironmentConnections() {
+            showResult('environment-settings-result', {
+                success: true,
+                message: 'Connection testing is not implemented in this demo. In production, this would test connectivity to Alto API endpoints for both development and production environments.'
+            }, 'info');
+            showToast('Alto API connection test would run here', 'info');
+        }
+    </script>
+</body>
+</html>

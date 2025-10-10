@@ -1,0 +1,400 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "definition": {
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      },
+      "altoClientId": {
+        "type": "String",
+        "defaultValue": "d9kj85ukjpr6634i4sae0g00s"
+      },
+      "altoClientSecret": {
+        "type": "SecureString"
+      },
+      "postcodeServiceUrl": {
+        "type": "String",
+        "defaultValue": "https://your-functions.azurewebsites.net/api/postcode"
+      },
+      "tdsForwarderUrl": {
+        "type": "String",
+        "defaultValue": "https://your-functions.azurewebsites.net/api/tds-forwarder"
+      }
+    },
+    "triggers": {
+      "alto_webhook_trigger": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "specversion": {"type": "string"},
+              "type": {"type": "string"},
+              "source": {"type": "string"},
+              "subject": {"type": "string"},
+              "id": {"type": "string"},
+              "time": {"type": "string"},
+              "data": {
+                "type": "object",
+                "properties": {
+                  "subjectId": {"type": "string"},
+                  "agencyRef": {"type": "string"},
+                  "branchId": {"type": "string"},
+                  "integrationId": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "description": "Receives Alto webhook notifications"
+      }
+    },
+    "actions": {
+      "initialize_workflow_variables": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "workflowId",
+              "type": "string",
+              "value": "@{guid()}"
+            },
+            {
+              "name": "tenancyId",
+              "type": "string",
+              "value": "@{coalesce(triggerBody()?['data']?['subjectId'], last(split(triggerBody()?['subject'], '/')))}"
+            },
+            {
+              "name": "agencyRef",
+              "type": "string",
+              "value": "@triggerBody()?['data']?['agencyRef']"
+            },
+            {
+              "name": "errorDetails",
+              "type": "object",
+              "value": {}
+            }
+          ]
+        },
+        "runAfter": {},
+        "description": "Initialize workflow variables"
+      },
+      "log_webhook_received": {
+        "type": "Compose",
+        "inputs": {
+          "message": "Alto webhook received",
+          "workflowId": "@variables('workflowId')",
+          "tenancyId": "@variables('tenancyId')",
+          "agencyRef": "@variables('agencyRef')",
+          "timestamp": "@utcnow()",
+          "webhook": "@triggerBody()"
+        },
+        "runAfter": {
+          "initialize_workflow_variables": ["Succeeded"]
+        },
+        "description": "Log webhook receipt"
+      },
+      "validate_webhook_data": {
+        "type": "If",
+        "expression": {
+          "and": [
+            {"not": {"equals": ["@variables('tenancyId')", ""]}},
+            {"not": {"equals": ["@variables('agencyRef')", ""]}}
+          ]
+        },
+        "actions": {
+          "get_alto_access_token": {
+            "type": "Http",
+            "inputs": {
+              "method": "POST",
+              "uri": "https://api.alto.zoopladev.co.uk/token",
+              "headers": {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Authorization": "Basic @{base64(concat(parameters('altoClientId'), ':', parameters('altoClientSecret')))}"
+              },
+              "body": "grant_type=client_credentials"
+            },
+            "description": "Get OAuth2 access token from Alto"
+          },
+          "get_tenancy_details": {
+            "type": "Http",
+            "inputs": {
+              "method": "GET",
+              "uri": "https://api.alto.zoopladev.co.uk/tenancies/@{variables('tenancyId')}",
+              "headers": {
+                "Authorization": "Bearer @{body('get_alto_access_token')?['access_token']}",
+                "AgencyRef": "@variables('agencyRef')",
+                "Accept": "application/json"
+              }
+            },
+            "runAfter": {
+              "get_alto_access_token": ["Succeeded"]
+            },
+            "description": "Retrieve tenancy details from Alto API"
+          },
+          "get_property_details": {
+            "type": "Http",
+            "inputs": {
+              "method": "GET",
+              "uri": "https://api.alto.zoopladev.co.uk/properties/@{body('get_tenancy_details')?['propertyId']}",
+              "headers": {
+                "Authorization": "Bearer @{body('get_alto_access_token')?['access_token']}",
+                "AgencyRef": "@variables('agencyRef')",
+                "Accept": "application/json"
+              }
+            },
+            "runAfter": {
+              "get_tenancy_details": ["Succeeded"]
+            },
+            "description": "Retrieve property details from Alto API"
+          },
+          "get_landlord_details": {
+            "type": "Http",
+            "inputs": {
+              "method": "GET",
+              "uri": "https://api.alto.zoopladev.co.uk/contacts/@{body('get_tenancy_details')?['landlordId']}",
+              "headers": {
+                "Authorization": "Bearer @{body('get_alto_access_token')?['access_token']}",
+                "AgencyRef": "@variables('agencyRef')",
+                "Accept": "application/json"
+              }
+            },
+            "runAfter": {
+              "get_property_details": ["Succeeded"]
+            },
+            "description": "Retrieve landlord details from Alto API"
+          },
+          "get_tenant_details": {
+            "type": "Http",
+            "inputs": {
+              "method": "GET",
+              "uri": "https://api.alto.zoopladev.co.uk/contacts",
+              "headers": {
+                "Authorization": "Bearer @{body('get_alto_access_token')?['access_token']}",
+                "AgencyRef": "@variables('agencyRef')",
+                "Accept": "application/json"
+              },
+              "queries": {
+                "tenancyId": "@variables('tenancyId')",
+                "contactType": "tenant"
+              }
+            },
+            "runAfter": {
+              "get_landlord_details": ["Succeeded"]
+            },
+            "description": "Retrieve tenant details from Alto API"
+          },
+          "lookup_postcode_county": {
+            "type": "Http",
+            "inputs": {
+              "method": "GET",
+              "uri": "@{parameters('postcodeServiceUrl')}/@{body('get_property_details')?['address']?['postcode']}",
+              "headers": {
+                "x-functions-key": "@parameters('$connections')['postcodeLookup']['connectionProperties']['functionKey']"
+              }
+            },
+            "runAfter": {
+              "get_tenant_details": ["Succeeded"]
+            },
+            "description": "Get county from postcode using lookup service"
+          },
+          "transform_to_standard_model": {
+            "type": "Compose",
+            "inputs": {
+              "metadata": {
+                "sourceSystem": "alto",
+                "sourceId": "@variables('tenancyId')",
+                "organizationId": "@variables('agencyRef')",
+                "integrationId": "@variables('workflowId')",
+                "webhookId": "@triggerBody()?['id']",
+                "timestamp": "@utcnow()",
+                "version": "1.0",
+                "altoAgencyRef": "@variables('agencyRef')",
+                "altoBranchId": "@triggerBody()?['data']?['branchId']"
+              },
+              "organization": {
+                "memberNumber": "@parameters('$connections')['organizationMappings']['connectionProperties']['tdsMembers'][variables('agencyRef')]['memberNumber']",
+                "branchId": "@parameters('$connections')['organizationMappings']['connectionProperties']['tdsMembers'][variables('agencyRef')]['branchId']",
+                "name": "@parameters('$connections')['organizationMappings']['connectionProperties']['organizations'][variables('agencyRef')]['name']"
+              },
+              "deposit": {
+                "amount": "@body('get_tenancy_details')?['deposit']?['amount']",
+                "currency": "GBP",
+                "tenancyStartDate": "@body('get_tenancy_details')?['startDate']",
+                "tenancyEndDate": "@body('get_tenancy_details')?['endDate']",
+                "tenancyTerm": "@body('get_tenancy_details')?['termMonths']",
+                "rentAmount": "@body('get_tenancy_details')?['rent']?['amount']",
+                "allocationDateTime": "@utcnow()"
+              },
+              "property": {
+                "address": {
+                  "line1": "@body('get_property_details')?['address']?['line1']",
+                  "line2": "@body('get_property_details')?['address']?['line2']",
+                  "city": "@body('get_property_details')?['address']?['city']",
+                  "postcode": "@body('get_property_details')?['address']?['postcode']",
+                  "county": "@body('lookup_postcode_county')?['county']",
+                  "country": "UK"
+                },
+                "type": "@body('get_property_details')?['propertyType']",
+                "bedrooms": "@body('get_property_details')?['bedrooms']",
+                "furnished": "@body('get_property_details')?['furnishing']"
+              },
+              "landlord": {
+                "title": "@body('get_landlord_details')?['title']",
+                "firstName": "@body('get_landlord_details')?['firstName']",
+                "lastName": "@body('get_landlord_details')?['lastName']",
+                "email": "@body('get_landlord_details')?['email']",
+                "phone": "@body('get_landlord_details')?['phone']",
+                "address": "@body('get_landlord_details')?['address']"
+              },
+              "tenants": "@body('get_tenant_details')?['contacts']",
+              "additionalInfo": {
+                "source": {
+                  "tenancyId": "@variables('tenancyId')",
+                  "inventoryId": "@body('get_tenancy_details')?['inventoryId']",
+                  "branchId": "@triggerBody()?['data']?['branchId']"
+                }
+              }
+            },
+            "runAfter": {
+              "lookup_postcode_county": ["Succeeded"]
+            },
+            "description": "Transform Alto data to standard model"
+          },
+          "create_tds_deposit": {
+            "type": "Http",
+            "inputs": {
+              "method": "POST",
+              "uri": "@{parameters('tdsForwarderUrl')}/create",
+              "headers": {
+                "Content-Type": "application/json",
+                "x-functions-key": "@parameters('$connections')['tdsAdapter']['connectionProperties']['functionKey']"
+              },
+              "body": "@outputs('transform_to_standard_model')"
+            },
+            "runAfter": {
+              "transform_to_standard_model": ["Succeeded"]
+            },
+            "description": "Submit deposit to TDS via TDSRequestForwarder"
+          },
+          "poll_for_dan": {
+            "type": "Until",
+            "expression": "@or(equals(body('check_deposit_status')?['status'], 'created'), equals(body('check_deposit_status')?['status'], 'failed'))",
+            "limit": {
+              "count": 30,
+              "timeout": "PT30M"
+            },
+            "actions": {
+              "wait_before_status_check": {
+                "type": "Wait",
+                "inputs": {
+                  "interval": {
+                    "count": 60,
+                    "unit": "Second"
+                  }
+                }
+              },
+              "check_deposit_status": {
+                "type": "Http",
+                "inputs": {
+                  "method": "POST",
+                  "uri": "@{parameters('tdsForwarderUrl')}/status",
+                  "headers": {
+                    "Content-Type": "application/json",
+                    "x-functions-key": "@parameters('$connections')['tdsAdapter']['connectionProperties']['functionKey']"
+                  },
+                  "body": {
+                    "batch_id": "@body('create_tds_deposit')?['batch_id']",
+                    "credentials": "@parameters('$connections')['organizationMappings']['connectionProperties']['tdsMembers'][variables('agencyRef')]"
+                  }
+                },
+                "runAfter": {
+                  "wait_before_status_check": ["Succeeded"]
+                }
+              }
+            },
+            "runAfter": {
+              "create_tds_deposit": ["Succeeded"]
+            },
+            "description": "Poll TDS until deposit processing complete"
+          },
+          "store_integration_record": {
+            "type": "Http",
+            "inputs": {
+              "method": "POST",
+              "uri": "https://your-storage.table.core.windows.net/AltoIntegrations",
+              "headers": {
+                "Content-Type": "application/json",
+                "Authorization": "@parameters('$connections')['azureTableStorage']['connectionProperties']['storageKey']"
+              },
+              "body": {
+                "PartitionKey": "@variables('agencyRef')",
+                "RowKey": "@variables('workflowId')",
+                "TenancyId": "@variables('tenancyId')",
+                "BatchId": "@body('create_tds_deposit')?['batch_id']",
+                "DanNumber": "@body('check_deposit_status')?['dan']",
+                "Status": "@body('check_deposit_status')?['status']",
+                "StandardPayload": "@{outputs('transform_to_standard_model')}",
+                "CreatedAt": "@utcnow()",
+                "UpdatedAt": "@utcnow()"
+              }
+            },
+            "runAfter": {
+              "poll_for_dan": ["Succeeded"]
+            },
+            "description": "Store integration record in Azure Table Storage"
+          }
+        },
+        "else": {
+          "actions": {
+            "set_validation_error": {
+              "type": "SetVariable",
+              "inputs": {
+                "name": "errorDetails",
+                "value": {
+                  "error": "Invalid webhook data",
+                  "message": "Missing required fields: tenancyId or agencyRef",
+                  "received": {
+                    "tenancyId": "@variables('tenancyId')",
+                    "agencyRef": "@variables('agencyRef')"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "runAfter": {
+          "log_webhook_received": ["Succeeded"]
+        },
+        "description": "Validate required webhook fields"
+      }
+    },
+    "outputs": {
+      "success_response": {
+        "type": "Object",
+        "value": {
+          "status": "processed",
+          "workflowId": "@variables('workflowId')",
+          "tenancyId": "@variables('tenancyId')",
+          "batchId": "@body('create_tds_deposit')?['batch_id']",
+          "danNumber": "@body('check_deposit_status')?['dan']",
+          "timestamp": "@utcnow()"
+        },
+        "condition": "@and(not(empty(body('check_deposit_status')?['dan'])), equals(body('check_deposit_status')?['status'], 'created'))"
+      },
+      "error_response": {
+        "type": "Object",
+        "value": {
+          "status": "failed",
+          "workflowId": "@variables('workflowId')",
+          "error": "@variables('errorDetails')",
+          "timestamp": "@utcnow()"
+        },
+        "condition": "@not(empty(variables('errorDetails')))"
+      }
+    }
+  }
+}

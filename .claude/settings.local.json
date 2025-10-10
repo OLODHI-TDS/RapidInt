@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(node:*)",
+      "Read(//c/Users/Omar.Lodhi/OneDrive - The Dispute Service/Projects/EWI Deposits APIs/As Is Documentation/**)",
+      "Bash(curl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient for the circle -->
+    <linearGradient id="circleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d47a1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#388eff;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Gradient for the lightning bolt -->
+    <linearGradient id="boltGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.95" />
+      <stop offset="50%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e3f2fd;stop-opacity:0.9" />
+    </linearGradient>
+
+    <!-- Glow effect -->
+    <filter id="glow">
+      <feMorphology operator="dilate" radius="0.5"/>
+      <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Main circle -->
+  <circle cx="16" cy="16" r="14" fill="url(#circleGradient)" stroke="rgba(255,255,255,0.2)" stroke-width="0.5"/>
+
+  <!-- Inner circle highlight -->
+  <circle cx="16" cy="16" r="11" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+
+  <!-- Lightning bolt -->
+  <path d="M19 7 L13 16 L16 16 L13 25 L19 16 L16 16 Z"
+        fill="url(#boltGradient)"
+        filter="url(#glow)"
+        stroke="rgba(255,255,255,0.3)"
+        stroke-width="0.2"/>
+
+  <!-- Subtle background circle glow -->
+  <circle cx="16" cy="16" r="15" fill="none" stroke="rgba(56,142,255,0.1)" stroke-width="1" opacity="0.5"/>
+</svg>
