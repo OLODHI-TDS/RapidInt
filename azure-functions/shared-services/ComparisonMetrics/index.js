@@ -22,6 +22,7 @@
 const { app } = require('@azure/functions');
 const { getConnectionPool } = require('../shared/organization-credentials');
 const telemetry = require('../shared/telemetry');
+const { checkRateLimit } = require('../shared/rate-limiter');
 
 /**
  * Get overall comparison statistics
@@ -488,6 +489,22 @@ app.http('ComparisonMetrics', {
     try {
       const action = request.params.action || 'overall';
       const param = request.params.param;
+
+      // ✅ RATE LIMITING: Check for shared service
+      const organizationId = request.headers.get('X-Organization-Id') || param || 'metrics-api';
+      const rateLimitCheck = await checkRateLimit('shared', organizationId, context);
+
+      if (!rateLimitCheck.allowed) {
+        return {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-RateLimit-Limit': rateLimitCheck.limit.toString(),
+            'Retry-After': rateLimitCheck.retryAfter.toString()
+          },
+          body: JSON.stringify({ error: 'Rate limit exceeded', message: rateLimitCheck.message })
+        };
+      }
 
       // Parse query parameters
       const queryParams = {};

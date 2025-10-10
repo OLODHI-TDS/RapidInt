@@ -48,6 +48,7 @@ const {
   getBatchStatusCached
 } = require('../shared/batch-tracking');
 const telemetry = require('../shared/telemetry');
+const { checkRateLimit } = require('../shared/rate-limiter');
 
 // Configuration
 const CONFIG = {
@@ -695,6 +696,63 @@ app.http('TDSRequestForwarder', {
         orgCredentials = getTestCredentials(context);
       }
 
+      // ✅ RATE LIMITING: Check rate limits before processing request
+      // Extract universal organizationId for rate limiting
+      let organizationId = null;
+      let rateLimitCheck = null;
+
+      if (requestBody.metadata?.altoAgencyRef && requestBody.metadata?.altoBranchId) {
+        // Construct organizationId from Alto metadata (format: agencyRef:branchId)
+        organizationId = `${requestBody.metadata.altoAgencyRef}:${requestBody.metadata.altoBranchId}`;
+      } else if (orgCredentials?.organizationId) {
+        // Use organizationId from credentials if available (future integrations)
+        organizationId = orgCredentials.organizationId;
+      }
+
+      if (organizationId) {
+        rateLimitCheck = await checkRateLimit('alto', organizationId, context);
+
+        if (!rateLimitCheck.allowed) {
+          context.warn(`Rate limit exceeded for Alto integration: ${organizationId}`, {
+            reason: rateLimitCheck.reason,
+            retryAfter: rateLimitCheck.retryAfter
+          });
+
+          // Track rate limit exceeded event
+          telemetry.trackEvent('RateLimit_Exceeded', {
+            integration: 'alto',
+            organizationId,
+            reason: rateLimitCheck.reason,
+            limit: rateLimitCheck.limit.toString(),
+            retryAfter: rateLimitCheck.retryAfter.toString()
+          });
+
+          return {
+            status: 429,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-RateLimit-Limit': rateLimitCheck.limit.toString(),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': rateLimitCheck.resetAt,
+              'Retry-After': rateLimitCheck.retryAfter.toString()
+            },
+            body: JSON.stringify({
+              success: false,
+              error: 'Rate limit exceeded',
+              message: rateLimitCheck.message,
+              limit: rateLimitCheck.limit,
+              resetAt: rateLimitCheck.resetAt,
+              retryAfter: rateLimitCheck.retryAfter,
+              timestamp: new Date().toISOString()
+            })
+          };
+        }
+
+        context.log(`Rate limit check passed for Alto:${organizationId} - ${rateLimitCheck.remaining} requests remaining`);
+      } else {
+        context.warn('Unable to determine organizationId for rate limiting - proceeding without rate limit check');
+      }
+
       // Forward the request
       const forwardResult = await forwardRequest(action, requestBody, context, orgCredentials);
 
@@ -746,14 +804,26 @@ app.http('TDSRequestForwarder', {
         };
       }
 
+      // Build response headers with rate limit information
+      const responseHeaders = {
+        'Content-Type': 'application/json',
+        'X-TDS-Provider': forwardResult.provider,
+        'X-TDS-Mode': forwardResult.mode,
+        'X-Response-Time': `${totalDuration}ms`
+      };
+
+      // Add rate limit headers if rate limiting was checked
+      if (rateLimitCheck && rateLimitCheck.limit) {
+        responseHeaders['X-RateLimit-Limit'] = rateLimitCheck.limit?.toString() || 'unknown';
+        responseHeaders['X-RateLimit-Remaining'] = rateLimitCheck.remaining?.toString() || 'unknown';
+        if (rateLimitCheck.resetAt) {
+          responseHeaders['X-RateLimit-Reset'] = rateLimitCheck.resetAt;
+        }
+      }
+
       return {
         status: success ? 200 : 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-TDS-Provider': forwardResult.provider,
-          'X-TDS-Mode': forwardResult.mode,
-          'X-Response-Time': `${totalDuration}ms`
-        },
+        headers: responseHeaders,
         body: JSON.stringify(responseBody)
       };
 

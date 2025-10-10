@@ -887,6 +887,7 @@
             <!-- Settings Sub-tabs -->
                 <div class="settings-tabs">
                     <div class="settings-tab active" onclick="showSettingsTab('polling-settings')">Polling Configuration</div>
+                    <div class="settings-tab" onclick="showSettingsTab('rate-limits')">Rate Limits</div>
                     <div class="settings-tab" onclick="showSettingsTab('environment-settings')">Environment Settings</div>
                 </div>
 
@@ -928,6 +929,106 @@
                         </div>
 
                         <div id="polling-settings-result"></div>
+                    </div>
+                </div>
+
+                <!-- Rate Limits Settings -->
+                <div id="rate-limits" class="settings-tab-content">
+                    <div class="card glass">
+                        <h3>Alto Integration Rate Limits</h3>
+                        <p style="color: var(--text-primary); margin-bottom: 25px;">
+                            Configure request rate limits for the Alto integration to prevent cost overruns and ensure platform stability
+                        </p>
+
+                        <!-- Default Limits Section -->
+                        <div style="background: var(--glass-bg-light); padding: 20px; border-radius: var(--radius-lg); margin-bottom: 25px;">
+                            <h4>Default Limits (Applied to All Organizations)</h4>
+                            <div class="two-column">
+                                <div class="form-group">
+                                    <label>Requests per Minute</label>
+                                    <input type="number" id="default-req-per-min" value="100" min="10" max="1000">
+                                    <small>Maximum requests per minute per organization</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Requests per Hour</label>
+                                    <input type="number" id="default-req-per-hour" value="5000" min="100" max="50000">
+                                    <small>Maximum requests per hour per organization</small>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Burst Allowance</label>
+                                <input type="number" id="default-burst" value="20" min="5" max="100">
+                                <small>Temporary spike allowance above per-minute limit</small>
+                            </div>
+                            <button class="btn btn-primary" onclick="saveDefaultRateLimits()">Save Default Limits</button>
+                        </div>
+
+                        <!-- Organization Overrides Section -->
+                        <div style="margin-top: 30px;">
+                            <h4>Organization-Specific Overrides</h4>
+                            <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                                Set custom rate limits for specific organizations (e.g., VIP clients, testing agencies)
+                            </p>
+
+                            <!-- Organization ID Input -->
+                            <div class="form-group">
+                                <label>Organization ID</label>
+                                <input type="text" id="rate-limit-org-id" placeholder="e.g., 1af89d60-662c-475b-bcc8-9bcbf04b6322:1">
+                                <small>Format: agencyRef:branchId (copy from Alto integration settings)</small>
+                            </div>
+                            <div class="form-group">
+                                <button class="btn btn-secondary" onclick="loadOrgRateLimits()">Load Current Settings</button>
+                            </div>
+
+                            <!-- Override Form -->
+                            <div id="org-rate-limit-form">
+                                <div class="two-column">
+                                    <div class="form-group">
+                                        <label>Requests per Minute</label>
+                                        <input type="number" id="org-req-per-min" min="10" max="1000">
+                                        <small>Leave empty to use default</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Requests per Hour</label>
+                                        <input type="number" id="org-req-per-hour" min="100" max="50000">
+                                        <small>Leave empty to use default</small>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <button class="btn btn-primary" onclick="saveOrgRateLimit()">Save Override</button>
+                                    <button class="btn btn-secondary" onclick="removeOrgRateLimit()">Remove Override</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live Monitoring Section -->
+                        <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid var(--glass-border);">
+                            <h4>Current Usage (Last 1 Minute)</h4>
+                            <button class="btn btn-secondary btn-small" onclick="refreshRateLimitStats()">🔄 Refresh</button>
+
+                            <div id="rate-limit-stats" style="margin-top: 15px;">
+                                <table class="mapping-table" style="margin-top: 15px;">
+                                    <thead>
+                                        <tr>
+                                            <th>Organization</th>
+                                            <th>Current (1 min)</th>
+                                            <th>Limit</th>
+                                            <th>Usage %</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rate-limit-stats-body">
+                                        <tr>
+                                            <td colspan="5" style="text-align: center; color: var(--text-secondary);">
+                                                Click "Refresh" to load current usage statistics
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div id="rate-limits-result"></div>
                     </div>
                 </div>
 
@@ -2741,6 +2842,236 @@
             }, 'info');
             showToast('Alto API connection test would run here', 'info');
         }
+
+        /**
+         * ===================================================================
+         * RATE LIMIT MANAGEMENT FUNCTIONS
+         * ===================================================================
+         */
+
+        /**
+         * Load default rate limits for Alto integration
+         */
+        async function loadDefaultRateLimits() {
+            try {
+                const response = await fetch(`${API_BASE}/rate-limits/alto/config`);
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    document.getElementById('default-req-per-min').value = result.data.reqPerMinute || 100;
+                    document.getElementById('default-req-per-hour').value = result.data.reqPerHour || 5000;
+                    document.getElementById('default-burst').value = result.data.burstAllowance || 20;
+                }
+            } catch (error) {
+                console.error('Error loading default rate limits:', error);
+                // Use hardcoded defaults if backend unavailable
+            }
+        }
+
+        /**
+         * Save default rate limits
+         */
+        async function saveDefaultRateLimits() {
+            try {
+                const config = {
+                    reqPerMinute: parseInt(document.getElementById('default-req-per-min').value),
+                    reqPerHour: parseInt(document.getElementById('default-req-per-hour').value),
+                    burstAllowance: parseInt(document.getElementById('default-burst').value)
+                };
+
+                const response = await fetch(`${API_BASE}/rate-limits/alto/config`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showResult('rate-limits-result', {
+                        success: true,
+                        message: '✅ Default rate limits saved successfully!'
+                    }, 'success');
+                    showToast('Rate limits updated', 'success');
+                } else {
+                    showResult('rate-limits-result', result, 'error');
+                }
+            } catch (error) {
+                showResult('rate-limits-result', {
+                    success: false,
+                    error: error.message
+                }, 'error');
+            }
+        }
+
+        /**
+         * Load rate limits for entered organization
+         */
+        async function loadOrgRateLimits() {
+            const organizationId = document.getElementById('rate-limit-org-id').value.trim();
+
+            if (!organizationId) {
+                showToast('Please enter an organization ID', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/rate-limits/alto/organizations/${encodeURIComponent(organizationId)}`);
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    document.getElementById('org-req-per-min').value = result.data.reqPerMinute || '';
+                    document.getElementById('org-req-per-hour').value = result.data.reqPerHour || '';
+
+                    if (result.data.isOverride) {
+                        showResult('rate-limits-result', {
+                            success: true,
+                            message: `✅ Current override: ${result.data.reqPerMinute} req/min, ${result.data.reqPerHour} req/hour`
+                        }, 'info');
+                    } else {
+                        showResult('rate-limits-result', {
+                            success: true,
+                            message: 'ℹ️  No override found. Using default limits. You can set a custom override below.'
+                        }, 'info');
+                    }
+                }
+            } catch (error) {
+                showResult('rate-limits-result', {
+                    success: false,
+                    error: error.message
+                }, 'error');
+            }
+        }
+
+        /**
+         * Save organization-specific rate limit override
+         */
+        async function saveOrgRateLimit() {
+            const organizationId = document.getElementById('rate-limit-org-id').value.trim();
+
+            if (!organizationId) {
+                showToast('Please select an organization', 'warning');
+                return;
+            }
+
+            try {
+                const config = {
+                    reqPerMinute: parseInt(document.getElementById('org-req-per-min').value),
+                    reqPerHour: parseInt(document.getElementById('org-req-per-hour').value),
+                    burstAllowance: 20  // Default burst
+                };
+
+                const response = await fetch(`${API_BASE}/rate-limits/alto/organizations/${encodeURIComponent(organizationId)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showResult('rate-limits-result', {
+                        success: true,
+                        message: `✅ Rate limit override saved for organization: ${result.data.reqPerMinute} req/min, ${result.data.reqPerHour} req/hour`
+                    }, 'success');
+                    showToast('Organization override saved', 'success');
+                } else {
+                    showResult('rate-limits-result', result, 'error');
+                }
+            } catch (error) {
+                showResult('rate-limits-result', {
+                    success: false,
+                    error: error.message
+                }, 'error');
+            }
+        }
+
+        /**
+         * Remove organization-specific rate limit override
+         */
+        async function removeOrgRateLimit() {
+            const organizationId = document.getElementById('rate-limit-org-id').value.trim();
+
+            if (!organizationId) {
+                showToast('Please select an organization', 'warning');
+                return;
+            }
+
+            if (!confirm(`Remove rate limit override for this organization? They will revert to default limits.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/rate-limits/alto/organizations/${encodeURIComponent(organizationId)}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showResult('rate-limits-result', {
+                        success: true,
+                        message: '✅ Rate limit override removed. Organization will now use default limits.'
+                    }, 'success');
+                    showToast('Override removed', 'success');
+                    document.getElementById('org-req-per-min').value = '';
+                    document.getElementById('org-req-per-hour').value = '';
+                } else {
+                    showResult('rate-limits-result', result, 'warning');
+                }
+            } catch (error) {
+                showResult('rate-limits-result', {
+                    success: false,
+                    error: error.message
+                }, 'error');
+            }
+        }
+
+        /**
+         * Refresh rate limit usage statistics
+         */
+        async function refreshRateLimitStats() {
+            try {
+                const response = await fetch(`${API_BASE}/rate-limits/alto/stats`);
+                const result = await response.json();
+
+                const tbody = document.getElementById('rate-limit-stats-body');
+
+                if (result.success && result.data && result.data.stats && result.data.stats.length > 0) {
+                    tbody.innerHTML = '';
+
+                    result.data.stats.forEach(stat => {
+                        const row = document.createElement('tr');
+                        const statusClass = stat.status === 'critical' ? 'status-badge failed' :
+                                          stat.status === 'warning' ? 'status-badge pending' :
+                                          'status-badge success';
+
+                        row.innerHTML = `
+                            <td>${stat.organizationId}</td>
+                            <td>${stat.current.minute} requests</td>
+                            <td>${stat.limits.minute} req/min</td>
+                            <td>${stat.usage.minutePercent}%</td>
+                            <td><span class="${statusClass}">${stat.status.toUpperCase()}</span></td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+
+                    showToast('Stats refreshed', 'success');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">No active usage data available</td></tr>';
+                }
+            } catch (error) {
+                showResult('rate-limits-result', {
+                    success: false,
+                    error: error.message
+                }, 'error');
+            }
+        }
+
+        // Auto-load rate limit settings when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDefaultRateLimits();
+        });
     </script>
 </body>
 </html>

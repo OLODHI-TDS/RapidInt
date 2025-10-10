@@ -16,6 +16,7 @@
 
 const configManager = require('../shared/config-manager');
 const telemetry = require('../shared/telemetry');
+const { checkRateLimit } = require('../shared/rate-limiter');
 
 /**
  * Main Azure Function handler
@@ -32,6 +33,23 @@ module.exports = async function (context, req) {
   context.log(`Request: ${method} /api/config/${action || ''}${param ? '/' + param : ''}`);
 
   try {
+    // ✅ RATE LIMITING: Check for shared service
+    const organizationId = req.headers?.['x-organization-id'] || 'config-api';
+    const rateLimitCheck = await checkRateLimit('shared', organizationId, context);
+
+    if (!rateLimitCheck.allowed) {
+      context.res = {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-RateLimit-Limit': rateLimitCheck.limit.toString(),
+          'Retry-After': rateLimitCheck.retryAfter.toString()
+        },
+        body: { error: 'Rate limit exceeded', message: rateLimitCheck.message }
+      };
+      return;
+    }
+
     // Route the request
     let response;
 

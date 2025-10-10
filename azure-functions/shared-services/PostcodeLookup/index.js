@@ -19,6 +19,7 @@
 
 const { app } = require('@azure/functions');
 const postcodeData = require('./postcode-data.json');
+const { checkRateLimit } = require('../shared/rate-limiter');
 
 // In-memory cache for performance
 const cache = new Map();
@@ -191,6 +192,28 @@ app.http('PostcodeLookup', {
     try {
       const method = request.method.toUpperCase();
       const postcode = request.params.postcode || request.query.get('postcode');
+
+      // ✅ RATE LIMITING: Check for shared service (simple implementation)
+      // Use "shared" integration and extract organizationId if available
+      const organizationId = request.headers.get('X-Organization-Id') || request.query.get('orgId') || 'anonymous';
+      const rateLimitCheck = await checkRateLimit('shared', organizationId, context);
+
+      if (!rateLimitCheck.allowed) {
+        return {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-RateLimit-Limit': rateLimitCheck.limit.toString(),
+            'X-RateLimit-Remaining': '0',
+            'Retry-After': rateLimitCheck.retryAfter.toString()
+          },
+          body: JSON.stringify({
+            error: 'Rate limit exceeded',
+            message: rateLimitCheck.message,
+            retryAfter: rateLimitCheck.retryAfter
+          })
+        };
+      }
 
       // Handle different request types
       switch (method) {

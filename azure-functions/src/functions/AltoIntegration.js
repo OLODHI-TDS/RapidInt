@@ -1,5 +1,6 @@
 const { app } = require('@azure/functions');
 const axios = require('axios');
+const telemetry = require('../../shared-services/shared/telemetry');
 
 /**
  * Alto Integration Service Azure Function
@@ -136,10 +137,14 @@ app.http('AltoIntegration', {
 
         } catch (error) {
             context.log('❌ Alto integration error:', error);
+
+            // Determine if this is an authorization error
+            const isAuthError = error.message && error.message.includes('Authorization failed');
+
             return {
-                status: 500,
+                status: isAuthError ? 403 : 500,
                 jsonBody: {
-                    error: 'Alto integration failed',
+                    error: isAuthError ? 'Access denied' : 'Alto integration failed',
                     message: error.message,
                     timestamp: new Date().toISOString()
                 }
@@ -261,14 +266,53 @@ class AltoAPIClient {
 
     /**
      * Fetch complete tenancy data including property and contacts
+     * @param {string} tenancyId - The tenancy ID to fetch
+     * @param {string} agencyRef - The agency reference for authorization
+     * @param {string} expectedBranchId - The branch ID that should own this tenancy (for authorization)
      */
-    async fetchFullTenancyData(tenancyId, agencyRef) {
+    async fetchFullTenancyData(tenancyId, agencyRef, expectedBranchId) {
         if (!agencyRef) {
             throw new Error('agencyRef is required to fetch tenancy data from Alto API');
         }
         try {
             // Fetch tenancy details first
             const tenancy = await this.makeRequest('GET', `/tenancies/${tenancyId}`, null, agencyRef);
+
+            // ✅ SECURITY: Validate branch authorization
+            // Ensure the tenancy belongs to the branch that requested it
+            if (expectedBranchId && tenancy.branchId) {
+                const returnedBranchId = String(tenancy.branchId);
+                const requestedBranchId = String(expectedBranchId);
+
+                // Skip validation for "DEFAULT" branch (org-wide access)
+                const isDefaultBranch = requestedBranchId.toUpperCase() === 'DEFAULT';
+
+                if (!isDefaultBranch && returnedBranchId !== requestedBranchId) {
+                    // Log security event for unauthorized access attempt
+                    console.error('🚨 SECURITY: Cross-branch access attempt blocked', {
+                        tenancyId,
+                        requestedBranch: requestedBranchId,
+                        actualBranch: returnedBranchId,
+                        agencyRef,
+                        timestamp: new Date().toISOString()
+                    });
+
+                    // Track security event in telemetry
+                    telemetry.trackEvent('Security_CrossBranchAccessBlocked', {
+                        tenancyId: tenancyId.toString(),
+                        requestedBranch: requestedBranchId,
+                        actualBranch: returnedBranchId,
+                        agencyRef,
+                        severity: 'HIGH'
+                    });
+
+                    // Throw authorization error
+                    throw new Error(
+                        `Authorization failed: Tenancy ${tenancyId} belongs to branch ${returnedBranchId}, ` +
+                        `but was requested by branch ${requestedBranchId}`
+                    );
+                }
+            }
 
             // Extract inventory ID from tenancy data
             const inventoryId = tenancy.propertyId || tenancy.inventoryId;
