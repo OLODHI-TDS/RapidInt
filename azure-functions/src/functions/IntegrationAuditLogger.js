@@ -36,6 +36,7 @@ class IntegrationAuditLogger {
                 workflowId: integrationData.workflowId || '',
                 integrationStatus: 'COMPLETED',
                 source: integrationData.source || 'UNKNOWN',
+                testMode: integrationData.testMode || false,             // NEW: Test mode flag
                 startedAt: integrationData.startedAt || new Date().toISOString(),
                 completedAt: new Date().toISOString(),
 
@@ -101,6 +102,7 @@ class IntegrationAuditLogger {
                 workflowId: integrationData.workflowId || '',
                 integrationStatus: 'FAILED',
                 source: integrationData.source || 'UNKNOWN',
+                testMode: integrationData.testMode || false,             // NEW: Test mode flag
                 startedAt: integrationData.startedAt || new Date().toISOString(),
                 completedAt: new Date().toISOString(),
 
@@ -235,6 +237,8 @@ class IntegrationAuditLogger {
                 }
             });
 
+            // Retrieve ALL entities first (don't limit during retrieval)
+            // This ensures we can properly sort and then limit to get the most recent records
             for await (const entity of entities) {
                 // Parse JSON fields
                 const log = {
@@ -244,20 +248,20 @@ class IntegrationAuditLogger {
                     lastError: this.safeJsonParse(entity.lastError)
                 };
                 logs.push(log);
-
-                // Limit results
-                if (logs.length >= limit) break;
             }
 
-            // Sort by timestamp (newest first)
+            // Sort by timestamp (newest first) - do this BEFORE limiting
             logs.sort((a, b) => {
                 const timeA = a.completedAt || a.timestamp;
                 const timeB = b.completedAt || b.timestamp;
                 return new Date(timeB) - new Date(timeA);
             });
 
-            this.context.log(`📖 Retrieved ${logs.length} audit log entries`);
-            return logs;
+            // Now limit to the most recent N records
+            const limitedLogs = logs.slice(0, limit);
+
+            this.context.log(`📖 Retrieved ${limitedLogs.length} audit log entries (out of ${logs.length} total)`);
+            return limitedLogs;
 
         } catch (error) {
             this.context.log(`❌ Failed to retrieve audit logs:`, error.message);

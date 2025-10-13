@@ -765,104 +765,160 @@ class SalesforceTDSProvider extends TDSProviderInterface {
     }
 
     /**
-     * Create deposit in Salesforce TDS
+     * Create deposit in Salesforce TDS with retry logic for concurrent request conflicts
      */
     async createDeposit(depositData, orgConfig) {
-        try {
-            if (this.context) {
-                this.context.log('💼 Creating Salesforce TDS deposit...');
-            }
+        const maxAttempts = 3;
+        const baseDelay = 1000; // 1 second
 
-            // Build Salesforce payload
-            const payload = this.buildSalesforcePayload(depositData);
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                if (this.context) {
+                    this.context.log(`💼 Creating Salesforce TDS deposit... (attempt ${attempt}/${maxAttempts})`);
+                }
 
-            // Log the complete payload for debugging
-            console.log('📦 Salesforce TDS Payload:');
-            console.log(JSON.stringify(payload, null, 2));
+                // Build Salesforce payload
+                const payload = this.buildSalesforcePayload(depositData);
 
-            // Submit to Salesforce
-            console.log('📤 Submitting deposit to Salesforce depositcreation endpoint');
-            const submitResponse = await this.makeRequest(
-                'POST',
-                '/services/apexrest/depositcreation',
-                payload
-            );
+                // Log the complete payload for debugging
+                console.log('📦 Salesforce TDS Payload:');
+                console.log(JSON.stringify(payload, null, 2));
 
-            console.log('📨 Salesforce Submit Response:', JSON.stringify(submitResponse, null, 2));
+                // Submit to Salesforce
+                console.log('📤 Submitting deposit to Salesforce depositcreation endpoint');
+                const submitResponse = await this.makeRequest(
+                    'POST',
+                    '/services/apexrest/depositcreation',
+                    payload
+                );
 
-            // Salesforce returns "Success" (capital S) not "success"
-            const isSuccess = submitResponse.Success === 'true' || submitResponse.Success === true || submitResponse.success === true;
+                console.log('📨 Salesforce Submit Response:', JSON.stringify(submitResponse, null, 2));
 
-            if (!isSuccess || !submitResponse.batch_id) {
-                throw new Error(`Salesforce deposit submission failed: ${submitResponse.error || 'Unknown error'}`);
-            }
+                // Salesforce returns "Success" (capital S) not "success"
+                const isSuccess = submitResponse.Success === 'true' || submitResponse.Success === true || submitResponse.success === true;
 
-            console.log(`✅ Deposit submitted successfully with batch_id: ${submitResponse.batch_id}`);
+                if (!isSuccess || !submitResponse.batch_id) {
+                    throw new Error(`Salesforce deposit submission failed: ${submitResponse.error || 'Unknown error'}`);
+                }
 
-            // Check if DAN is already in the response (Salesforce returns it immediately)
-            if (submitResponse.DAN) {
-                console.log(`✅ Deposit completed immediately with DAN: ${submitResponse.DAN}`);
+                console.log(`✅ Deposit submitted successfully with batch_id: ${submitResponse.batch_id}`);
+
+                // Check if DAN is already in the response (Salesforce returns it immediately)
+                if (submitResponse.DAN) {
+                    console.log(`✅ Deposit completed immediately with DAN: ${submitResponse.DAN}`);
+                    return {
+                        success: true,
+                        depositId: submitResponse.DAN,
+                        dan: submitResponse.DAN,
+                        status: 'completed',
+                        batch_id: submitResponse.batch_id,
+                        provider: 'salesforce-tds',
+                        memberId: this.memberId,
+                        branchId: this.branchId,
+                        attemptNumber: attempt
+                    };
+                }
+
+                // Otherwise, poll for completion
+                // Load polling settings
+                let maxPollAttempts = 8;
+                let depositCheckInterval = 1;
+
+                if (this.context) {
+                    try {
+                        const settingsManager = new PollingSettingsManager(this.context);
+                        const settings = await settingsManager.getSettings();
+                        depositCheckInterval = settings.depositCheckInterval || 1;
+                        maxPollAttempts = settings.maxPollAttempts || 8;
+                        this.context.log(`📊 Using deposit check interval: ${depositCheckInterval} minutes, max attempts: ${maxPollAttempts}`);
+                    } catch (error) {
+                        this.context.log(`⚠️ Could not load polling settings, using defaults: ${error.message}`);
+                    }
+                }
+
+                const statusResponse = await this.pollForCompletion(
+                    submitResponse.batch_id,
+                    maxPollAttempts,
+                    depositCheckInterval
+                );
+
                 return {
                     success: true,
-                    depositId: submitResponse.DAN,
-                    dan: submitResponse.DAN,
-                    status: 'completed',
+                    depositId: statusResponse.depositId,
+                    dan: statusResponse.dan,
+                    status: statusResponse.status,
                     batch_id: submitResponse.batch_id,
                     provider: 'salesforce-tds',
                     memberId: this.memberId,
-                    branchId: this.branchId
+                    branchId: this.branchId,
+                    attemptNumber: attempt
+                };
+
+            } catch (error) {
+                // Check if error is UNABLE_TO_LOCK_ROW from Salesforce
+                const errorDetails = error.response?.data;
+                let isLockError = false;
+
+                if (Array.isArray(errorDetails)) {
+                    // Handle array of error objects (most common format)
+                    isLockError = errorDetails.some(err =>
+                        err.message?.includes('UNABLE_TO_LOCK_ROW') ||
+                        err.value?.includes('UNABLE_TO_LOCK_ROW') ||
+                        (typeof err === 'string' && err.includes('UNABLE_TO_LOCK_ROW'))
+                    );
+                } else if (typeof errorDetails === 'object' && errorDetails !== null) {
+                    // Handle single error object
+                    const errorStr = JSON.stringify(errorDetails);
+                    isLockError = errorStr.includes('UNABLE_TO_LOCK_ROW');
+                } else if (typeof errorDetails === 'string') {
+                    // Handle string error response
+                    isLockError = errorDetails.includes('UNABLE_TO_LOCK_ROW');
+                }
+
+                // If it's a lock error and we have attempts remaining, retry
+                if (isLockError && attempt < maxAttempts) {
+                    // Calculate exponential backoff delay (1s, 2s, 4s)
+                    const delay = baseDelay * Math.pow(2, attempt - 1);
+
+                    if (this.context) {
+                        this.context.log(`⚠️ Deposit creation failed (UNABLE_TO_LOCK_ROW - database row locked by concurrent request), retrying in ${delay/1000}s (attempt ${attempt}/${maxAttempts})`);
+                    } else {
+                        console.log(`⚠️ Deposit creation failed (UNABLE_TO_LOCK_ROW - database row locked by concurrent request), retrying in ${delay/1000}s (attempt ${attempt}/${maxAttempts})`);
+                    }
+
+                    // Wait before retry
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue; // Retry the loop
+                }
+
+                // Not a lock error or out of attempts - log and return failure
+                if (this.context) {
+                    this.context.log(`❌ Salesforce deposit creation error (attempt ${attempt}/${maxAttempts}):`, error.message);
+                    this.context.log('Error details:', JSON.stringify(error.response?.data || error, null, 2));
+                } else {
+                    console.error(`❌ Salesforce deposit creation error (attempt ${attempt}/${maxAttempts}):`, error.message);
+                    console.error('Error details:', JSON.stringify(error.response?.data || error, null, 2));
+                }
+
+                return {
+                    success: false,
+                    error: error.message,
+                    provider: 'salesforce-tds',
+                    details: error.response?.data || error.message,
+                    attemptNumber: attempt,
+                    wasLockError: isLockError
                 };
             }
-
-            // Otherwise, poll for completion
-            // Load polling settings
-            let maxPollAttempts = 8;
-            let depositCheckInterval = 1;
-
-            if (this.context) {
-                try {
-                    const settingsManager = new PollingSettingsManager(this.context);
-                    const settings = await settingsManager.getSettings();
-                    depositCheckInterval = settings.depositCheckInterval || 1;
-                    maxPollAttempts = settings.maxPollAttempts || 8;
-                    this.context.log(`📊 Using deposit check interval: ${depositCheckInterval} minutes, max attempts: ${maxPollAttempts}`);
-                } catch (error) {
-                    this.context.log(`⚠️ Could not load polling settings, using defaults: ${error.message}`);
-                }
-            }
-
-            const statusResponse = await this.pollForCompletion(
-                submitResponse.batch_id,
-                maxPollAttempts,
-                depositCheckInterval
-            );
-
-            return {
-                success: true,
-                depositId: statusResponse.depositId,
-                dan: statusResponse.dan,
-                status: statusResponse.status,
-                batch_id: submitResponse.batch_id,
-                provider: 'salesforce-tds',
-                memberId: this.memberId,
-                branchId: this.branchId
-            };
-
-        } catch (error) {
-            if (this.context) {
-                this.context.log('❌ Salesforce deposit creation error:', error.message);
-                this.context.log('Error details:', JSON.stringify(error.response?.data || error, null, 2));
-            } else {
-                console.error('❌ Salesforce deposit creation error:', error.message);
-                console.error('Error details:', JSON.stringify(error.response?.data || error, null, 2));
-            }
-            return {
-                success: false,
-                error: error.message,
-                provider: 'salesforce-tds',
-                details: error.response?.data || error.message
-            };
         }
+
+        // If we exit the loop without returning, it means all retries failed
+        return {
+            success: false,
+            error: 'Maximum retry attempts reached',
+            provider: 'salesforce-tds',
+            details: 'All retry attempts exhausted',
+            attemptNumber: maxAttempts
+        };
     }
 
     async getDepositStatus(depositId) {

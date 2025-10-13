@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <title>TDS RapidInt - Test Bench</title>
+    <link rel="stylesheet" href="shared-styles.css">
+    <style>
+        /* Test Bench Specific Styles */
+
+        .page-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--space-lg);
+        }
+
+        .panels-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: var(--space-lg);
+            margin-bottom: var(--space-lg);
+        }
+
+        .panel {
+            background: var(--glass-bg-light);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: var(--space-lg);
+            backdrop-filter: blur(20px);
+        }
+
+        .panel h3 {
+            margin: 0 0 var(--space-md) 0;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        /* Quick Test Panel */
+        .quick-test-content {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+        }
+
+        .status-indicator {
+            padding: var(--space-md);
+            background: var(--glass-bg-medium);
+            border-radius: var(--radius-md);
+            text-align: center;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .status-badge.ready { background: #2196f3; color: white; }
+        .status-badge.loading { background: #ff9800; color: white; }
+        .status-badge.success { background: #4caf50; color: white; }
+        .status-badge.failed { background: #f44336; color: white; }
+
+        .result-card {
+            padding: var(--space-md);
+            background: var(--glass-bg-medium);
+            border-radius: var(--radius-md);
+            margin-top: var(--space-md);
+        }
+
+        .result-success {
+            color: #4caf50;
+            line-height: 1.6;
+        }
+
+        .result-failed {
+            color: #f44336;
+            line-height: 1.6;
+        }
+
+        /* Stress Test Panel */
+        .stress-config {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+            margin-bottom: var(--space-md);
+        }
+
+        .stress-config label {
+            display: block;
+            margin-bottom: var(--space-xs);
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .stress-config input,
+        .stress-config select {
+            width: 100%;
+            padding: var(--space-sm);
+            background: var(--glass-bg-medium);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+        }
+
+        .stress-buttons {
+            display: flex;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-md);
+        }
+
+        .progress-container {
+            margin: var(--space-md) 0;
+        }
+
+        .progress-bar {
+            height: 24px;
+            background: var(--glass-bg-medium);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2196f3, #00bcd4);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: var(--space-xs);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+
+        .stat-card {
+            background: var(--glass-bg-medium);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: var(--space-xs);
+        }
+
+        /* Configuration Panel */
+        .config-grid {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+        }
+
+        .config-item label {
+            display: block;
+            margin-bottom: var(--space-xs);
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .config-item input,
+        .config-item select {
+            width: 100%;
+            padding: var(--space-sm);
+            background: var(--glass-bg-medium);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+        }
+
+        /* Fix dropdown option styling - prevent white background */
+        .config-item select option {
+            background: #1e1e2e;
+            color: #ffffff;
+            padding: var(--space-sm);
+        }
+
+        .config-item small {
+            display: block;
+            margin-top: var(--space-xs);
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: var(--space-xs);
+        }
+
+        .btn-option {
+            flex: 1;
+            padding: var(--space-sm);
+            background: var(--glass-bg-medium);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-option:hover {
+            background: var(--glass-bg-heavy);
+            border-color: var(--glass-border-heavy);
+        }
+
+        .btn-option.active {
+            background: #2196f3;
+            color: white;
+            border-color: #2196f3;
+        }
+
+        .config-actions {
+            display: flex;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+
+        .config-preview {
+            margin-top: var(--space-md);
+            padding: var(--space-md);
+            background: var(--glass-bg-medium);
+            border-radius: var(--radius-md);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .org-input-group {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: var(--space-xs);
+        }
+
+        .org-input-group select {
+            border-radius: var(--radius-md) 0 0 var(--radius-md);
+        }
+
+        .org-input-group button {
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            padding: 0 var(--space-md);
+        }
+
+        .manual-org-input {
+            margin-top: var(--space-sm);
+        }
+
+        .manual-org-input input {
+            margin-bottom: var(--space-xs);
+        }
+
+        /* Results Dashboard */
+        .dashboard-full {
+            background: var(--glass-bg-light);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: var(--space-lg);
+            backdrop-filter: blur(20px);
+        }
+
+        .dashboard-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-md);
+            margin-bottom: var(--space-lg);
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: var(--space-xs);
+        }
+
+        .filter-btn {
+            padding: var(--space-sm) var(--space-md);
+            background: var(--glass-bg-medium);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .filter-btn:hover {
+            background: var(--glass-bg-heavy);
+        }
+
+        .filter-btn.active {
+            background: #2196f3;
+            color: white;
+            border-color: #2196f3;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: var(--space-sm) var(--space-md);
+            background: var(--glass-bg-medium);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: var(--space-xs);
+        }
+
+        .results-table-container {
+            overflow-x: auto;
+            border-radius: var(--radius-md);
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .results-table thead {
+            background: var(--glass-bg-heavy);
+            position: sticky;
+            top: 0;
+        }
+
+        .results-table th {
+            padding: var(--space-md);
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 2px solid var(--glass-border);
+        }
+
+        .results-table td {
+            padding: var(--space-md);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .results-table tbody tr {
+            transition: background 0.2s ease;
+        }
+
+        .results-table tbody tr:hover {
+            background: var(--glass-bg-medium);
+        }
+
+        /* Test mode rows - visual differentiation */
+        .results-table tbody tr.test-mode {
+            background: rgba(255, 193, 7, 0.05);
+            border-left: 3px solid #ffc107;
+        }
+
+        .results-table tbody tr.test-mode:hover {
+            background: rgba(255, 193, 7, 0.1);
+        }
+
+        .test-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #ffc107;
+            color: #000;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .status-icon {
+            font-size: 18px;
+            display: inline-block;
+        }
+
+        .status-icon.success { color: #4caf50; }
+        .status-icon.failed { color: #f44336; }
+        .status-icon.pending { color: #ff9800; }
+
+        .tenancy-id {
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+
+        .icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            background: var(--glass-bg-light);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-right: var(--space-xs);
+        }
+
+        .icon-btn:hover {
+            background: var(--glass-bg-medium);
+            border-color: var(--glass-border-heavy);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: var(--space-xl);
+            color: var(--text-tertiary);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            padding: var(--space-sm) var(--space-lg);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: var(--radius-md);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            padding: var(--space-sm) var(--space-lg);
+            background: var(--glass-bg-medium);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: var(--glass-bg-heavy);
+        }
+
+        /* Utility */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .auto-refresh-indicator {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: var(--space-sm) var(--space-md);
+            background: var(--glass-bg-medium);
+            border-radius: var(--radius-md);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .refresh-dot {
+            width: 8px;
+            height: 8px;
+            background: #4caf50;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <!-- Header -->
+        <header style="margin-bottom: var(--space-xl);">
+            <h1 style="margin: 0; font-size: 2rem;">🧪 TDS RapidInt - Test Bench</h1>
+            <p style="margin: var(--space-sm) 0 0 0; color: var(--text-secondary);">
+                Test Alto integration with fake data - OAuth verification + unlimited testing
+            </p>
+        </header>
+
+        <!-- API Configuration Banner -->
+        <div class="panel" style="margin-bottom: var(--space-lg); background: rgba(33, 150, 243, 0.1); border-color: #2196f3;">
+            <h3 style="margin: 0 0 var(--space-sm) 0; font-size: 1rem;">⚙️ API Configuration</h3>
+            <div style="display: flex; gap: var(--space-md); align-items: center; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 300px;">
+                    <label style="display: block; margin-bottom: var(--space-xs); font-size: 0.9rem; color: var(--text-secondary);">API Base URL</label>
+                    <input type="text" id="apiBaseUrl" value="http://localhost:7071/api" style="width: 100%; padding: var(--space-sm); background: var(--glass-bg-medium); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.9rem;">
+                </div>
+                <button id="testConnectionBtn" class="btn-secondary" style="margin-top: 20px;">Test Connection</button>
+                <div id="connectionStatus" style="margin-top: 20px; padding: var(--space-sm) var(--space-md); background: var(--glass-bg-medium); border-radius: var(--radius-md); font-size: 0.9rem;">
+                    <span id="connectionStatusText">Not tested</span>
+                </div>
+            </div>
+            <div style="margin-top: var(--space-sm); font-size: 0.85rem; color: var(--text-tertiary);">
+                💡 Make sure Azure Functions is running: <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">cd azure-functions && npm run start</code>
+            </div>
+        </div>
+
+        <!-- Top Panels Grid -->
+        <div class="panels-grid">
+            <!-- Quick Test Panel -->
+            <div class="panel">
+                <h3>🚀 Quick Test</h3>
+                <div class="quick-test-content">
+                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                        Verify OAuth and test workflow with one click
+                    </p>
+
+                    <button id="quickTestBtn" class="btn-primary" style="width: 100%;">
+                        Send Test Webhook
+                    </button>
+
+                    <div class="status-indicator">
+                        <span id="quickTestStatus" class="status-badge ready">Ready</span>
+                    </div>
+
+                    <div id="quickTestResult" class="result-card" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- Stress Test Panel -->
+            <div class="panel">
+                <h3>⚡ Stress Test</h3>
+                <div class="stress-config">
+                    <div>
+                        <label>Number of Tests</label>
+                        <input type="number" id="stressTestCount" min="1" max="1000" value="10">
+                    </div>
+                    <div>
+                        <label>Concurrency</label>
+                        <input type="number" id="stressConcurrency" min="1" max="100" value="5">
+                    </div>
+                </div>
+
+                <div class="stress-buttons">
+                    <button id="stressTestBtn" class="btn-primary" style="flex: 1;">
+                        Start Stress Test
+                    </button>
+                    <button id="stopStressBtn" class="btn-secondary" style="display: none;">
+                        Stop
+                    </button>
+                </div>
+
+                <div id="stressProgress" class="progress-container" style="display: none;">
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill" style="width: 0%;">0%</div>
+                    </div>
+                    <div id="progressText" class="progress-text">0 / 0 completed</div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div id="statSuccess" class="stat-value">0</div>
+                        <div class="stat-label">Success</div>
+                    </div>
+                    <div class="stat-card">
+                        <div id="statFailed" class="stat-value">0</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div id="statAvgTime" class="stat-value">0s</div>
+                        <div class="stat-label">Avg Time</div>
+                    </div>
+                    <div class="stat-card">
+                        <div id="statThroughput" class="stat-value">0/s</div>
+                        <div class="stat-label">Throughput</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Panel -->
+            <div class="panel" style="grid-column: span 2;">
+                <h3>⚙️ Test Configuration</h3>
+                <div class="config-grid">
+                    <div class="config-item">
+                        <label>Rent Amount (£)</label>
+                        <input type="number" id="configRent" min="800" max="5000" value="1200" step="10">
+                        <small>Deposit will be auto-calculated: (rent / 4) * 5</small>
+                    </div>
+
+                    <div class="config-item">
+                        <label>Number of Tenants</label>
+                        <div class="btn-group">
+                            <button class="btn-option active" data-tenants="1">1</button>
+                            <button class="btn-option" data-tenants="2">2</button>
+                            <button class="btn-option" data-tenants="3">3</button>
+                            <button class="btn-option" data-tenants="4">4</button>
+                        </div>
+                    </div>
+
+                    <div class="config-item">
+                        <label>Number of Landlords</label>
+                        <div class="btn-group">
+                            <button class="btn-option active" data-landlords="1">1</button>
+                            <button class="btn-option" data-landlords="2">2</button>
+                        </div>
+                    </div>
+
+                    <div class="config-item">
+                        <label>Organization</label>
+                        <div class="org-input-group">
+                            <select id="configOrg">
+                                <option value="">Loading organizations...</option>
+                                <option value="manual">Manual Input...</option>
+                            </select>
+                            <button id="loadOrgsBtn" class="btn-secondary">Reload Orgs</button>
+                        </div>
+                        <div id="manualOrgInput" class="manual-org-input" style="display: none;">
+                            <input type="text" id="manualAgencyRef" placeholder="Agency Ref (UUID)" style="width: 100%;">
+                            <input type="text" id="manualBranchId" placeholder="Branch ID" style="width: 100%;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="config-actions">
+                    <button id="resetConfigBtn" class="btn-secondary">Reset to Defaults</button>
+                    <div style="flex: 1;"></div>
+                    <div id="configPreview" class="config-preview" style="margin: 0;">
+                        <strong>Current:</strong> Rent: £1,200, Deposit: £1,500, Tenants: 1, Landlords: 1
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Dashboard -->
+        <div class="dashboard-full">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg);">
+                <h3 style="margin: 0;">📊 Test Results</h3>
+                <div class="auto-refresh-indicator">
+                    <div class="refresh-dot"></div>
+                    <span>Auto-refresh: 60s</span>
+                </div>
+            </div>
+
+            <div class="dashboard-controls">
+                <div class="filter-group">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="success">Success</button>
+                    <button class="filter-btn" data-filter="failed">Failed</button>
+                    <button class="filter-btn" data-filter="test">Tests Only</button>
+                </div>
+
+                <div class="search-box">
+                    <input type="text" id="searchResults" placeholder="Search tenancy ID, DAN, deposit ID...">
+                </div>
+
+                <div class="action-buttons">
+                    <button id="refreshResultsBtn" class="btn-secondary">Refresh</button>
+                    <button id="clearResultsBtn" class="btn-secondary">Clear View</button>
+                    <button id="exportResultsBtn" class="btn-primary">Export CSV</button>
+                </div>
+            </div>
+
+            <div class="results-table-container">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Tenancy ID</th>
+                            <th>DAN</th>
+                            <th>Deposit ID</th>
+                            <th>Workflow ID</th>
+                            <th>Agency Ref</th>
+                            <th>Branch ID</th>
+                            <th>Source</th>
+                            <th>Processing Time</th>
+                            <th>Timestamp</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody">
+                        <!-- Results populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="resultsEmpty" class="empty-state">
+                <p>No results yet. Run a test or wait for auto-refresh to load data.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration - will be updated from input field
+        let API_BASE = 'http://localhost:7071/api';
+
+        // State
+        let currentConfig = {
+            rentAmount: 1200,
+            numberOfTenants: 1,
+            numberOfLandlords: 1,
+            agencyRef: '1af89d60-662c-475b-bcc8-9bcbf04b6322',
+            branchId: '8282'
+        };
+
+        let stressTestRunning = false;
+        let stressTestAborted = false;
+        let autoRefreshInterval = null;
+        let currentFilter = 'all';
+        let allResults = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Load API URL from localStorage if available
+            const savedApiUrl = localStorage.getItem('apiBaseUrl');
+            if (savedApiUrl) {
+                API_BASE = savedApiUrl;
+                document.getElementById('apiBaseUrl').value = savedApiUrl;
+            }
+
+            initializeEventListeners();
+            testConnection(true); // Test connection on load (silent)
+            await loadOrganizations(true); // Auto-load organizations on page load (silent)
+            updateConfigPreview();
+            loadResults();
+            startAutoRefresh();
+        });
+
+        // Event Listeners
+        function initializeEventListeners() {
+            // API Configuration
+            document.getElementById('apiBaseUrl').addEventListener('change', (e) => {
+                API_BASE = e.target.value.trim();
+                localStorage.setItem('apiBaseUrl', API_BASE);
+                console.log('API Base URL updated:', API_BASE);
+            });
+            document.getElementById('testConnectionBtn').addEventListener('click', () => testConnection(false));
+
+            // Quick Test
+            document.getElementById('quickTestBtn').addEventListener('click', runQuickTest);
+
+            // Stress Test
+            document.getElementById('stressTestBtn').addEventListener('click', runStressTest);
+            document.getElementById('stopStressBtn').addEventListener('click', stopStressTest);
+
+            // Configuration
+            document.querySelectorAll('[data-tenants]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('[data-tenants]').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentConfig.numberOfTenants = parseInt(e.target.dataset.tenants);
+                    updateConfigPreview();
+                });
+            });
+
+            document.querySelectorAll('[data-landlords]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('[data-landlords]').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentConfig.numberOfLandlords = parseInt(e.target.dataset.landlords);
+                    updateConfigPreview();
+                });
+            });
+
+            document.getElementById('configRent').addEventListener('input', (e) => {
+                currentConfig.rentAmount = parseInt(e.target.value) || 1200;
+                updateConfigPreview();
+            });
+
+            document.getElementById('configOrg').addEventListener('change', (e) => {
+                if (e.target.value === 'manual') {
+                    document.getElementById('manualOrgInput').style.display = 'block';
+                } else {
+                    document.getElementById('manualOrgInput').style.display = 'none';
+                    const [agencyRef, branchId] = e.target.value.split(':');
+                    currentConfig.agencyRef = agencyRef;
+                    currentConfig.branchId = branchId;
+                    updateConfigPreview();
+                }
+            });
+
+            document.getElementById('manualAgencyRef').addEventListener('input', (e) => {
+                currentConfig.agencyRef = e.target.value;
+                updateConfigPreview();
+            });
+
+            document.getElementById('manualBranchId').addEventListener('input', (e) => {
+                currentConfig.branchId = e.target.value;
+                updateConfigPreview();
+            });
+
+            document.getElementById('resetConfigBtn').addEventListener('click', resetConfig);
+            document.getElementById('loadOrgsBtn').addEventListener('click', () => loadOrganizations(false));
+
+            // Results Dashboard
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentFilter = e.target.dataset.filter;
+                    filterResults();
+                });
+            });
+
+            document.getElementById('searchResults').addEventListener('input', filterResults);
+            document.getElementById('refreshResultsBtn').addEventListener('click', loadResults);
+            document.getElementById('clearResultsBtn').addEventListener('click', clearResultsView);
+            document.getElementById('exportResultsBtn').addEventListener('click', exportToCSV);
+        }
+
+        // API Connection Test
+        async function testConnection(silent = false) {
+            const statusEl = document.getElementById('connectionStatusText');
+
+            if (!silent) {
+                statusEl.innerHTML = '<span class="spinner"></span> Testing...';
+            }
+
+            try {
+                // Try to fetch the audit log endpoint as a simple connection test
+                const response = await fetch(`${API_BASE}/integration-audit/list`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    statusEl.innerHTML = '✓ Connected';
+                    statusEl.style.color = '#4caf50';
+                    if (!silent) {
+                        const data = await response.json();
+                        console.log('Connection successful. Results:', data.count || 0);
+                    }
+                } else {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                statusEl.innerHTML = '✗ Connection Failed';
+                statusEl.style.color = '#f44336';
+
+                if (!silent) {
+                    const errorDetails = `
+                        Connection failed to: ${API_BASE}
+
+                        Error: ${error.message}
+
+                        Common fixes:
+                        1. Make sure Azure Functions is running:
+                           cd azure-functions && npm run start
+
+                        2. Check the API URL is correct
+
+                        3. If opening HTML file directly, try:
+                           http://localhost:7071/test-bench.html
+                    `;
+                    alert(errorDetails);
+                }
+
+                console.error('Connection test failed:', error);
+                console.error('Attempted URL:', `${API_BASE}/integration-audit/list`);
+            }
+        }
+
+        // Configuration Functions
+        function updateConfigPreview() {
+            const deposit = calculateDeposit(currentConfig.rentAmount);
+            document.getElementById('configPreview').innerHTML = `
+                <strong>Current:</strong>
+                Rent: £${currentConfig.rentAmount.toLocaleString()},
+                Deposit: £${deposit.toLocaleString()},
+                Tenants: ${currentConfig.numberOfTenants},
+                Landlords: ${currentConfig.numberOfLandlords}
+            `;
+        }
+
+        function calculateDeposit(rent) {
+            return Math.round((rent / 4) * 5 * 100) / 100;
+        }
+
+        async function resetConfig() {
+            // Reset rent and counts
+            currentConfig.rentAmount = 1200;
+            currentConfig.numberOfTenants = 1;
+            currentConfig.numberOfLandlords = 1;
+
+            document.getElementById('configRent').value = 1200;
+            document.getElementById('manualOrgInput').style.display = 'none';
+
+            document.querySelectorAll('[data-tenants]').forEach(b => b.classList.remove('active'));
+            document.querySelector('[data-tenants="1"]').classList.add('active');
+
+            document.querySelectorAll('[data-landlords]').forEach(b => b.classList.remove('active'));
+            document.querySelector('[data-landlords="1"]').classList.add('active');
+
+            // Reload organizations and select first one
+            await loadOrganizations(true);
+
+            updateConfigPreview();
+        }
+
+        async function loadOrganizations(silent = false) {
+            const btn = document.getElementById('loadOrgsBtn');
+            const select = document.getElementById('configOrg');
+
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+
+            try {
+                const response = await fetch(`${API_BASE}/organization/list`);
+                const data = await response.json();
+
+                if (data.success && data.mappings) {
+                    // Filter for DEVELOPMENT environment ONLY and active organizations
+                    const devOrgs = data.mappings.filter(org =>
+                        org.environment === 'development' &&
+                        org.isActive !== false
+                    );
+
+                    if (devOrgs.length === 0) {
+                        if (!silent) {
+                            alert('No active development organizations found.');
+                        }
+                        btn.disabled = false;
+                        btn.textContent = 'Reload Orgs';
+                        return;
+                    }
+
+                    // Keep manual option
+                    const manualOption = select.querySelector('option[value="manual"]');
+
+                    select.innerHTML = '';
+
+                    // Add development organizations
+                    devOrgs.forEach(org => {
+                        const option = document.createElement('option');
+                        option.value = `${org.agencyRef}:${org.branchId}`;
+                        const displayName = org.organizationName || org.agencyRef;
+                        const tdsProvider = org.tdsProviderPreference ? ` [${org.tdsProviderPreference}]` : '';
+                        option.textContent = `${displayName} (Branch ${org.branchId})${tdsProvider}`;
+                        select.appendChild(option);
+                    });
+
+                    // Re-add manual option at the end
+                    if (manualOption) {
+                        select.appendChild(manualOption);
+                    }
+
+                    // Auto-select first organization and update config
+                    if (devOrgs.length > 0) {
+                        select.selectedIndex = 0;
+                        const firstOrg = devOrgs[0];
+                        currentConfig.agencyRef = firstOrg.agencyRef;
+                        currentConfig.branchId = firstOrg.branchId;
+                        console.log(`Auto-selected: ${firstOrg.organizationName || firstOrg.agencyRef} (${firstOrg.branchId})`);
+                    }
+
+                    console.log(`Loaded ${devOrgs.length} development organizations`);
+
+                    if (!silent) {
+                        alert(`✅ Loaded ${devOrgs.length} development organizations`);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load organizations:', error);
+                if (!silent) {
+                    alert(`❌ Failed to load organizations: ${error.message}`);
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Reload Orgs';
+            }
+        }
+
+        // Quick Test Functions
+        async function runQuickTest() {
+            const btn = document.getElementById('quickTestBtn');
+            const status = document.getElementById('quickTestStatus');
+            const resultDiv = document.getElementById('quickTestResult');
+
+            btn.disabled = true;
+            status.className = 'status-badge loading';
+            status.innerHTML = '<span class="spinner"></span> Running...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const result = await sendTestWebhook();
+
+                status.className = result.success ? 'status-badge success' : 'status-badge failed';
+                status.textContent = result.success ? 'Success!' : 'Failed';
+
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = result.success
+                    ? `<div class="result-success">
+                        ✓ Success!<br>
+                        <strong>DAN:</strong> ${result.dan || 'N/A'}<br>
+                        <strong>Tenancy ID:</strong> ${result.tenancyId}<br>
+                        <strong>Deposit ID:</strong> ${result.depositId || 'N/A'}<br>
+                        <strong>Time:</strong> ${(result.duration / 1000).toFixed(2)}s
+                       </div>`
+                    : `<div class="result-failed">
+                        ✗ Failed<br>
+                        <strong>Error:</strong> ${result.error || result.message}<br>
+                        <strong>Time:</strong> ${(result.duration / 1000).toFixed(2)}s
+                       </div>`;
+
+                // Refresh results
+                setTimeout(loadResults, 1000);
+            } catch (error) {
+                status.className = 'status-badge failed';
+                status.textContent = 'Error';
+
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `<div class="result-failed">
+                    ✗ Connection Error<br>
+                    <strong>Error:</strong> ${error.message}<br>
+                    <strong>URL:</strong> ${API_BASE}/workflows/alto-tds<br>
+                    <br>
+                    <small>Check the API Configuration section above and click "Test Connection"</small>
+                </div>`;
+            } finally {
+                btn.disabled = false;
+                setTimeout(() => {
+                    status.className = 'status-badge ready';
+                    status.textContent = 'Ready';
+                }, 3000);
+            }
+        }
+
+        // Stress Test Functions
+        async function runStressTest() {
+            const count = parseInt(document.getElementById('stressTestCount').value);
+            const concurrency = parseInt(document.getElementById('stressConcurrency').value);
+
+            if (count < 1 || concurrency < 1) {
+                alert('Please enter valid test count and concurrency values.');
+                return;
+            }
+
+            stressTestRunning = true;
+            stressTestAborted = false;
+
+            document.getElementById('stressTestBtn').style.display = 'none';
+            document.getElementById('stopStressBtn').style.display = 'block';
+            document.getElementById('stressProgress').style.display = 'block';
+
+            // Reset stats
+            updateStressStats({ success: 0, failed: 0, avgTime: 0, throughput: 0 });
+
+            const results = [];
+            const startTime = Date.now();
+
+            try {
+                for (let i = 0; i < count; i += concurrency) {
+                    if (stressTestAborted) break;
+
+                    const batch = [];
+                    for (let j = 0; j < concurrency && (i + j) < count; j++) {
+                        batch.push(sendTestWebhook());
+                    }
+
+                    const batchResults = await Promise.allSettled(batch);
+                    results.push(...batchResults.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason }));
+
+                    updateStressProgress(results.length, count);
+
+                    const success = results.filter(r => r.success).length;
+                    const failed = results.filter(r => !r.success).length;
+                    const avgTime = results.reduce((sum, r) => sum + (r.duration || 0), 0) / results.length / 1000;
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    const throughput = results.length / elapsed;
+
+                    updateStressStats({ success, failed, avgTime, throughput });
+                }
+
+                // Refresh results after test complete
+                setTimeout(loadResults, 1000);
+            } catch (error) {
+                console.error('Stress test error:', error);
+            } finally {
+                stressTestRunning = false;
+                document.getElementById('stressTestBtn').style.display = 'block';
+                document.getElementById('stopStressBtn').style.display = 'none';
+            }
+        }
+
+        function stopStressTest() {
+            stressTestAborted = true;
+        }
+
+        function updateStressProgress(completed, total) {
+            const percentage = (completed / total) * 100;
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressFill').textContent = Math.round(percentage) + '%';
+            document.getElementById('progressText').textContent = `${completed} / ${total} completed`;
+        }
+
+        function updateStressStats(stats) {
+            document.getElementById('statSuccess').textContent = stats.success;
+            document.getElementById('statFailed').textContent = stats.failed;
+            document.getElementById('statAvgTime').textContent = stats.avgTime.toFixed(2) + 's';
+            document.getElementById('statThroughput').textContent = stats.throughput.toFixed(1) + '/s';
+        }
+
+        // API Functions
+        async function sendTestWebhook() {
+            const tenancyId = generateTestTenancyId();
+            const payload = {
+                tenancyId: tenancyId.toString(),
+                agencyRef: currentConfig.agencyRef,
+                branchId: currentConfig.branchId,
+                testMode: true,
+                testConfig: {
+                    rentAmount: currentConfig.rentAmount,
+                    numberOfTenants: currentConfig.numberOfTenants,
+                    numberOfLandlords: currentConfig.numberOfLandlords
+                }
+            };
+
+            const startTime = Date.now();
+
+            try {
+                const response = await fetch(`${API_BASE}/workflows/alto-tds`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const duration = Date.now() - startTime;
+                const result = await response.json();
+
+                return {
+                    ...result,
+                    duration,
+                    tenancyId,
+                    payload
+                };
+            } catch (error) {
+                const duration = Date.now() - startTime;
+                return {
+                    success: false,
+                    error: error.message,
+                    duration,
+                    tenancyId,
+                    payload
+                };
+            }
+        }
+
+        function generateTestTenancyId() {
+            return 9000000 + Math.floor(Math.random() * 1000000);
+        }
+
+        // Results Dashboard Functions
+        async function loadResults() {
+            try {
+                const response = await fetch(`${API_BASE}/integration-audit/list`);
+                const data = await response.json();
+
+                if (data.success && data.auditLog) {
+                    allResults = data.auditLog;
+                    renderResults();
+                }
+            } catch (error) {
+                console.error('Failed to load results:', error);
+            }
+        }
+
+        function renderResults() {
+            const tbody = document.getElementById('resultsTableBody');
+            const empty = document.getElementById('resultsEmpty');
+
+            let filteredResults = allResults;
+
+            // Apply filter
+            if (currentFilter === 'success') {
+                filteredResults = allResults.filter(r => r.integrationStatus === 'COMPLETED');
+            } else if (currentFilter === 'failed') {
+                filteredResults = allResults.filter(r => r.integrationStatus === 'FAILED');
+            } else if (currentFilter === 'test') {
+                filteredResults = allResults.filter(r => r.testMode === true || r.source === 'TEST_WEBHOOK');
+            }
+
+            // Apply search
+            const searchTerm = document.getElementById('searchResults').value.toLowerCase();
+            if (searchTerm) {
+                filteredResults = filteredResults.filter(r =>
+                    r.tenancyId?.toString().toLowerCase().includes(searchTerm) ||
+                    r.danNumber?.toLowerCase().includes(searchTerm) ||
+                    r.tdsDepositId?.toLowerCase().includes(searchTerm) ||
+                    r.workflowId?.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            if (filteredResults.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            tbody.innerHTML = filteredResults.map(result => createResultRow(result)).join('');
+
+            // Add event listeners for action buttons
+            tbody.querySelectorAll('.copy-dan-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const dan = e.target.dataset.dan;
+                    navigator.clipboard.writeText(dan);
+                    alert('DAN copied to clipboard!');
+                });
+            });
+        }
+
+        function createResultRow(result) {
+            const isTest = result.testMode === true || result.source === 'TEST_WEBHOOK';
+            const isSuccess = result.integrationStatus === 'COMPLETED';
+            const testModeClass = isTest ? 'test-mode' : '';
+            const testBadge = isTest ? '<span class="test-badge">TEST</span>' : '';
+
+            const statusIcon = isSuccess
+                ? '<span class="status-icon success">✓</span>'
+                : '<span class="status-icon failed">✗</span>';
+
+            const processingTime = result.processingTimeMs
+                ? (result.processingTimeMs / 1000).toFixed(2) + 's'
+                : 'N/A';
+
+            const timestamp = result.completedAt
+                ? new Date(result.completedAt).toLocaleString()
+                : 'N/A';
+
+            return `
+                <tr class="${testModeClass}">
+                    <td>${statusIcon}</td>
+                    <td class="tenancy-id">${result.tenancyId || 'N/A'}${testBadge}</td>
+                    <td>${result.danNumber || 'N/A'}</td>
+                    <td>${result.tdsDepositId || 'N/A'}</td>
+                    <td style="font-family: var(--font-mono); font-size: 0.85rem;">${result.workflowId || 'N/A'}</td>
+                    <td style="font-family: var(--font-mono); font-size: 0.85rem;">${result.agencyRef ? result.agencyRef.substring(0, 8) + '...' : 'N/A'}</td>
+                    <td>${result.branchId || 'N/A'}</td>
+                    <td>${result.source || 'N/A'}</td>
+                    <td>${processingTime}</td>
+                    <td>${timestamp}</td>
+                    <td>
+                        ${result.danNumber ? `<button class="icon-btn copy-dan-btn" data-dan="${result.danNumber}" title="Copy DAN">📋</button>` : ''}
+                    </td>
+                </tr>
+            `;
+        }
+
+        function filterResults() {
+            renderResults();
+        }
+
+        function clearResultsView() {
+            allResults = [];
+            renderResults();
+        }
+
+        function exportToCSV() {
+            if (allResults.length === 0) {
+                alert('No results to export.');
+                return;
+            }
+
+            const headers = [
+                'Status',
+                'Tenancy ID',
+                'DAN',
+                'Deposit ID',
+                'Workflow ID',
+                'Agency Ref',
+                'Branch ID',
+                'Source',
+                'Test Mode',
+                'Processing Time (ms)',
+                'Started At',
+                'Completed At',
+                'Failure Reason',
+                'Failure Description'
+            ];
+
+            const rows = allResults.map(r => [
+                r.integrationStatus || '',
+                r.tenancyId || '',
+                r.danNumber || '',
+                r.tdsDepositId || '',
+                r.workflowId || '',
+                r.agencyRef || '',
+                r.branchId || '',
+                r.source || '',
+                r.testMode ? 'Yes' : 'No',
+                r.processingTimeMs || '',
+                r.startedAt || '',
+                r.completedAt || '',
+                r.failureReason || '',
+                r.failureDescription || ''
+            ]);
+
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `test-results-${Date.now()}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Auto-refresh
+        function startAutoRefresh() {
+            autoRefreshInterval = setInterval(loadResults, 60000); // 60 seconds
+        }
+    </script>
+</body>
+</html>
