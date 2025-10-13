@@ -3,6 +3,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { PollingSettingsManager } = require('./PollingSettings');
 const { getSalesforceAuthHeader } = require('../../shared-services/shared/salesforce-auth');
+const { sanitizeForLogging, getDepositSummary } = require('../../shared-services/shared/sanitized-logger');
 
 /**
  * Sanitize string for Salesforce API - removes special characters that Salesforce rejects
@@ -73,15 +74,16 @@ class CurrentTDSProvider extends TDSProviderInterface {
                 apiKey: this.apiKey
             });
 
-            // Log the complete TDS payload for debugging (like Alto-POC)
-            console.log('📦 TDS Payload Structure:');
-            console.log(JSON.stringify(tdsPayload, null, 2));
+            // ✅ SECURITY: Log sanitized payload (masks PII) for debugging
+            console.log('📦 TDS Payload Structure (sanitized):');
+            console.log(JSON.stringify(sanitizeForLogging(tdsPayload), null, 2));
+            console.log('📝 Summary:', getDepositSummary(depositData));
 
             // Submit to real TDS API
             console.log('📤 Submitting deposit to TDS CreateDeposit endpoint');
             const submitResponse = await this.makeRequest('POST', '/CreateDeposit', tdsPayload);
 
-            console.log('📨 TDS Submit Response:', JSON.stringify(submitResponse, null, 2));
+            console.log('📨 TDS Submit Response:', JSON.stringify(sanitizeForLogging(submitResponse), null, 2));
 
             if (!submitResponse.success || !submitResponse.batch_id) {
                 throw new Error(`TDS deposit submission failed: ${submitResponse.error || 'Unknown error'}`);
@@ -249,7 +251,7 @@ class CurrentTDSProvider extends TDSProviderInterface {
                 const statusUrl = `/CreateDepositStatus/${orgConfig.memberId}/${orgConfig.branchId}/${orgConfig.apiKey}/${batchId}`;
                 console.log(`📊 Checking status at: ${this.baseUrl}${statusUrl}`);
                 const statusResponse = await this.makeRequest('GET', statusUrl);
-                console.log(`📊 Status Response:`, JSON.stringify(statusResponse, null, 2));
+                console.log(`📊 Status Response:`, JSON.stringify(sanitizeForLogging(statusResponse), null, 2));
 
                 switch (statusResponse.status) {
                     case 'created':
@@ -526,8 +528,8 @@ class SalesforceTDSProvider extends TDSProviderInterface {
         // Add tenants
         if (depositData.tenants && depositData.tenants.length > 0) {
             depositData.tenants.forEach((tenant, index) => {
-                // Debug: Log tenant object to see what ID fields are available
-                console.log(`🔍 Tenant ${index + 1} object:`, JSON.stringify(tenant, null, 2));
+                // ✅ SECURITY: Log sanitized tenant object (masks PII) for debugging
+                console.log(`🔍 Tenant ${index + 1} object (sanitized):`, JSON.stringify(sanitizeForLogging(tenant), null, 2));
 
                 const tenantPerson = {
                     person_classification: "Tenant",
@@ -724,7 +726,7 @@ class SalesforceTDSProvider extends TDSProviderInterface {
                 );
 
                 if (this.context) {
-                    this.context.log(`📨 Status response:`, JSON.stringify(statusResponse, null, 2));
+                    this.context.log(`📨 Status response:`, JSON.stringify(sanitizeForLogging(statusResponse), null, 2));
                 }
 
                 // Check if completed successfully
@@ -780,9 +782,10 @@ class SalesforceTDSProvider extends TDSProviderInterface {
                 // Build Salesforce payload
                 const payload = this.buildSalesforcePayload(depositData);
 
-                // Log the complete payload for debugging
-                console.log('📦 Salesforce TDS Payload:');
-                console.log(JSON.stringify(payload, null, 2));
+                // ✅ SECURITY: Log sanitized payload (masks PII) for debugging
+                console.log('📦 Salesforce TDS Payload (sanitized):');
+                console.log(JSON.stringify(sanitizeForLogging(payload), null, 2));
+                console.log('📝 Summary:', getDepositSummary(depositData));
 
                 // Submit to Salesforce
                 console.log('📤 Submitting deposit to Salesforce depositcreation endpoint');
@@ -792,7 +795,7 @@ class SalesforceTDSProvider extends TDSProviderInterface {
                     payload
                 );
 
-                console.log('📨 Salesforce Submit Response:', JSON.stringify(submitResponse, null, 2));
+                console.log('📨 Salesforce Submit Response:', JSON.stringify(sanitizeForLogging(submitResponse), null, 2));
 
                 // Salesforce returns "Success" (capital S) not "success"
                 const isSuccess = submitResponse.Success === 'true' || submitResponse.Success === true || submitResponse.success === true;

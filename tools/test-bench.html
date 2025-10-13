@@ -520,11 +520,16 @@
 <body>
     <div class="page-container">
         <!-- Header -->
-        <header style="margin-bottom: var(--space-xl);">
-            <h1 style="margin: 0; font-size: 2rem;">🧪 TDS RapidInt - Test Bench</h1>
-            <p style="margin: var(--space-sm) 0 0 0; color: var(--text-secondary);">
-                Test Alto integration with fake data - OAuth verification + unlimited testing
-            </p>
+        <header style="margin-bottom: var(--space-xl); display: flex; justify-content: space-between; align-items: start;">
+            <div>
+                <h1 style="margin: 0; font-size: 2rem;">🧪 TDS RapidInt - Test Bench</h1>
+                <p style="margin: var(--space-sm) 0 0 0; color: var(--text-secondary);">
+                    Test Alto integration with fake data - OAuth verification + unlimited testing
+                </p>
+            </div>
+            <div id="authSection" style="text-align: right;">
+                <!-- Auth UI will be inserted here dynamically -->
+            </div>
         </header>
 
         <!-- API Configuration Banner -->
@@ -733,6 +738,10 @@
         // API Configuration - will be updated from input field
         let API_BASE = 'http://localhost:7071/api';
 
+        // Authentication State
+        let currentUser = null;
+        let accessToken = null;
+
         // State
         let currentConfig = {
             rentAmount: 1200,
@@ -757,6 +766,9 @@
                 document.getElementById('apiBaseUrl').value = savedApiUrl;
             }
 
+            // Check authentication status
+            await checkAuthStatus();
+
             initializeEventListeners();
             testConnection(true); // Test connection on load (silent)
             await loadOrganizations(true); // Auto-load organizations on page load (silent)
@@ -764,6 +776,189 @@
             loadResults();
             startAutoRefresh();
         });
+
+        // ============================================================================
+        // Authentication Functions
+        // ============================================================================
+
+        /**
+         * Check authentication status on page load
+         * Loads user info from localStorage and validates
+         */
+        async function checkAuthStatus() {
+            const authData = localStorage.getItem('alto_auth');
+
+            if (!authData) {
+                renderAuthUI(false);
+                return;
+            }
+
+            try {
+                const auth = JSON.parse(authData);
+
+                // Check if token is expired
+                const expiresOn = new Date(auth.expiresOn);
+                if (expiresOn < new Date()) {
+                    console.log('[AUTH] Token expired, clearing auth data');
+                    localStorage.removeItem('alto_auth');
+                    renderAuthUI(false);
+                    return;
+                }
+
+                // Token is valid
+                accessToken = auth.accessToken;
+                currentUser = auth.account;
+
+                console.log('[AUTH] Authenticated as:', currentUser.username);
+                renderAuthUI(true);
+
+            } catch (error) {
+                console.error('[AUTH] Failed to parse auth data:', error);
+                localStorage.removeItem('alto_auth');
+                renderAuthUI(false);
+            }
+        }
+
+        /**
+         * Initiate login flow
+         * Redirects to Azure AD or returns mock token in development
+         */
+        async function login() {
+            try {
+                // Call /api/auth/login endpoint
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.status === 302) {
+                    // Production: Redirect to Azure AD
+                    const location = response.headers.get('Location');
+                    window.location.href = location;
+                } else if (response.ok) {
+                    // Development: Mock authentication
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Store mock auth
+                        const authData = {
+                            accessToken: data.accessToken,
+                            expiresOn: new Date(Date.now() + 3600000).toISOString(), // 1 hour
+                            account: data.user,
+                            timestamp: new Date().toISOString()
+                        };
+
+                        localStorage.setItem('alto_auth', JSON.stringify(authData));
+
+                        accessToken = data.accessToken;
+                        currentUser = data.user;
+
+                        console.log('[AUTH] Authenticated (development mode):', currentUser.email);
+                        renderAuthUI(true);
+
+                        alert(`✅ Authenticated as ${currentUser.name} (${currentUser.email})\n\n` +
+                              `Roles: ${currentUser.roles.join(', ')}\n\n` +
+                              `Mode: Development (mock user)`);
+                    }
+                } else {
+                    throw new Error(`Login failed: ${response.status} ${response.statusText}`);
+                }
+
+            } catch (error) {
+                console.error('[AUTH] Login error:', error);
+                alert(`❌ Login failed: ${error.message}`);
+            }
+        }
+
+        /**
+         * Logout current user
+         * Clears authentication data and UI
+         */
+        async function logout() {
+            try {
+                // Call /api/auth/logout endpoint
+                await fetch(`${API_BASE}/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+            } catch (error) {
+                console.warn('[AUTH] Logout endpoint error:', error);
+            } finally {
+                // Clear local state regardless of API call success
+                localStorage.removeItem('alto_auth');
+                accessToken = null;
+                currentUser = null;
+
+                console.log('[AUTH] Logged out');
+                renderAuthUI(false);
+            }
+        }
+
+        /**
+         * Render authentication UI
+         * Shows login button or user info based on auth state
+         */
+        function renderAuthUI(isAuthenticated) {
+            const authSection = document.getElementById('authSection');
+
+            if (!isAuthenticated) {
+                authSection.innerHTML = `
+                    <button onclick="login()" class="btn-primary" style="padding: var(--space-sm) var(--space-md);">
+                        🔐 Login with Microsoft
+                    </button>
+                    <p style="margin: var(--space-xs) 0 0 0; font-size: 0.8rem; color: var(--text-tertiary);">
+                        Required for PII decryption
+                    </p>
+                `;
+            } else {
+                const rolesBadges = currentUser.roles.map(role => {
+                    const colors = {
+                        admin: '#4caf50',
+                        support: '#2196f3',
+                        viewer: '#ff9800'
+                    };
+                    const color = colors[role] || '#757575';
+                    return `<span style="display: inline-block; padding: 2px 8px; background: ${color}; color: white; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 4px;">${role.toUpperCase()}</span>`;
+                }).join('');
+
+                authSection.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                        <div style="text-align: right;">
+                            <div style="font-weight: 600; color: var(--text-primary);">
+                                ${currentUser.name || currentUser.username || currentUser.email}
+                                ${rolesBadges}
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 2px;">
+                                ${currentUser.email || currentUser.username}
+                            </div>
+                        </div>
+                        <button onclick="logout()" class="btn-secondary" style="padding: var(--space-xs) var(--space-sm); font-size: 0.9rem;">
+                            Logout
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        /**
+         * Get headers for authenticated API requests
+         * Includes Authorization header if user is logged in
+         */
+        function getAuthHeaders() {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            if (accessToken) {
+                headers['Authorization'] = `Bearer ${accessToken}`;
+            }
+
+            return headers;
+        }
 
         // Event Listeners
         function initializeEventListeners() {
@@ -1159,7 +1354,7 @@
             try {
                 const response = await fetch(`${API_BASE}/workflows/alto-tds`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(), // ✅ Include authentication
                     body: JSON.stringify(payload)
                 });
 

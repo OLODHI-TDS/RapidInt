@@ -12,6 +12,7 @@ require('./PendingPollingService');
 require('./PollingSettings');
 require('./TDSSettings');
 require('./AltoSettings');
+require('./Auth');
 
 // Simple test function
 app.http('test', {
@@ -71,7 +72,11 @@ app.http('health', {
                     tdsSettingsGet: 'GET /api/settings/tds',
                     tdsSettingsSave: 'POST /api/settings/tds',
                     altoSettingsGet: 'GET /api/settings/alto',
-                    altoSettingsSave: 'POST /api/settings/alto'
+                    altoSettingsSave: 'POST /api/settings/alto',
+                    authLogin: 'GET /api/auth/login',
+                    authCallback: 'GET /api/auth/callback',
+                    authMe: 'GET /api/auth/me',
+                    authLogout: 'POST /api/auth/logout'
                 }
             }
         };

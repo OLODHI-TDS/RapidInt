@@ -1,9 +1,14 @@
 const { app } = require('@azure/functions');
 const { TableClient } = require('@azure/data-tables');
+const { encryptPII, decryptPII } = require('../../shared-services/shared/pii-encryption');
+const { getAuthenticatedUser } = require('../../shared-services/shared/auth-middleware');
 
 /**
  * Centralized Integration Audit Logger
  * Handles consistent audit logging for all integration attempts across the system
+ *
+ * ✅ SECURITY: PII fields (tdsResponse, workflowSteps, lastError) are encrypted at rest
+ * to comply with GDPR Article 32 (Security of Processing)
  */
 class IntegrationAuditLogger {
     constructor(context) {
@@ -27,6 +32,24 @@ class IntegrationAuditLogger {
                 if (err.statusCode !== 409) throw err; // Ignore 'already exists' error
             });
 
+            // ✅ SECURITY: Encrypt PII fields before storing (GDPR Article 32)
+            const tdsResponseString = integrationData.tdsResponse ?
+                (typeof integrationData.tdsResponse === 'string' ?
+                    integrationData.tdsResponse :
+                    JSON.stringify(integrationData.tdsResponse)) : '';
+
+            const workflowStepsString = integrationData.workflowSteps ?
+                JSON.stringify(integrationData.workflowSteps) : '';
+
+            // Encrypt PII-containing fields
+            const encryptedTdsResponse = tdsResponseString ?
+                await encryptPII(tdsResponseString, null, this.context) : '';
+
+            const encryptedWorkflowSteps = workflowStepsString ?
+                await encryptPII(workflowStepsString, null, this.context) : '';
+
+            this.context.log(`[PII-ENC] Encrypted audit log fields for tenancy ${integrationData.tenancyId}`);
+
             const logEntity = {
                 partitionKey: 'Integration',
                 rowKey: `${Date.now()}-${integrationData.tenancyId}`,
@@ -36,22 +59,23 @@ class IntegrationAuditLogger {
                 workflowId: integrationData.workflowId || '',
                 integrationStatus: 'COMPLETED',
                 source: integrationData.source || 'UNKNOWN',
-                testMode: integrationData.testMode || false,             // NEW: Test mode flag
+                testMode: integrationData.testMode || false,
                 startedAt: integrationData.startedAt || new Date().toISOString(),
                 completedAt: new Date().toISOString(),
 
-                // TDS Results
+                // TDS Results (non-PII)
                 danNumber: integrationData.dan || '',
                 tdsDepositId: integrationData.depositId || '',
-                tdsResponse: integrationData.tdsResponse ?
-                    (typeof integrationData.tdsResponse === 'string' ?
-                        integrationData.tdsResponse :
-                        JSON.stringify(integrationData.tdsResponse)) : '',
 
-                // Workflow step tracking
+                // ✅ ENCRYPTED: TDS response (may contain echoed PII)
+                tdsResponse: encryptedTdsResponse,
+
+                // Workflow step tracking (non-PII counts)
                 totalSteps: integrationData.totalSteps || 6,
                 completedSteps: integrationData.completedSteps || 6,
-                workflowSteps: integrationData.workflowSteps ? JSON.stringify(integrationData.workflowSteps) : '',
+
+                // ✅ ENCRYPTED: Workflow steps (may contain Alto data with PII)
+                workflowSteps: encryptedWorkflowSteps,
 
                 // Processing metrics
                 processingTimeMs: integrationData.processingTimeMs || 0,
@@ -93,6 +117,32 @@ class IntegrationAuditLogger {
                 if (err.statusCode !== 409) throw err; // Ignore 'already exists' error
             });
 
+            // ✅ SECURITY: Encrypt PII fields before storing (GDPR Article 32)
+            const lastErrorString = integrationData.lastError ?
+                (typeof integrationData.lastError === 'string' ?
+                    integrationData.lastError :
+                    JSON.stringify(integrationData.lastError)) : '';
+
+            const tdsResponseString = integrationData.tdsResponse ?
+                (typeof integrationData.tdsResponse === 'string' ?
+                    integrationData.tdsResponse :
+                    JSON.stringify(integrationData.tdsResponse)) : '';
+
+            const workflowStepsString = integrationData.workflowSteps ?
+                JSON.stringify(integrationData.workflowSteps) : '';
+
+            // Encrypt PII-containing fields
+            const encryptedLastError = lastErrorString ?
+                await encryptPII(lastErrorString, null, this.context) : '';
+
+            const encryptedTdsResponse = tdsResponseString ?
+                await encryptPII(tdsResponseString, null, this.context) : '';
+
+            const encryptedWorkflowSteps = workflowStepsString ?
+                await encryptPII(workflowStepsString, null, this.context) : '';
+
+            this.context.log(`[PII-ENC] Encrypted audit log fields for failed tenancy ${integrationData.tenancyId}`);
+
             const logEntity = {
                 partitionKey: 'Integration',
                 rowKey: `${Date.now()}-${integrationData.tenancyId}`,
@@ -102,32 +152,32 @@ class IntegrationAuditLogger {
                 workflowId: integrationData.workflowId || '',
                 integrationStatus: 'FAILED',
                 source: integrationData.source || 'UNKNOWN',
-                testMode: integrationData.testMode || false,             // NEW: Test mode flag
+                testMode: integrationData.testMode || false,
                 startedAt: integrationData.startedAt || new Date().toISOString(),
                 completedAt: new Date().toISOString(),
 
-                // Failure details
+                // Failure details (non-PII)
                 failureReason: integrationData.failureReason || 'UNKNOWN_ERROR',
                 failureDescription: integrationData.failureDescription || 'No description provided',
                 failureCategory: integrationData.failureCategory || 'unknown',
-                lastError: integrationData.lastError ?
-                    (typeof integrationData.lastError === 'string' ?
-                        integrationData.lastError :
-                        JSON.stringify(integrationData.lastError)) : '',
+
+                // ✅ ENCRYPTED: Error message (may contain PII from data validation)
+                lastError: encryptedLastError,
 
                 // TDS attempt results (may be partial)
                 danNumber: '',
                 tdsDepositId: '',
-                tdsResponse: integrationData.tdsResponse ?
-                    (typeof integrationData.tdsResponse === 'string' ?
-                        integrationData.tdsResponse :
-                        JSON.stringify(integrationData.tdsResponse)) : '',
 
-                // Workflow step tracking
+                // ✅ ENCRYPTED: TDS response (may contain echoed PII)
+                tdsResponse: encryptedTdsResponse,
+
+                // Workflow step tracking (non-PII counts)
                 totalSteps: integrationData.totalSteps || 6,
                 completedSteps: integrationData.completedSteps || 0,
                 failedStep: integrationData.failedStep || 'unknown',
-                workflowSteps: integrationData.workflowSteps ? JSON.stringify(integrationData.workflowSteps) : '',
+
+                // ✅ ENCRYPTED: Workflow steps (may contain Alto data with PII)
+                workflowSteps: encryptedWorkflowSteps,
 
                 // Processing metrics
                 processingTimeMs: integrationData.processingTimeMs || 0,
@@ -222,8 +272,12 @@ class IntegrationAuditLogger {
 
     /**
      * Get all audit logs from the table
+     *
+     * @param {number} limit - Maximum number of records to return
+     * @param {Object} userContext - User context for PII decryption (optional)
+     * @returns {Promise<Array>} - Array of audit log entries (PII fields decrypted if user has permission)
      */
-    async getAllLogs(limit = 100) {
+    async getAllLogs(limit = 100, userContext = null) {
         try {
             // Create table if it doesn't exist
             await this.logTableClient.createTable().catch(err => {
@@ -240,12 +294,39 @@ class IntegrationAuditLogger {
             // Retrieve ALL entities first (don't limit during retrieval)
             // This ensures we can properly sort and then limit to get the most recent records
             for await (const entity of entities) {
-                // Parse JSON fields
+                // ✅ SECURITY: Decrypt PII fields if user has permission
+                let decryptedTdsResponse = entity.tdsResponse;
+                let decryptedWorkflowSteps = entity.workflowSteps;
+                let decryptedLastError = entity.lastError;
+
+                // Attempt decryption (handles backwards compatibility for unencrypted data)
+                try {
+                    if (entity.tdsResponse) {
+                        const decrypted = await decryptPII(entity.tdsResponse, userContext, this.context);
+                        decryptedTdsResponse = decrypted;
+                    }
+
+                    if (entity.workflowSteps) {
+                        const decrypted = await decryptPII(entity.workflowSteps, userContext, this.context);
+                        decryptedWorkflowSteps = decrypted;
+                    }
+
+                    if (entity.lastError) {
+                        const decrypted = await decryptPII(entity.lastError, userContext, this.context);
+                        decryptedLastError = decrypted;
+                    }
+                } catch (decryptError) {
+                    // If decryption fails (e.g., insufficient permissions), log warning
+                    this.context.warn(`[PII-ENC] Failed to decrypt PII for audit log: ${decryptError.message}`);
+                    // Leave fields encrypted (user will see encrypted strings)
+                }
+
+                // Parse JSON fields (now decrypted)
                 const log = {
                     ...entity,
-                    tdsResponse: this.safeJsonParse(entity.tdsResponse),
-                    workflowSteps: this.safeJsonParse(entity.workflowSteps),
-                    lastError: this.safeJsonParse(entity.lastError)
+                    tdsResponse: this.safeJsonParse(decryptedTdsResponse),
+                    workflowSteps: this.safeJsonParse(decryptedWorkflowSteps),
+                    lastError: this.safeJsonParse(decryptedLastError)
                 };
                 logs.push(log);
             }
@@ -260,7 +341,8 @@ class IntegrationAuditLogger {
             // Now limit to the most recent N records
             const limitedLogs = logs.slice(0, limit);
 
-            this.context.log(`📖 Retrieved ${limitedLogs.length} audit log entries (out of ${logs.length} total)`);
+            const decryptedCount = userContext ? ' (PII decrypted)' : ' (PII encrypted)';
+            this.context.log(`📖 Retrieved ${limitedLogs.length} audit log entries (out of ${logs.length} total)${decryptedCount}`);
             return limitedLogs;
 
         } catch (error) {
@@ -292,8 +374,18 @@ app.http('GetIntegrationAuditLog', {
         try {
             context.log('📖 Fetching integration audit logs...');
 
+            // ✅ SECURITY: Get authenticated user for PII decryption
+            let userContext = null;
+            try {
+                userContext = await getAuthenticatedUser(request, context);
+                context.log(`[AUTH] User ${userContext.email} requesting audit logs`);
+            } catch (authError) {
+                // User not authenticated - will return encrypted PII fields
+                context.log('[AUTH] No authentication provided - PII fields will remain encrypted');
+            }
+
             const logger = new IntegrationAuditLogger(context);
-            const auditLog = await logger.getAllLogs(200); // Get last 200 entries
+            const auditLog = await logger.getAllLogs(200, userContext); // Pass user context for decryption
 
             return {
                 status: 200,
@@ -301,6 +393,8 @@ app.http('GetIntegrationAuditLog', {
                     success: true,
                     auditLog: auditLog,
                     count: auditLog.length,
+                    authenticated: !!userContext,
+                    piiDecrypted: !!userContext,
                     timestamp: new Date().toISOString()
                 }
             };

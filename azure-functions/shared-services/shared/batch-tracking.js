@@ -10,12 +10,15 @@
  * - Update batch status and DAN numbers
  * - Query batch details for status checking
  * - Support dual-mode execution tracking
+ * - PII encryption for request/response payloads (GDPR Article 32 compliance)
  *
  * Storage:
  * - Uses Azure Table Storage (BatchTracking table)
+ * - PII fields encrypted at rest using AES-256-GCM
  */
 
 const { TableClient } = require('@azure/data-tables');
+const { encryptPII, decryptPII } = require('./pii-encryption');
 
 /**
  * Get or create table client
@@ -33,8 +36,8 @@ function getTableClient() {
  * @param {string} provider - Provider used ('current' or 'salesforce')
  * @param {string} organizationId - Organization ID (agencyRef:branchId)
  * @param {string} altoTenancyId - Alto tenancy ID
- * @param {Object} requestPayload - Original request payload (will be stringified)
- * @param {Object} responsePayload - TDS API response (will be stringified)
+ * @param {Object} requestPayload - Original request payload (will be stringified and encrypted)
+ * @param {Object} responsePayload - TDS API response (will be stringified and encrypted)
  * @param {Object} options - Additional options
  * @param {string} options.executionMode - Execution mode ('single', 'dual', 'shadow', 'forwarding')
  * @param {string} options.altoAgencyRef - Alto agency reference
@@ -45,6 +48,7 @@ function getTableClient() {
  * @param {string} options.legacyBatchId - Batch ID from legacy provider (dual mode)
  * @param {string} options.salesforceBatchId - Batch ID from Salesforce provider (dual mode)
  * @param {Object} options.dualModeResults - Dual mode comparison results
+ * @param {Object} options.userContext - User context for audit logging (optional)
  * @param {Object} context - Azure Function context (for logging)
  * @returns {Promise<Object>} - Created batch tracking record
  */
@@ -59,6 +63,11 @@ async function storeBatchTracking(
   context
 ) {
   try {
+    // ✅ SECURITY: Validate organization ID is provided (GDPR Article 32 compliance)
+    if (!organizationId) {
+      throw new Error('Organization ID is REQUIRED for batch tracking - cannot proceed without data segregation');
+    }
+
     const {
       executionMode = 'single',
       altoAgencyRef = null,
@@ -68,16 +77,30 @@ async function storeBatchTracking(
       providerResponseTimeMs = null,
       legacyBatchId = null,
       salesforceBatchId = null,
-      dualModeResults = null
+      dualModeResults = null,
+      userContext = null
     } = options;
 
-    context?.log(`Storing batch tracking: ${batchId}, provider: ${provider}, mode: ${executionMode}`);
+    context?.log(`Storing batch tracking: ${batchId}, provider: ${provider}, mode: ${executionMode}, org: ${organizationId}`);
 
     const tableClient = getTableClient();
 
+    // ✅ SECURITY: Encrypt PII fields before storing (GDPR Article 32 - Security of Processing)
+    // Encrypt request and response payloads containing tenant names, emails, addresses, etc.
+    const encryptedRequestPayload = requestPayload
+      ? await encryptPII(JSON.stringify(requestPayload), userContext, context)
+      : null;
+
+    const encryptedResponsePayload = responsePayload
+      ? await encryptPII(JSON.stringify(responsePayload), userContext, context)
+      : null;
+
+    context?.log(`[PII-ENC] Payloads encrypted: request=${!!encryptedRequestPayload}, response=${!!encryptedResponsePayload}`);
+
     // Create entity for Azure Tables
+    // ✅ SECURITY: Use organizationId as partition key for data isolation
     const entity = {
-      partitionKey: 'BatchTracking',
+      partitionKey: organizationId,
       rowKey: batchId,
       batchId: batchId,
       provider: provider,
@@ -87,8 +110,8 @@ async function storeBatchTracking(
       altoBranchId: altoBranchId,
       altoTenancyId: altoTenancyId,
       altoWorkflowId: altoWorkflowId,
-      requestPayload: requestPayload ? JSON.stringify(requestPayload) : null,
-      responsePayload: responsePayload ? JSON.stringify(responsePayload) : null,
+      requestPayload: encryptedRequestPayload,  // ✅ Encrypted PII
+      responsePayload: encryptedResponsePayload,  // ✅ Encrypted PII
       requestDurationMs: requestDurationMs,
       providerResponseTimeMs: providerResponseTimeMs,
       legacyBatchId: legacyBatchId,
@@ -116,28 +139,35 @@ async function storeBatchTracking(
  * Get provider that created a specific batch
  *
  * @param {string} batchId - TDS batch ID
+ * @param {string} organizationId - Organization ID (required for data segregation)
  * @param {Object} context - Azure Function context (for logging)
  * @returns {Promise<string>} - Provider name ('current' or 'salesforce')
  */
-async function getBatchProvider(batchId, context) {
+async function getBatchProvider(batchId, organizationId, context) {
   try {
-    context?.log(`Looking up provider for batch: ${batchId}`);
+    // ✅ SECURITY: Validate organization ID is provided
+    if (!organizationId) {
+      throw new Error('Organization ID is REQUIRED for batch lookup - data segregation required');
+    }
+
+    context?.log(`Looking up provider for batch: ${batchId}, org: ${organizationId}`);
 
     const tableClient = getTableClient();
-    const entity = await tableClient.getEntity('BatchTracking', batchId);
+    // ✅ SECURITY: Use organizationId as partition key to ensure data isolation
+    const entity = await tableClient.getEntity(organizationId, batchId);
 
     if (!entity) {
-      throw new Error(`No batch tracking found for batch ID: ${batchId}`);
+      throw new Error(`No batch tracking found for batch ID: ${batchId} in organization: ${organizationId}`);
     }
 
     const provider = entity.provider;
-    context?.log(`Batch ${batchId} was created by provider: ${provider}`);
+    context?.log(`Batch ${batchId} (org: ${organizationId}) was created by provider: ${provider}`);
 
     return provider;
 
   } catch (error) {
     if (error.statusCode === 404) {
-      throw new Error(`No batch tracking found for batch ID: ${batchId}`);
+      throw new Error(`No batch tracking found for batch ID: ${batchId} in organization: ${organizationId}`);
     }
     context?.error('Error retrieving batch provider:', error);
     throw new Error(`Failed to get batch provider: ${error.message}`);
@@ -148,26 +178,39 @@ async function getBatchProvider(batchId, context) {
  * Update batch status after status check
  *
  * @param {string} batchId - TDS batch ID
+ * @param {string} organizationId - Organization ID (required for data segregation)
  * @param {string} status - Current status ('submitted', 'processing', 'created', 'failed')
  * @param {string} dan - DAN number (optional, if available)
- * @param {Object} responsePayload - Latest status response from TDS (will be stringified)
+ * @param {Object} responsePayload - Latest status response from TDS (will be stringified and encrypted)
  * @param {Object} errorDetails - Error details if failed (will be stringified)
+ * @param {Object} userContext - User context for audit logging (optional)
  * @param {Object} context - Azure Function context (for logging)
  * @returns {Promise<Object>} - Updated batch tracking record
  */
-async function updateBatchStatus(batchId, status, dan = null, responsePayload = null, errorDetails = null, context) {
+async function updateBatchStatus(batchId, organizationId, status, dan = null, responsePayload = null, errorDetails = null, userContext = null, context) {
   try {
-    context?.log(`Updating batch status: ${batchId}, status: ${status}, DAN: ${dan || 'N/A'}`);
+    // ✅ SECURITY: Validate organization ID is provided
+    if (!organizationId) {
+      throw new Error('Organization ID is REQUIRED for batch update - data segregation required');
+    }
+
+    context?.log(`Updating batch status: ${batchId}, org: ${organizationId}, status: ${status}, DAN: ${dan || 'N/A'}`);
 
     const tableClient = getTableClient();
 
-    // Get existing entity
-    const entity = await tableClient.getEntity('BatchTracking', batchId);
+    // Get existing entity - ✅ SECURITY: Use organizationId partition key
+    const entity = await tableClient.getEntity(organizationId, batchId);
 
     // Update fields
     entity.currentStatus = status;
     if (dan) entity.danNumber = dan;
-    if (responsePayload) entity.responsePayload = JSON.stringify(responsePayload);
+
+    // ✅ SECURITY: Encrypt response payload before storing (contains PII)
+    if (responsePayload) {
+      entity.responsePayload = await encryptPII(JSON.stringify(responsePayload), userContext, context);
+      context?.log(`[PII-ENC] Response payload encrypted for batch ${batchId}`);
+    }
+
     if (errorDetails) entity.errorDetails = JSON.stringify(errorDetails);
     entity.statusLastChecked = new Date().toISOString();
     entity.statusCheckCount = (entity.statusCheckCount || 0) + 1;
@@ -201,36 +244,51 @@ async function updateBatchStatus(batchId, status, dan = null, responsePayload = 
  * Get full batch details including all tracking information
  *
  * @param {string} batchId - TDS batch ID
+ * @param {string} organizationId - Organization ID (required for data segregation)
+ * @param {Object} userContext - User context for decryption access control (optional)
  * @param {Object} context - Azure Function context (for logging)
- * @returns {Promise<Object>} - Complete batch tracking record
+ * @returns {Promise<Object>} - Complete batch tracking record with decrypted payloads
  */
-async function getBatchDetails(batchId, context) {
+async function getBatchDetails(batchId, organizationId, userContext = null, context) {
   try {
-    context?.log(`Retrieving batch details for: ${batchId}`);
+    // ✅ SECURITY: Validate organization ID is provided
+    if (!organizationId) {
+      throw new Error('Organization ID is REQUIRED for batch details lookup - data segregation required');
+    }
+
+    context?.log(`Retrieving batch details for: ${batchId}, org: ${organizationId}`);
 
     const tableClient = getTableClient();
-    const entity = await tableClient.getEntity('BatchTracking', batchId);
+    // ✅ SECURITY: Use organizationId as partition key to ensure data isolation
+    const entity = await tableClient.getEntity(organizationId, batchId);
 
     if (!entity) {
-      throw new Error(`No batch tracking found for batch ID: ${batchId}`);
+      throw new Error(`No batch tracking found for batch ID: ${batchId} in organization: ${organizationId}`);
     }
 
     const batch = { ...entity };
 
-    // Parse JSON fields
+    // ✅ SECURITY: Decrypt and parse PII fields
+    // Decryption requires proper authentication (enforced in production)
     if (batch.requestPayload) {
       try {
-        batch.requestPayload = JSON.parse(batch.requestPayload);
+        // Decrypt first (handles backwards compatibility for plain text)
+        const decrypted = await decryptPII(batch.requestPayload, userContext, context);
+        batch.requestPayload = JSON.parse(decrypted);
+        context?.log(`[PII-ENC] Request payload decrypted for batch ${batchId}`);
       } catch (e) {
-        context?.warn(`Failed to parse requestPayload for batch ${batchId}`);
+        context?.warn(`Failed to decrypt/parse requestPayload for batch ${batchId}: ${e.message}`);
       }
     }
 
     if (batch.responsePayload) {
       try {
-        batch.responsePayload = JSON.parse(batch.responsePayload);
+        // Decrypt first (handles backwards compatibility for plain text)
+        const decrypted = await decryptPII(batch.responsePayload, userContext, context);
+        batch.responsePayload = JSON.parse(decrypted);
+        context?.log(`[PII-ENC] Response payload decrypted for batch ${batchId}`);
       } catch (e) {
-        context?.warn(`Failed to parse responsePayload for batch ${batchId}`);
+        context?.warn(`Failed to decrypt/parse responsePayload for batch ${batchId}: ${e.message}`);
       }
     }
 
@@ -268,12 +326,19 @@ async function getBatchDetails(batchId, context) {
  * Returns cached status if available and not expired
  *
  * @param {string} batchId - TDS batch ID
+ * @param {string} organizationId - Organization ID (required for data segregation)
+ * @param {Object} userContext - User context for decryption access control (optional)
  * @param {Object} context - Azure Function context (for logging)
  * @returns {Promise<Object>} - Batch status object with cache metadata
  */
-async function getBatchStatusCached(batchId, context) {
+async function getBatchStatusCached(batchId, organizationId, userContext = null, context) {
   try {
-    const batch = await getBatchDetails(batchId, context);
+    // ✅ SECURITY: Validate organization ID is provided
+    if (!organizationId) {
+      throw new Error('Organization ID is REQUIRED for cached batch status - data segregation required');
+    }
+
+    const batch = await getBatchDetails(batchId, organizationId, userContext, context);
 
     // Check if status was recently checked (within cache TTL)
     const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -308,6 +373,7 @@ async function getBatchStatusCached(batchId, context) {
 /**
  * Get recent batches for monitoring and debugging
  *
+ * @param {string} organizationId - Organization ID (required for data segregation)
  * @param {Object} options - Query options
  * @param {string} options.provider - Filter by provider ('current' or 'salesforce')
  * @param {string} options.status - Filter by status
@@ -315,15 +381,21 @@ async function getBatchStatusCached(batchId, context) {
  * @param {Object} context - Azure Function context (for logging)
  * @returns {Promise<Array>} - Array of batch tracking records
  */
-async function getRecentBatches(options = {}, context) {
+async function getRecentBatches(organizationId, options = {}, context) {
   try {
+    // ✅ SECURITY: Validate organization ID is provided
+    if (!organizationId) {
+      throw new Error('Organization ID is REQUIRED for batch listing - data segregation required');
+    }
+
     const { provider = null, status = null, limit = 50 } = options;
 
-    context?.log(`Retrieving recent batches: provider=${provider || 'all'}, status=${status || 'all'}`);
+    context?.log(`Retrieving recent batches for org ${organizationId}: provider=${provider || 'all'}, status=${status || 'all'}`);
 
     const tableClient = getTableClient();
+    // ✅ SECURITY: Query by organizationId partition to ensure data isolation
     const entities = tableClient.listEntities({
-      queryOptions: { filter: `PartitionKey eq 'BatchTracking'` }
+      queryOptions: { filter: `PartitionKey eq '${organizationId}'` }
     });
 
     const batches = [];
