@@ -435,6 +435,7 @@ class CircuitBreaker extends EventEmitter {
 
 /**
  * Circuit Breaker Manager - Manages multiple circuit breakers
+ * SECURITY FIX (HIGH-002): Organization-scoped circuit breakers to prevent cascading failures
  */
 class CircuitBreakerManager extends EventEmitter {
   constructor(config = {}) {
@@ -444,14 +445,18 @@ class CircuitBreakerManager extends EventEmitter {
   }
 
   /**
-   * Get or create circuit breaker for a provider
+   * Get or create circuit breaker for a provider with organization isolation
    *
-   * @param {string} provider - Provider name
+   * @param {string} provider - Provider name ('legacy' or 'salesforce')
+   * @param {string} organizationId - Organization identifier (optional for backwards compatibility)
    * @returns {CircuitBreaker} - Circuit breaker instance
    */
-  getBreaker(provider) {
-    if (!this.breakers.has(provider)) {
-      const breaker = new CircuitBreaker(provider, this.config);
+  getBreaker(provider, organizationId = null) {
+    // Create organization-scoped key: "orgId:provider" or just "provider" for backwards compatibility
+    const breakerKey = organizationId ? `${organizationId}:${provider}` : provider;
+
+    if (!this.breakers.has(breakerKey)) {
+      const breaker = new CircuitBreaker(breakerKey, this.config);
 
       // Forward events to manager
       breaker.on('stateChange', (event) => this.emit('stateChange', event));
@@ -459,21 +464,28 @@ class CircuitBreakerManager extends EventEmitter {
       breaker.on('halfOpen', (event) => this.emit('halfOpen', event));
       breaker.on('close', (event) => this.emit('close', event));
 
-      this.breakers.set(provider, breaker);
+      this.breakers.set(breakerKey, breaker);
     }
 
-    return this.breakers.get(provider);
+    return this.breakers.get(breakerKey);
   }
 
   /**
-   * Execute request through appropriate circuit breaker
+   * Execute request through appropriate circuit breaker with organization isolation
    *
-   * @param {string} provider - Provider name
+   * @param {string} provider - Provider name ('legacy' or 'salesforce')
+   * @param {string} organizationId - Organization identifier (optional)
    * @param {Function} fn - Async function to execute
    * @returns {Promise} - Result of the function
    */
-  async execute(provider, fn) {
-    const breaker = this.getBreaker(provider);
+  async execute(provider, organizationId, fn) {
+    // Handle backwards compatibility: if organizationId is actually a function, shift parameters
+    if (typeof organizationId === 'function') {
+      fn = organizationId;
+      organizationId = null;
+    }
+
+    const breaker = this.getBreaker(provider, organizationId);
     return breaker.execute(fn);
   }
 
@@ -502,13 +514,15 @@ class CircuitBreakerManager extends EventEmitter {
   }
 
   /**
-   * Check if a provider is available
+   * Check if a provider is available for an organization
    *
    * @param {string} provider - Provider name
+   * @param {string} organizationId - Organization identifier (optional)
    * @returns {boolean} - True if available
    */
-  isProviderAvailable(provider) {
-    const breaker = this.breakers.get(provider);
+  isProviderAvailable(provider, organizationId = null) {
+    const breakerKey = organizationId ? `${organizationId}:${provider}` : provider;
+    const breaker = this.breakers.get(breakerKey);
     return breaker ? breaker.isAvailable() : true; // If no breaker exists, assume available
   }
 }

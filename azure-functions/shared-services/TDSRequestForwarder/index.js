@@ -113,23 +113,25 @@ function sleep(ms) {
 
 /**
  * Execute function with retry logic and exponential backoff
+ * SECURITY FIX (HIGH-002): Organization-scoped circuit breakers
  *
  * @param {Function} fn - Async function to execute
  * @param {string} provider - Provider name ('legacy' or 'salesforce')
  * @param {object} context - Azure Function context for logging
+ * @param {string} organizationId - Organization identifier for circuit breaker isolation (optional)
  * @returns {Promise} - Result of the function
  */
-async function executeWithRetry(fn, provider, context) {
+async function executeWithRetry(fn, provider, context, organizationId = null) {
   const { maxAttempts } = CONFIG.retry;
   let lastError = null;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      // Execute through circuit breaker
-      const result = await circuitBreakerManager.execute(provider, fn);
+      // Execute through organization-scoped circuit breaker
+      const result = await circuitBreakerManager.execute(provider, organizationId, fn);
 
       if (attempt > 0) {
-        context.log(`[${provider}] Request succeeded on attempt ${attempt + 1}/${maxAttempts}`);
+        context.log(`[${provider}${organizationId ? ':' + organizationId : ''}] Request succeeded on attempt ${attempt + 1}/${maxAttempts}`);
       }
 
       return result;
@@ -225,14 +227,15 @@ function determineRouting(context) {
 
 /**
  * Execute request against legacy TDS API
+ * SECURITY FIX (HIGH-002): Pass organizationId for circuit breaker isolation
  */
-async function executeLegacyRequest(endpoint, payload, context) {
+async function executeLegacyRequest(endpoint, payload, context, organizationId = null) {
   const startTime = Date.now();
 
   const makeRequest = async () => {
     const url = `${CONFIG.legacyApi.baseUrl}${endpoint}`;
 
-    context.log(`Executing legacy API request: ${url}`);
+    context.log(`Executing legacy API request: ${url}${organizationId ? ' [Org: ' + organizationId + ']' : ''}`);
 
     const response = await axios.post(url, payload, {
       headers: {
@@ -255,8 +258,8 @@ async function executeLegacyRequest(endpoint, payload, context) {
   };
 
   try {
-    // Execute with retry logic and circuit breaker
-    const result = await executeWithRetry(makeRequest, 'legacy', context);
+    // Execute with retry logic and organization-scoped circuit breaker
+    const result = await executeWithRetry(makeRequest, 'legacy', context, organizationId);
 
     // Track successful dependency
     telemetry.trackDependency('legacy', endpoint, result.duration, true, {
@@ -301,8 +304,9 @@ async function executeLegacyRequest(endpoint, payload, context) {
 
 /**
  * Execute request against Salesforce TDS API
+ * SECURITY FIX (HIGH-002): Pass organizationId for circuit breaker isolation
  */
-async function executeSalesforceRequest(endpoint, legacyPayload, context, orgCredentials = null) {
+async function executeSalesforceRequest(endpoint, legacyPayload, context, orgCredentials = null, organizationId = null) {
   const startTime = Date.now();
 
   const makeRequest = async () => {
@@ -322,7 +326,7 @@ async function executeSalesforceRequest(endpoint, legacyPayload, context, orgCre
     const salesforceEndpoint = mapEndpointToSalesforce(endpoint);
     const url = `${CONFIG.salesforceApi.baseUrl}${salesforceEndpoint}`;
 
-    context.log(`Executing Salesforce API request: ${url}`);
+    context.log(`Executing Salesforce API request: ${url}${organizationId ? ' [Org: ' + organizationId + ']' : ''}`);
 
     // Get Salesforce authentication headers with organization-specific credentials
     const authHeaders = await getSalesforceAuthHeader(context, orgCredentials);
@@ -362,8 +366,8 @@ async function executeSalesforceRequest(endpoint, legacyPayload, context, orgCre
   };
 
   try {
-    // Execute with retry logic and circuit breaker
-    const result = await executeWithRetry(makeRequest, 'salesforce', context);
+    // Execute with retry logic and organization-scoped circuit breaker
+    const result = await executeWithRetry(makeRequest, 'salesforce', context, organizationId);
 
     // Track successful dependency
     telemetry.trackDependency('salesforce', endpoint, result.duration, true, {
@@ -474,14 +478,15 @@ function compareResponses(legacyResult, salesforceResult, context) {
 
 /**
  * Execute dual API calls and handle results
+ * SECURITY FIX (HIGH-002): Pass organizationId for circuit breaker isolation
  */
-async function executeDualMode(endpoint, payload, context, orgCredentials = null) {
-  context.log('Executing dual-mode API calls (legacy + Salesforce)');
+async function executeDualMode(endpoint, payload, context, orgCredentials = null, organizationId = null) {
+  context.log(`Executing dual-mode API calls (legacy + Salesforce)${organizationId ? ' [Org: ' + organizationId + ']' : ''}`);
 
-  // Execute both in parallel
+  // Execute both in parallel with organization-scoped circuit breakers
   const [legacyResult, salesforceResult] = await Promise.all([
-    executeLegacyRequest(endpoint, payload, context),
-    executeSalesforceRequest(endpoint, payload, context, orgCredentials)
+    executeLegacyRequest(endpoint, payload, context, organizationId),
+    executeSalesforceRequest(endpoint, payload, context, orgCredentials, organizationId)
   ]);
 
   // Compare results
@@ -510,6 +515,7 @@ async function executeDualMode(endpoint, payload, context, orgCredentials = null
 
 /**
  * Main request forwarder logic
+ * SECURITY FIX (HIGH-002): Extract and pass organizationId for circuit breaker isolation
  */
 async function forwardRequest(action, requestBody, context, orgCredentials = null) {
   const routing = determineRouting(context);
@@ -517,12 +523,21 @@ async function forwardRequest(action, requestBody, context, orgCredentials = nul
   // Determine endpoint based on action
   const endpoint = mapActionToEndpoint(action);
 
+  // Extract organizationId from request metadata or credentials
+  // Format: "agencyRef:branchId"
+  let organizationId = null;
+  if (requestBody.metadata?.altoAgencyRef && requestBody.metadata?.altoBranchId) {
+    organizationId = `${requestBody.metadata.altoAgencyRef}:${requestBody.metadata.altoBranchId}`;
+  } else if (orgCredentials?.organizationId) {
+    organizationId = orgCredentials.organizationId;
+  }
+
   context.log(`Routing configuration: ${JSON.stringify(routing)}`);
-  context.log(`Endpoint: ${endpoint}`);
+  context.log(`Endpoint: ${endpoint}${organizationId ? ', Organization: ' + organizationId : ''}`);
 
   // Handle dual execution mode
   if (routing.execute.length > 1) {
-    return await executeDualMode(endpoint, requestBody, context, orgCredentials);
+    return await executeDualMode(endpoint, requestBody, context, orgCredentials, organizationId);
   }
 
   // Single API execution
@@ -530,9 +545,9 @@ async function forwardRequest(action, requestBody, context, orgCredentials = nul
   let result;
 
   if (targetApi === 'legacy') {
-    result = await executeLegacyRequest(endpoint, requestBody, context);
+    result = await executeLegacyRequest(endpoint, requestBody, context, organizationId);
   } else {
-    result = await executeSalesforceRequest(endpoint, requestBody, context, orgCredentials);
+    result = await executeSalesforceRequest(endpoint, requestBody, context, orgCredentials, organizationId);
   }
 
   // Handle fallback if enabled
@@ -542,7 +557,7 @@ async function forwardRequest(action, requestBody, context, orgCredentials = nul
     // Track fallback activation
     telemetry.trackFallback('salesforce', 'legacy', result.error || 'Salesforce API failure');
 
-    result = await executeLegacyRequest(endpoint, requestBody, context);
+    result = await executeLegacyRequest(endpoint, requestBody, context, organizationId);
     result.fallback = true;
   }
 
