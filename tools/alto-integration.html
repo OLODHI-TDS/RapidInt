@@ -392,6 +392,8 @@
             }
         }
     </style>
+    <!-- XSS Protection: Safe DOM Rendering Utility (HIGH-004 Fix) -->
+    <script src="safe-render.js"></script>
 </head>
 <body>
     <div class="container">
@@ -1517,51 +1519,124 @@
             // Create and show edit modal
             const modal = document.createElement('div');
             modal.className = 'edit-org-modal';
-            modal.innerHTML = `
-                <div class="edit-org-modal-content">
-                    <div class="edit-org-modal-header">
-                        <h3>Edit Organization Mapping</h3>
-                        <button class="close-modal" onclick="this.closest('.edit-org-modal').remove()">&times;</button>
-                    </div>
-                    <div class="edit-org-modal-body">
-                        <div class="form-group">
-                            <label>Alto Agency Reference</label>
-                            <input type="text" id="edit-agencyRef" value="${agencyRef}" readonly style="background: #f8f9fa;">
-                        </div>
-                        <div class="form-group">
-                            <label>Alto Branch ID</label>
-                            <input type="text" id="edit-branchId" value="${branchId}" readonly style="background: #f8f9fa;">
-                        </div>
-                        <div class="form-group">
-                            <label>TDS Member ID</label>
-                            <input type="text" id="edit-tdsMemberId" value="${tdsMemberId}" placeholder="e.g., TDS001">
-                        </div>
-                        <div class="form-group">
-                            <label>TDS Branch ID</label>
-                            <input type="text" id="edit-tdsBranchId" value="${tdsBranchId}" placeholder="e.g., MAIN">
-                        </div>
-                        <div class="form-group">
-                            <label>TDS API Key</label>
-                            <input type="password" id="edit-tdsApiKey" placeholder="Leave blank to keep existing key">
-                        </div>
-                        <div class="form-group">
-                            <label>Member Name</label>
-                            <input type="text" id="edit-memberName" value="${memberName}" placeholder="e.g., Demo Estate Agency">
-                        </div>
-                        <div class="form-group">
-                            <label>Status</label>
-                            <select id="edit-isActive">
-                                <option value="true" ${isActive ? 'selected' : ''}>Active</option>
-                                <option value="false" ${!isActive ? 'selected' : ''}>Inactive</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button class="btn btn-secondary" onclick="this.closest('.edit-org-modal').remove()">Cancel</button>
-                        <button class="btn btn-primary" onclick="saveOrganizationMapping()">Save Changes</button>
-                    </div>
-                </div>
-            `;
+
+            // ✅ SECURE: Build modal using safe DOM methods (HIGH-004 fix)
+            const modalContent = document.createElement('div');
+            modalContent.className = 'edit-org-modal-content';
+
+            // Header
+            const header = document.createElement('div');
+            header.className = 'edit-org-modal-header';
+            const h3 = document.createElement('h3');
+            h3.textContent = 'Edit Organization Mapping';
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'close-modal';
+            closeBtn.textContent = '×';
+            closeBtn.onclick = () => modal.remove();
+            header.appendChild(h3);
+            header.appendChild(closeBtn);
+
+            // Body
+            const body = document.createElement('div');
+            body.className = 'edit-org-modal-body';
+
+            // Helper function to create form group
+            const createFormGroup = (labelText, inputConfig) => {
+                const group = document.createElement('div');
+                group.className = 'form-group';
+                const label = document.createElement('label');
+                label.textContent = labelText;
+                const input = document.createElement('input');
+                Object.assign(input, inputConfig);
+                group.appendChild(label);
+                group.appendChild(input);
+                return group;
+            };
+
+            // Form fields (values are safely set as properties, not innerHTML)
+            body.appendChild(createFormGroup('Alto Agency Reference', {
+                type: 'text',
+                id: 'edit-agencyRef',
+                value: agencyRef,
+                readOnly: true,
+                style: 'background: #f8f9fa;'
+            }));
+
+            body.appendChild(createFormGroup('Alto Branch ID', {
+                type: 'text',
+                id: 'edit-branchId',
+                value: branchId,
+                readOnly: true,
+                style: 'background: #f8f9fa;'
+            }));
+
+            body.appendChild(createFormGroup('TDS Member ID', {
+                type: 'text',
+                id: 'edit-tdsMemberId',
+                value: tdsMemberId,
+                placeholder: 'e.g., TDS001'
+            }));
+
+            body.appendChild(createFormGroup('TDS Branch ID', {
+                type: 'text',
+                id: 'edit-tdsBranchId',
+                value: tdsBranchId,
+                placeholder: 'e.g., MAIN'
+            }));
+
+            body.appendChild(createFormGroup('TDS API Key', {
+                type: 'password',
+                id: 'edit-tdsApiKey',
+                placeholder: 'Leave blank to keep existing key'
+            }));
+
+            body.appendChild(createFormGroup('Member Name', {
+                type: 'text',
+                id: 'edit-memberName',
+                value: memberName,
+                placeholder: 'e.g., Demo Estate Agency'
+            }));
+
+            // Status dropdown
+            const statusGroup = document.createElement('div');
+            statusGroup.className = 'form-group';
+            const statusLabel = document.createElement('label');
+            statusLabel.textContent = 'Status';
+            const statusSelect = document.createElement('select');
+            statusSelect.id = 'edit-isActive';
+            const activeOption = document.createElement('option');
+            activeOption.value = 'true';
+            activeOption.textContent = 'Active';
+            activeOption.selected = isActive;
+            const inactiveOption = document.createElement('option');
+            inactiveOption.value = 'false';
+            inactiveOption.textContent = 'Inactive';
+            inactiveOption.selected = !isActive;
+            statusSelect.appendChild(activeOption);
+            statusSelect.appendChild(inactiveOption);
+            statusGroup.appendChild(statusLabel);
+            statusGroup.appendChild(statusSelect);
+            body.appendChild(statusGroup);
+
+            // Form actions
+            const actions = document.createElement('div');
+            actions.className = 'form-actions';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn btn-secondary';
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.onclick = () => modal.remove();
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'btn btn-primary';
+            saveBtn.textContent = 'Save Changes';
+            saveBtn.onclick = saveOrganizationMapping;
+            actions.appendChild(cancelBtn);
+            actions.appendChild(saveBtn);
+
+            // Assemble modal
+            modalContent.appendChild(header);
+            modalContent.appendChild(body);
+            modalContent.appendChild(actions);
+            modal.appendChild(modalContent);
 
             document.body.appendChild(modal);
 
@@ -1652,45 +1727,97 @@
             const result = await makeRequest(`${API_BASE}/organization/list`);
 
             if (result.success && result.mappings) {
-                let tableHTML = `
-                    <table class="mapping-table">
-                        <thead>
-                            <tr>
-                                <th>Member Name</th>
-                                <th>Agency Ref</th>
-                                <th>Branch ID</th>
-                                <th>TDS Member</th>
-                                <th>TDS Branch</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
+                // ✅ SECURE: Build table using safe DOM methods (HIGH-004 fix)
+                const container = document.getElementById('organization-table');
+                container.innerHTML = ''; // Clear existing content
+
+                const table = document.createElement('table');
+                table.className = 'mapping-table';
+
+                // Table header
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                ['Member Name', 'Agency Ref', 'Branch ID', 'TDS Member', 'TDS Branch', 'Status', 'Actions'].forEach(text => {
+                    const th = document.createElement('th');
+                    th.textContent = text;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                // Table body
+                const tbody = document.createElement('tbody');
 
                 result.mappings.forEach(mapping => {
-                    tableHTML += `
-                        <tr>
-                            <td>${mapping.memberName}</td>
-                            <td>${mapping.agencyRef}</td>
-                            <td>${mapping.branchId}</td>
-                            <td>${mapping.tdsMemberId}</td>
-                            <td>${mapping.tdsBranchId}</td>
-                            <td><span class="badge ${mapping.isActive ? 'active' : 'inactive'}">${mapping.isActive ? 'Active' : 'Inactive'}</span></td>
-                            <td>
-                                <button class="btn btn-small btn-warning" onclick="editOrganizationMapping('${mapping.agencyRef}', '${mapping.branchId}', '${mapping.tdsMemberId}', '${mapping.tdsBranchId}', '${mapping.memberName.replace(/'/g, "\\'")}', ${mapping.isActive})" title="Edit this mapping">
-                                    ✏️ Edit
-                                </button>
-                                <button class="btn btn-small btn-danger" onclick="deleteOrganizationMapping('${mapping.agencyRef}', '${mapping.branchId}')" title="Delete this mapping" style="margin-left: 5px;">
-                                    🗑️ Delete
-                                </button>
-                            </td>
-                        </tr>
-                    `;
+                    const row = document.createElement('tr');
+
+                    // Member Name (CRITICAL: User-controlled data - must be escaped)
+                    const nameCell = document.createElement('td');
+                    nameCell.textContent = mapping.memberName; // ✅ Safely escaped
+                    row.appendChild(nameCell);
+
+                    // Agency Ref
+                    const agencyRefCell = document.createElement('td');
+                    agencyRefCell.textContent = mapping.agencyRef;
+                    row.appendChild(agencyRefCell);
+
+                    // Branch ID
+                    const branchCell = document.createElement('td');
+                    branchCell.textContent = mapping.branchId;
+                    row.appendChild(branchCell);
+
+                    // TDS Member ID
+                    const tdsMemCell = document.createElement('td');
+                    tdsMemCell.textContent = mapping.tdsMemberId;
+                    row.appendChild(tdsMemCell);
+
+                    // TDS Branch ID
+                    const tdsBranchCell = document.createElement('td');
+                    tdsBranchCell.textContent = mapping.tdsBranchId;
+                    row.appendChild(tdsBranchCell);
+
+                    // Status badge
+                    const statusCell = document.createElement('td');
+                    const badge = document.createElement('span');
+                    badge.className = `badge ${mapping.isActive ? 'active' : 'inactive'}`;
+                    badge.textContent = mapping.isActive ? 'Active' : 'Inactive';
+                    statusCell.appendChild(badge);
+                    row.appendChild(statusCell);
+
+                    // Actions
+                    const actionsCell = document.createElement('td');
+
+                    // Edit button
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'btn btn-small btn-warning';
+                    editBtn.textContent = '✏️ Edit';
+                    editBtn.title = 'Edit this mapping';
+                    editBtn.onclick = () => editOrganizationMapping(
+                        mapping.agencyRef,
+                        mapping.branchId,
+                        mapping.tdsMemberId,
+                        mapping.tdsBranchId,
+                        mapping.memberName,
+                        mapping.isActive
+                    );
+
+                    // Delete button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'btn btn-small btn-danger';
+                    deleteBtn.textContent = '🗑️ Delete';
+                    deleteBtn.title = 'Delete this mapping';
+                    deleteBtn.style.marginLeft = '5px';
+                    deleteBtn.onclick = () => deleteOrganizationMapping(mapping.agencyRef, mapping.branchId);
+
+                    actionsCell.appendChild(editBtn);
+                    actionsCell.appendChild(deleteBtn);
+                    row.appendChild(actionsCell);
+
+                    tbody.appendChild(row);
                 });
 
-                tableHTML += '</tbody></table>';
-                document.getElementById('organization-table').innerHTML = tableHTML;
+                table.appendChild(tbody);
+                container.appendChild(table);
             }
         }
 
@@ -1830,34 +1957,93 @@
                 const isOverdue = nextPollTime < new Date() && ['PENDING_DEPOSIT', 'PENDING_DATA'].includes(integration.integrationStatus);
                 const isProcessing = integration.integrationStatus === 'PROCESSING';
 
-                row.innerHTML = `
-                    <td title="${integration.id}">${integration.id.substr(-8)}</td>
-                    <td>${integration.tenancyId}</td>
-                    <td><span class="status-badge ${integration.integrationStatus.toLowerCase().replace('_', '-')}">${integration.integrationStatus}</span></td>
-                    <td title="${integration.pendingReason}">${truncateText(integration.pendingReason, 30)}</td>
-                    <td>${integration.pollCount}/${integration.maxPollCount}</td>
-                    <td ${isOverdue ? 'style="color: red; font-weight: bold;"' : ''}>${formatDateTime(integration.nextPollAt)}</td>
-                    <td>${formatDateTime(integration.createdAt)}</td>
-                    <td style="display: flex; gap: 8px;">
-                        <button class="icon-btn" onclick="retryIntegration('${integration.id}')" title="Retry" ${isProcessing ? 'disabled' : ''}>
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 8c0 3.3-2.7 6-6 6s-6-2.7-6-6 2.7-6 6-6c1.8 0 3.4.8 4.5 2" stroke-linecap="round"/>
-                                <path d="M14 3v3h-3" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
-                        <button class="icon-btn" onclick="cancelIntegration('${integration.id}')" title="Cancel" ${isProcessing ? 'disabled' : ''}>
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 4L4 12M4 4l8 8" stroke-linecap="round"/>
-                            </svg>
-                        </button>
-                        <button class="icon-btn" onclick="viewIntegrationDetails('${integration.id}')" title="View">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M1 8s2-4 7-4 7 4 7 4-2 4-7 4-7-4-7-4z" stroke-linecap="round" stroke-linejoin="round"/>
-                                <circle cx="8" cy="8" r="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
-                    </td>
-                `;
+                // ✅ SECURE: Build row using safe DOM methods (HIGH-004 fix)
+
+                // ID cell (truncated)
+                const idCell = document.createElement('td');
+                idCell.title = integration.id; // Full ID in tooltip
+                idCell.textContent = integration.id.substr(-8); // ✅ Safely escaped
+                row.appendChild(idCell);
+
+                // Tenancy ID cell (CRITICAL: User data - must be escaped)
+                const tenancyCell = document.createElement('td');
+                tenancyCell.textContent = integration.tenancyId; // ✅ Safely escaped
+                row.appendChild(tenancyCell);
+
+                // Status badge cell
+                const statusCell = document.createElement('td');
+                const statusBadge = document.createElement('span');
+                statusBadge.className = `status-badge ${integration.integrationStatus.toLowerCase().replace('_', '-')}`;
+                statusBadge.textContent = integration.integrationStatus; // ✅ Safely escaped
+                statusCell.appendChild(statusBadge);
+                row.appendChild(statusCell);
+
+                // Pending reason cell (CRITICAL: Could contain error messages with malicious content)
+                const reasonCell = document.createElement('td');
+                reasonCell.title = integration.pendingReason || ''; // Full text in tooltip
+                reasonCell.textContent = truncateText(integration.pendingReason, 30); // ✅ Safely escaped
+                row.appendChild(reasonCell);
+
+                // Poll count cell
+                const pollCell = document.createElement('td');
+                pollCell.textContent = `${integration.pollCount}/${integration.maxPollCount}`;
+                row.appendChild(pollCell);
+
+                // Next poll time cell
+                const nextPollCell = document.createElement('td');
+                if (isOverdue) {
+                    nextPollCell.style.color = 'red';
+                    nextPollCell.style.fontWeight = 'bold';
+                }
+                nextPollCell.textContent = formatDateTime(integration.nextPollAt);
+                row.appendChild(nextPollCell);
+
+                // Created at cell
+                const createdCell = document.createElement('td');
+                createdCell.textContent = formatDateTime(integration.createdAt);
+                row.appendChild(createdCell);
+
+                // Actions cell with icon buttons
+                const actionsCell = document.createElement('td');
+                actionsCell.style.display = 'flex';
+                actionsCell.style.gap = '8px';
+
+                // Helper function to create SVG button
+                const createIconButton = (svgContent, clickHandler, title, disabled = false) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'icon-btn';
+                    btn.title = title;
+                    btn.disabled = disabled;
+                    btn.onclick = clickHandler;
+                    btn.innerHTML = svgContent; // SVG is static content, safe to use innerHTML here
+                    return btn;
+                };
+
+                // Retry button
+                actionsCell.appendChild(createIconButton(
+                    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 8c0 3.3-2.7 6-6 6s-6-2.7-6-6 2.7-6 6-6c1.8 0 3.4.8 4.5 2" stroke-linecap="round"/><path d="M14 3v3h-3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+                    () => retryIntegration(integration.id),
+                    'Retry',
+                    isProcessing
+                ));
+
+                // Cancel button
+                actionsCell.appendChild(createIconButton(
+                    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4L4 12M4 4l8 8" stroke-linecap="round"/></svg>',
+                    () => cancelIntegration(integration.id),
+                    'Cancel',
+                    isProcessing
+                ));
+
+                // View button
+                actionsCell.appendChild(createIconButton(
+                    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 8s2-4 7-4 7 4 7 4-2 4-7 4-7-4-7-4z" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+                    () => viewIntegrationDetails(integration.id),
+                    'View',
+                    false
+                ));
+
+                row.appendChild(actionsCell);
 
                 tableBody.appendChild(row);
             });

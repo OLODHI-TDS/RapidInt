@@ -628,6 +628,8 @@
             }
         }
     </style>
+    <!-- XSS Protection: Safe DOM Rendering Utility (HIGH-004 Fix) -->
+    <script src="safe-render.js"></script>
 </head>
 <body>
     <div class="container">
@@ -1070,27 +1072,73 @@
             // Determine status based on isActive
             const status = org.isActive ? 'active' : 'inactive';
 
-            tr.innerHTML = `
-                <td>
-                    <div style="font-weight: 600; color: var(--text-primary);">${org.organizationName || 'N/A'}</div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">${org.environment || 'N/A'}</div>
-                </td>
-                <td style="font-size: 12px;">${org.integrationType || 'N/A'}</td>
-                <td style="font-size: 12px; font-family: monospace;">${org.legacyMemberId || 'N/A'}</td>
-                <td style="font-size: 12px; font-family: monospace;">${org.legacyBranchId || 'N/A'}</td>
-                <td style="font-size: 12px; font-family: monospace;">${org.sfMemberId || 'N/A'}</td>
-                <td style="font-size: 12px; font-family: monospace;">${org.sfBranchId || 'N/A'}</td>
-                <td style="font-size: 12px;">${org.sfAuthMethod || 'N/A'}</td>
-                <td><span class="status-badge status-provider-${org.tdsProviderPreference || 'current'}">${getProviderLabel(org.tdsProviderPreference || 'current')}</span></td>
-                <td>
-                    <span class="status-badge status-${status}">${org.isActive ? 'Active' : 'Inactive'}</span>
-                </td>
-                <td>
-                    <div class="action-buttons">
-                        ${getActionButtons(org, index)}
-                    </div>
-                </td>
-            `;
+            // ✅ SECURE: Build row using safe DOM methods (HIGH-004 fix)
+
+            // Organization name and environment cell (CRITICAL: User data - must be escaped)
+            const orgCell = document.createElement('td');
+            const nameDiv = document.createElement('div');
+            nameDiv.style.fontWeight = '600';
+            nameDiv.style.color = 'var(--text-primary)';
+            nameDiv.textContent = org.organizationName || 'N/A'; // ✅ Safely escaped
+            const envDiv = document.createElement('div');
+            envDiv.style.fontSize = '12px';
+            envDiv.style.color = 'var(--text-secondary)';
+            envDiv.textContent = org.environment || 'N/A'; // ✅ Safely escaped
+            orgCell.appendChild(nameDiv);
+            orgCell.appendChild(envDiv);
+            tr.appendChild(orgCell);
+
+            // Helper to create simple text cell
+            const createTextCell = (text, styles = {}) => {
+                const cell = document.createElement('td');
+                Object.assign(cell.style, styles);
+                cell.textContent = text || 'N/A';
+                return cell;
+            };
+
+            // Integration type cell
+            tr.appendChild(createTextCell(org.integrationType, { fontSize: '12px' }));
+
+            // Legacy member ID cell
+            tr.appendChild(createTextCell(org.legacyMemberId, { fontSize: '12px', fontFamily: 'monospace' }));
+
+            // Legacy branch ID cell
+            tr.appendChild(createTextCell(org.legacyBranchId, { fontSize: '12px', fontFamily: 'monospace' }));
+
+            // SF member ID cell
+            tr.appendChild(createTextCell(org.sfMemberId, { fontSize: '12px', fontFamily: 'monospace' }));
+
+            // SF branch ID cell
+            tr.appendChild(createTextCell(org.sfBranchId, { fontSize: '12px', fontFamily: 'monospace' }));
+
+            // SF auth method cell
+            tr.appendChild(createTextCell(org.sfAuthMethod, { fontSize: '12px' }));
+
+            // Provider preference cell
+            const providerCell = document.createElement('td');
+            const providerBadge = document.createElement('span');
+            providerBadge.className = `status-badge status-provider-${org.tdsProviderPreference || 'current'}`;
+            providerBadge.textContent = getProviderLabel(org.tdsProviderPreference || 'current');
+            providerCell.appendChild(providerBadge);
+            tr.appendChild(providerCell);
+
+            // Active status cell
+            const statusCell = document.createElement('td');
+            const statusBadge = document.createElement('span');
+            statusBadge.className = `status-badge status-${status}`;
+            statusBadge.textContent = org.isActive ? 'Active' : 'Inactive';
+            statusCell.appendChild(statusBadge);
+            tr.appendChild(statusCell);
+
+            // Actions cell
+            const actionsCell = document.createElement('td');
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'action-buttons';
+            // Note: getActionButtons() returns HTML string - we'll use innerHTML here but the
+            // function should be refactored separately to return DOM elements
+            actionsDiv.innerHTML = getActionButtons(org, index);
+            actionsCell.appendChild(actionsDiv);
+            tr.appendChild(actionsCell);
 
             return tr;
         }
