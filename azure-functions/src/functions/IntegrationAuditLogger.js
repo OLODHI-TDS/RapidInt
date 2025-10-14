@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions');
 const { TableClient } = require('@azure/data-tables');
-const { encryptPII, decryptPII } = require('../../shared-services/shared/pii-encryption');
+const { encryptPII, decryptPII, resetRequestStats, logRequestSummary } = require('../../shared-services/shared/pii-encryption');
 const { getAuthenticatedUser } = require('../../shared-services/shared/auth-middleware');
 
 /**
@@ -47,8 +47,6 @@ class IntegrationAuditLogger {
 
             const encryptedWorkflowSteps = workflowStepsString ?
                 await encryptPII(workflowStepsString, null, this.context) : '';
-
-            this.context.log(`[PII-ENC] Encrypted audit log fields for tenancy ${integrationData.tenancyId}`);
 
             const logEntity = {
                 partitionKey: 'Integration',
@@ -140,8 +138,6 @@ class IntegrationAuditLogger {
 
             const encryptedWorkflowSteps = workflowStepsString ?
                 await encryptPII(workflowStepsString, null, this.context) : '';
-
-            this.context.log(`[PII-ENC] Encrypted audit log fields for failed tenancy ${integrationData.tenancyId}`);
 
             const logEntity = {
                 partitionKey: 'Integration',
@@ -279,6 +275,9 @@ class IntegrationAuditLogger {
      */
     async getAllLogs(limit = 100, userContext = null) {
         try {
+            // Reset encryption stats at start of request
+            resetRequestStats();
+
             // Create table if it doesn't exist
             await this.logTableClient.createTable().catch(err => {
                 if (err.statusCode !== 409) throw err;
@@ -340,6 +339,9 @@ class IntegrationAuditLogger {
 
             // Now limit to the most recent N records
             const limitedLogs = logs.slice(0, limit);
+
+            // Log summary of encryption operations
+            logRequestSummary(this.context);
 
             const decryptedCount = userContext ? ' (PII decrypted)' : ' (PII encrypted)';
             this.context.log(`📖 Retrieved ${limitedLogs.length} audit log entries (out of ${logs.length} total)${decryptedCount}`);

@@ -56,6 +56,45 @@ const LOCAL_ENCRYPTION_KEY = process.env.PII_ENCRYPTION_KEY_LOCAL;
 let cachedEncryptionKey = null;
 let keyVaultClient = null;
 
+// Request-level statistics for summary logging
+let requestStats = {
+  plainTextReads: 0,
+  encryptedReads: 0,
+  encryptions: 0,
+  decryptions: 0,
+  lastReset: Date.now()
+};
+
+/**
+ * Reset request statistics (call at start of each request)
+ */
+function resetRequestStats() {
+  requestStats = {
+    plainTextReads: 0,
+    encryptedReads: 0,
+    encryptions: 0,
+    decryptions: 0,
+    lastReset: Date.now()
+  };
+}
+
+/**
+ * Log request statistics summary
+ */
+function logRequestSummary(context) {
+  if (!context) return;
+
+  const total = requestStats.plainTextReads + requestStats.encryptedReads +
+                requestStats.encryptions + requestStats.decryptions;
+
+  // Only log if there was activity
+  if (total === 0) return;
+
+  const duration = Date.now() - requestStats.lastReset;
+
+  context.log(`[PII-ENC] Request Summary: ${requestStats.plainTextReads} plain text reads, ${requestStats.encryptedReads} encrypted reads, ${requestStats.encryptions} encryptions, ${requestStats.decryptions} decryptions (${duration}ms)`);
+}
+
 /**
  * Initialize Azure Key Vault client
  * Uses managed identity in production, local key in development
@@ -154,7 +193,7 @@ async function encryptPII(plaintext, userContext = null, context = null) {
 
   // Already encrypted? Return as-is
   if (isEncrypted(plaintext)) {
-    context?.log('[PII-ENC] Data already encrypted, skipping');
+    requestStats.encryptedReads++;
     return plaintext;
   }
 
@@ -178,15 +217,16 @@ async function encryptPII(plaintext, userContext = null, context = null) {
     // Format: ENC_AES256_<iv>:<authTag>:<ciphertext>
     const encryptedData = `${ENCRYPTION_CONFIG.prefix}${iv.toString(ENCRYPTION_CONFIG.encoding)}:${authTag}:${encrypted}`;
 
-    // Audit log (don't log plaintext!)
-    if (userContext) {
+    // Increment encryption counter
+    requestStats.encryptions++;
+
+    // Audit log (don't log plaintext!) - Only log first encryption in request
+    if (userContext && requestStats.encryptions === 1) {
       authAuditLog('pii_encrypted', userContext, {
         dataLength: plaintext.length,
         encryptedLength: encryptedData.length
       }, context);
     }
-
-    context?.log('[PII-ENC] Data encrypted successfully');
 
     return encryptedData;
 
@@ -211,7 +251,7 @@ async function decryptPII(encryptedData, userContext = null, context = null) {
 
   // Not encrypted? Return as-is (backwards compatibility)
   if (!isEncrypted(encryptedData)) {
-    context?.log('[PII-ENC] Data not encrypted (plain text), returning as-is');
+    requestStats.plainTextReads++;
     return encryptedData;
   }
 
@@ -257,15 +297,16 @@ async function decryptPII(encryptedData, userContext = null, context = null) {
     let decrypted = decipher.update(ciphertext, ENCRYPTION_CONFIG.encoding, 'utf8');
     decrypted += decipher.final('utf8');
 
-    // Audit log decryption operation
-    if (userContext) {
+    // Increment decryption counter
+    requestStats.decryptions++;
+
+    // Audit log decryption operation - Only log first decryption in request
+    if (userContext && requestStats.decryptions === 1) {
       authAuditLog('pii_decrypted', userContext, {
         dataLength: decrypted.length,
         encryptedLength: encryptedData.length
       }, context);
     }
-
-    context?.log(`[PII-ENC] Data decrypted successfully by user: ${userContext?.email || 'system'}`);
 
     return decrypted;
 
@@ -346,6 +387,10 @@ module.exports = {
   // Utility functions
   isEncrypted,
   generateEncryptionKey,
+
+  // Logging utilities
+  resetRequestStats,
+  logRequestSummary,
 
   // Configuration
   ENCRYPTION_CONFIG,

@@ -23,6 +23,7 @@ const { app } = require('@azure/functions');
 const { getConnectionPool } = require('../shared/organization-credentials');
 const telemetry = require('../shared/telemetry');
 const { checkRateLimit } = require('../shared/rate-limiter');
+const { validateQueryParams, validateAgencyRef, formatValidationError } = require('../shared/validation-schemas');
 
 /**
  * Get overall comparison statistics
@@ -506,15 +507,18 @@ app.http('ComparisonMetrics', {
         };
       }
 
-      // Parse query parameters
+      // ✅ SECURE: Parse and validate query parameters
       const queryParams = {};
       request.query.forEach((value, key) => {
         queryParams[key] = value;
       });
-      const days = parseInt(queryParams.days || '30', 10);
-      const limit = parseInt(queryParams.limit || '100', 10);
 
-      context.log(`Comparison Metrics - Action: ${action}, Param: ${param}`);
+      // Validate query parameters using Joi schemas
+      const validated = validateQueryParams(queryParams, ['days', 'limit']);
+      const days = validated.days;
+      const limit = validated.limit;
+
+      context.log(`Comparison Metrics - Action: ${action}, Param: ${param}, Days: ${days}, Limit: ${limit}`);
 
       let data;
 
@@ -537,7 +541,9 @@ app.http('ComparisonMetrics', {
               })
             };
           }
-          data = await getOrganizationMetrics(param, context, days);
+          // ✅ SECURE: Validate agency reference format
+          const validatedOrgRef = validateAgencyRef(param);
+          data = await getOrganizationMetrics(validatedOrgRef, context, days);
           break;
 
         case 'recent':
@@ -563,7 +569,9 @@ app.http('ComparisonMetrics', {
               })
             };
           }
-          data = await getMigrationReadiness(param, context);
+          // ✅ SECURE: Validate agency reference format
+          const validatedReadinessRef = validateAgencyRef(param);
+          data = await getMigrationReadiness(validatedReadinessRef, context);
           break;
 
         default:
@@ -630,18 +638,21 @@ app.http('ComparisonMetrics', {
 
     } catch (error) {
       const duration = Date.now() - startTime;
+      const action = request.params.action || 'unknown';
+      const param = request.params.param || 'none';
+
       context.error('Comparison Metrics error:', error);
 
       // Track exception
       telemetry.trackException(error, {
         handler: 'ComparisonMetrics',
-        action: action || 'unknown',
-        param: param || 'none'
+        action,
+        param
       });
 
       // Track failed request
       telemetry.trackRequest(
-        `metrics_${action || 'unknown'}`,
+        `metrics_${action}`,
         duration,
         false,
         'comparison',
@@ -652,6 +663,23 @@ app.http('ComparisonMetrics', {
         }
       );
 
+      // ✅ SECURE: Handle validation errors with clear messages
+      if (error.name === 'ValidationError') {
+        return {
+          status: error.statusCode || 400,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formatValidationError(error),
+            duration,
+            metadata: {
+              action,
+              param
+            }
+          })
+        };
+      }
+
+      // Generic error handling
       return {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
