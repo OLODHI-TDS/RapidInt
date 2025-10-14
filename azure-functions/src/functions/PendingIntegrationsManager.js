@@ -1,5 +1,6 @@
 const { app } = require('@azure/functions');
 const { TableClient } = require('@azure/data-tables');
+const { schemas } = require('../../shared-services/shared/validation-schemas');
 
 /**
  * Pending Integrations Manager Azure Function
@@ -12,7 +13,32 @@ app.http('PendingIntegrationsManager', {
     handler: async (request, context) => {
         try {
             const action = request.params.action || 'list';
-            const id = request.params.id;
+            let id = request.params.id;
+
+            // ✅ HIGH-006 FIX: Validate pending integration ID for actions that require it
+            const actionsRequiringId = ['get', 'retry', 'cancel', 'debug', 'delete', 'status'];
+            if (actionsRequiringId.includes(action) && id) {
+                try {
+                    const { error: idError } = schemas.pendingIntegrationId.validate(id);
+                    if (idError) {
+                        context.warn('❌ Pending integration ID validation failed:', idError.message);
+
+                        return {
+                            status: 400,
+                            jsonBody: {
+                                success: false,
+                                error: 'Invalid integration ID format',
+                                message: idError.message,
+                                expectedFormat: 'pending_<timestamp>_<8-char-hash>',
+                                timestamp: new Date().toISOString()
+                            }
+                        };
+                    }
+                    context.log('✅ Pending integration ID validation passed');
+                } catch (validationError) {
+                    throw validationError;
+                }
+            }
 
             const manager = new PendingIntegrationsManagerClass(context);
 

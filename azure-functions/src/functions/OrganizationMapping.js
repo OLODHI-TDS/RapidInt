@@ -1,5 +1,6 @@
 const { app } = require('@azure/functions');
 const { TableClient } = require('@azure/data-tables');
+const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
 
 /**
  * Organization Mapping Service Azure Function
@@ -17,43 +18,40 @@ app.http('OrganizationMapping', {
 
             switch (action) {
                 case 'lookup':
-                    // Debug logging
-                    context.log('🔍 Lookup request - Full request.query:', JSON.stringify(request.query));
-                    context.log('🔍 Lookup request - URL:', request.url);
-
                     // Parse query parameters manually from URL if request.query is empty
-                    let agencyRef, branchId;
+                    let queryParams;
 
                     if (request.query && Object.keys(request.query).length > 0) {
                         // Standard query parsing worked
-                        ({ agencyRef, branchId } = request.query);
+                        queryParams = { ...request.query };
                     } else {
                         // Manual parsing from URL
                         const url = new URL(request.url, 'http://localhost');
-                        agencyRef = url.searchParams.get('agencyRef');
-                        branchId = url.searchParams.get('branchId');
-                        context.log('🔧 Manually parsed from URL - agencyRef:', agencyRef, 'branchId:', branchId);
-                    }
-
-                    context.log('🔍 Parsed agencyRef:', agencyRef);
-                    context.log('🔍 Parsed branchId:', branchId);
-                    context.log('🔍 agencyRef type:', typeof agencyRef);
-
-                    if (!agencyRef || agencyRef.trim() === '') {
-                        context.log('❌ Missing or empty agencyRef');
-                        return {
-                            status: 400,
-                            jsonBody: {
-                                error: 'agencyRef parameter required',
-                                debug: {
-                                    receivedQuery: request.query,
-                                    agencyRef: agencyRef,
-                                    agencyRefType: typeof agencyRef
-                                }
-                            }
+                        queryParams = {
+                            agencyRef: url.searchParams.get('agencyRef'),
+                            branchId: url.searchParams.get('branchId')
                         };
                     }
 
+                    // ✅ HIGH-006 FIX: Validate organization lookup query parameters
+                    let validatedQuery;
+                    try {
+                        validatedQuery = validateRequestBody(queryParams, schemas.organizationLookupQuery);
+                        context.log('✅ Organization lookup query validation passed');
+                    } catch (validationError) {
+                        if (validationError.name === 'ValidationError') {
+                            context.warn('❌ Organization lookup query validation failed:', validationError.validationErrors);
+
+                            return {
+                                status: 400,
+                                jsonBody: formatValidationError(validationError)
+                            };
+                        }
+                        // Re-throw unexpected errors
+                        throw validationError;
+                    }
+
+                    const { agencyRef, branchId } = validatedQuery;
                     const mapping = await mappingService.getMapping(agencyRef, branchId);
 
                     if (!mapping) {
@@ -96,7 +94,25 @@ app.http('OrganizationMapping', {
                         return { status: 405, jsonBody: { error: 'POST method required for add' } };
                     }
 
-                    const newMapping = await request.json();
+                    let newMapping = await request.json();
+
+                    // ✅ HIGH-006 FIX: Validate organization mapping add request body
+                    try {
+                        newMapping = validateRequestBody(newMapping, schemas.organizationMappingAdd);
+                        context.log('✅ Organization mapping add validation passed');
+                    } catch (validationError) {
+                        if (validationError.name === 'ValidationError') {
+                            context.warn('❌ Organization mapping add validation failed:', validationError.validationErrors);
+
+                            return {
+                                status: 400,
+                                jsonBody: formatValidationError(validationError)
+                            };
+                        }
+                        // Re-throw unexpected errors
+                        throw validationError;
+                    }
+
                     const addResult = await mappingService.addMapping(newMapping);
 
                     return {
@@ -112,7 +128,25 @@ app.http('OrganizationMapping', {
                         return { status: 405, jsonBody: { error: 'PUT method required for update' } };
                     }
 
-                    const updateMapping = await request.json();
+                    let updateMapping = await request.json();
+
+                    // ✅ HIGH-006 FIX: Validate organization mapping update request body
+                    try {
+                        updateMapping = validateRequestBody(updateMapping, schemas.organizationMappingUpdate);
+                        context.log('✅ Organization mapping update validation passed');
+                    } catch (validationError) {
+                        if (validationError.name === 'ValidationError') {
+                            context.warn('❌ Organization mapping update validation failed:', validationError.validationErrors);
+
+                            return {
+                                status: 400,
+                                jsonBody: formatValidationError(validationError)
+                            };
+                        }
+                        // Re-throw unexpected errors
+                        throw validationError;
+                    }
+
                     const updateResult = await mappingService.updateMapping(updateMapping);
 
                     return {
@@ -149,7 +183,25 @@ app.http('OrganizationMapping', {
                         return { status: 405, jsonBody: { error: 'DELETE method required for delete' } };
                     }
 
-                    const requestData = await request.json();
+                    let requestData = await request.json();
+
+                    // ✅ HIGH-006 FIX: Validate organization mapping delete request body
+                    try {
+                        requestData = validateRequestBody(requestData, schemas.organizationMappingDelete);
+                        context.log('✅ Organization mapping delete validation passed');
+                    } catch (validationError) {
+                        if (validationError.name === 'ValidationError') {
+                            context.warn('❌ Organization mapping delete validation failed:', validationError.validationErrors);
+
+                            return {
+                                status: 400,
+                                jsonBody: formatValidationError(validationError)
+                            };
+                        }
+                        // Re-throw unexpected errors
+                        throw validationError;
+                    }
+
                     const deleteResult = await mappingService.deleteMapping(requestData.agencyRef, requestData.branchId);
 
                     return {
@@ -340,9 +392,16 @@ class OrganizationMappingService {
                         this.context.log.error('Failed to parse integrationCredentials:', e);
                     }
 
+                    // Extract agencyRef and branchId from rowKey (format: "agencyRef:branchId")
+                    const rowKeyParts = entity.rowKey.split(':');
+                    const agencyRef = rowKeyParts[0];
+                    const branchId = rowKeyParts[1] || 'DEFAULT';
+
                     mappings.push({
+                        agencyRef: agencyRef,  // NEW: Extract from rowKey
+                        branchId: branchId,    // NEW: Extract from rowKey
                         organizationName: entity.organizationName,
-                        environment: entity.environment,
+                        environment: env,      // Use the env from the loop
                         integrationType: entity.integrationType,
                         integrationCredentials: integrationCredentials,
                         legacyMemberId: entity.legacyMemberId,

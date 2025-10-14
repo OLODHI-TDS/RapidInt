@@ -1,6 +1,7 @@
 const { app } = require('@azure/functions');
 const axios = require('axios');
 const telemetry = require('../../shared-services/shared/telemetry');
+const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
 
 /**
  * Alto Integration Service Azure Function
@@ -18,11 +19,42 @@ app.http('AltoIntegration', {
             // Get environment from request body or default to development
             let environment = 'development';
             let requestBody = {};
+            let testMode = false;
+            let testConfig = {};
 
             if (request.method === 'POST') {
                 try {
                     requestBody = await request.json();
+
+                    // ✅ HIGH-006 FIX: Validate request body for fetch-tenancy action
+                    if (action === 'fetch-tenancy') {
+                        try {
+                            requestBody = validateRequestBody(requestBody, schemas.fetchTenancyRequest);
+                            context.log('✅ Fetch tenancy request validation passed');
+                        } catch (validationError) {
+                            if (validationError.name === 'ValidationError') {
+                                context.warn('❌ Fetch tenancy request validation failed:', validationError.validationErrors);
+
+                                // Track validation failure
+                                telemetry.trackEvent('AltoIntegration_Validation_Failed', {
+                                    action: 'fetch-tenancy',
+                                    errorCount: validationError.validationErrors.length.toString(),
+                                    firstError: validationError.validationErrors[0]?.param || 'unknown'
+                                });
+
+                                return {
+                                    status: 400,
+                                    jsonBody: formatValidationError(validationError)
+                                };
+                            }
+                            // Re-throw unexpected errors
+                            throw validationError;
+                        }
+                    }
+
                     environment = requestBody.environment || 'development';
+                    testMode = requestBody.testMode || false;
+                    testConfig = requestBody.testConfig || {};
                 } catch (error) {
                     // Body might be empty, use default
                 }
@@ -86,13 +118,20 @@ app.http('AltoIntegration', {
                         };
                     }
 
-                    const tenancyData = await altoClient.fetchFullTenancyData(tenancyId, agencyRef, branchId);
+                    const tenancyData = await altoClient.fetchFullTenancyData(
+                        tenancyId,
+                        agencyRef,
+                        branchId,
+                        testMode,
+                        testConfig
+                    );
                     return {
                         status: 200,
                         jsonBody: {
                             success: true,
                             tenancyId,
                             data: tenancyData,
+                            testMode: testMode,  // Include test mode flag in response
                             timestamp: new Date().toISOString()
                         }
                     };
@@ -269,11 +308,43 @@ class AltoAPIClient {
      * @param {string} tenancyId - The tenancy ID to fetch
      * @param {string} agencyRef - The agency reference for authorization
      * @param {string} expectedBranchId - The branch ID that should own this tenancy (for authorization)
+     * @param {boolean} testMode - If true, verify OAuth then return fake data
+     * @param {Object} testConfig - Configuration for fake data generation
      */
-    async fetchFullTenancyData(tenancyId, agencyRef, expectedBranchId) {
+    async fetchFullTenancyData(tenancyId, agencyRef, expectedBranchId, testMode = false, testConfig = {}) {
         if (!agencyRef) {
             throw new Error('agencyRef is required to fetch tenancy data from Alto API');
         }
+
+        // ✅ TEST MODE: Verify OAuth then return fake data
+        if (testMode) {
+            console.log('🧪 TEST MODE: Verifying Alto OAuth credentials...');
+
+            // Verify OAuth works (will throw error if credentials invalid)
+            await this.getAccessToken();
+            console.log('✅ TEST MODE: Alto OAuth verified successfully');
+
+            // Generate fake data using test-data-generator
+            const { generateAltoTenancyData } = require('../../shared-services/shared/test-data-generator');
+
+            const fakeData = generateAltoTenancyData({
+                ...testConfig,
+                agencyRef: agencyRef,
+                branchId: expectedBranchId || 'DEFAULT'
+            });
+
+            console.log('🎭 TEST MODE: Generated fake Alto data');
+            console.log('   Tenancy ID:', fakeData.tenancy.id);
+            console.log('   Rent:', fakeData.tenancy.rent);
+            console.log('   Deposit:', fakeData.tenancy.depositRequested);
+            console.log('   Property:', fakeData.property.displayAddress);
+            console.log('   Landlords:', fakeData.landlords.totalCount);
+            console.log('   Tenants:', fakeData.tenants.length);
+
+            return fakeData;
+        }
+
+        // ✅ PRODUCTION MODE: Normal Alto API calls
         try {
             // Fetch tenancy details first
             const tenancy = await this.makeRequest('GET', `/tenancies/${tenancyId}`, null, agencyRef);

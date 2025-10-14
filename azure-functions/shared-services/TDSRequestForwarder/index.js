@@ -49,6 +49,7 @@ const {
 } = require('../shared/batch-tracking');
 const telemetry = require('../shared/telemetry');
 const { checkRateLimit } = require('../shared/rate-limiter');
+const { validateRequestBody, schemas, formatValidationError } = require('../shared/validation-schemas');
 
 // Configuration
 const CONFIG = {
@@ -671,7 +672,48 @@ app.http('TDSRequestForwarder', {
 
       // Parse request body
       const bodyText = await request.text();
-      const requestBody = JSON.parse(bodyText);
+      let requestBody;
+
+      try {
+        requestBody = JSON.parse(bodyText);
+      } catch (parseError) {
+        context.error('Failed to parse request body as JSON:', parseError);
+        return {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            success: false,
+            error: 'Invalid JSON in request body',
+            message: parseError.message,
+            timestamp: new Date().toISOString()
+          })
+        };
+      }
+
+      // ✅ HIGH-006 FIX: Validate webhook payload structure
+      // Prevents application crashes from malformed Alto webhooks
+      try {
+        requestBody = validateRequestBody(requestBody, schemas.altoWebhookPayload);
+        context.log('✅ Webhook payload validation passed');
+      } catch (validationError) {
+        if (validationError.name === 'ValidationError') {
+          context.warn('❌ Webhook payload validation failed:', validationError.validationErrors);
+
+          // Track validation failure
+          telemetry.trackEvent('Webhook_Validation_Failed', {
+            errorCount: validationError.validationErrors.length.toString(),
+            firstError: validationError.validationErrors[0]?.param || 'unknown'
+          });
+
+          return {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formatValidationError(validationError))
+          };
+        }
+        // Re-throw unexpected errors
+        throw validationError;
+      }
 
       // Retrieve organization credentials from request metadata or headers
       let orgCredentials = null;

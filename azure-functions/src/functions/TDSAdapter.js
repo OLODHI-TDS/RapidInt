@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { PollingSettingsManager } = require('./PollingSettings');
 const { getSalesforceAuthHeader } = require('../../shared-services/shared/salesforce-auth');
 const { sanitizeForLogging, getDepositSummary } = require('../../shared-services/shared/sanitized-logger');
+const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
 
 /**
  * Sanitize string for Salesforce API - removes special characters that Salesforce rejects
@@ -1097,7 +1098,24 @@ app.http('TDSAdapter', {
                     }
 
                     // Use the requestData we already read
-                    const depositData = requestData;
+                    let depositData = requestData;
+
+                    // ✅ HIGH-006 FIX: Validate TDS deposit create request body
+                    try {
+                        depositData = validateRequestBody(depositData, schemas.tdsDepositCreate);
+                        context.log('✅ TDS deposit create validation passed');
+                    } catch (validationError) {
+                        if (validationError.name === 'ValidationError') {
+                            context.warn('❌ TDS deposit create validation failed:', validationError.validationErrors);
+
+                            return {
+                                status: 400,
+                                jsonBody: formatValidationError(validationError)
+                            };
+                        }
+                        // Re-throw unexpected errors
+                        throw validationError;
+                    }
 
                     // Handle different provider preferences
                     if (tdsProviderPreference === 'auto') {
@@ -1166,6 +1184,27 @@ app.http('TDSAdapter', {
                 case 'status':
                     if (!depositId) {
                         return { status: 400, jsonBody: { error: 'Deposit ID required' } };
+                    }
+
+                    // ✅ HIGH-006 FIX: Validate deposit ID parameter
+                    try {
+                        const { error: depositIdError } = schemas.depositId.validate(depositId);
+                        if (depositIdError) {
+                            context.warn('❌ Deposit ID validation failed:', depositIdError.message);
+
+                            return {
+                                status: 400,
+                                jsonBody: {
+                                    success: false,
+                                    error: 'Invalid deposit ID format',
+                                    message: depositIdError.message,
+                                    timestamp: new Date().toISOString()
+                                }
+                            };
+                        }
+                        context.log('✅ Deposit ID validation passed');
+                    } catch (validationError) {
+                        throw validationError;
                     }
 
                     // For status, use primary provider (current for 'auto', otherwise use preference)

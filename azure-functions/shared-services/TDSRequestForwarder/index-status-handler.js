@@ -15,8 +15,34 @@
         }
 
         try {
+          // ✅ SECURITY: Extract organizationId for data segregation (GDPR Article 32 compliance)
+          let organizationId = null;
+          if (orgCredentials && orgCredentials.organizationId) {
+            // Use organizationId from credentials if available
+            organizationId = orgCredentials.organizationId;
+          } else if (requestBody.metadata?.altoAgencyRef && requestBody.metadata?.altoBranchId) {
+            // Construct organizationId from request metadata
+            organizationId = `${requestBody.metadata.altoAgencyRef}:${requestBody.metadata.altoBranchId}`;
+          } else if (requestBody.metadata?.altoAgencyRef) {
+            // Fall back to agency ref only (single-branch organization)
+            organizationId = requestBody.metadata.altoAgencyRef;
+          }
+
+          if (!organizationId) {
+            context.warn('No organizationId available for batch status check - metadata missing');
+            return {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                success: false,
+                error: 'Organization identification required for batch lookup (metadata.altoAgencyRef required)',
+                timestamp: new Date().toISOString()
+              })
+            };
+          }
+
           // First, check cache for recent status
-          const cachedStatus = await getBatchStatusCached(batchId, context);
+          const cachedStatus = await getBatchStatusCached(batchId, organizationId, context);
 
           // If cached and not too old (5 minutes), return it immediately
           if (cachedStatus.isCached && cachedStatus.cacheAge < 300) {
@@ -46,9 +72,9 @@
             };
           }
 
-          // Get provider that created this batch
-          const provider = await getBatchProvider(batchId, context);
-          context.log(`Batch ${batchId} was created by provider: ${provider}`);
+          // Get provider that created this batch - ✅ SECURITY: Pass organizationId for data isolation
+          const provider = await getBatchProvider(batchId, organizationId, context);
+          context.log(`Batch ${batchId} (org: ${organizationId}) was created by provider: ${provider}`);
 
           // Map provider to proper credentials
           const endpoint = mapActionToEndpoint('status');
@@ -65,10 +91,11 @@
             statusResult = await executeSalesforceRequest(endpoint, statusPayload, context, orgCredentials);
           }
 
-          // Update batch tracking with latest status
+          // Update batch tracking with latest status - ✅ SECURITY: Pass organizationId for data isolation
           if (statusResult.success && statusResult.data) {
             await updateBatchStatus(
               batchId,
+              organizationId,
               statusResult.data.status || 'processing',
               statusResult.data.dan || null,
               statusResult.data,
@@ -78,6 +105,7 @@
           } else if (!statusResult.success) {
             await updateBatchStatus(
               batchId,
+              organizationId,
               'failed',
               null,
               null,

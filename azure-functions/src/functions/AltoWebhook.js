@@ -1,5 +1,6 @@
 const { app } = require('@azure/functions');
 const crypto = require('crypto');
+const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
 
 /**
  * Alto Webhook Receiver Azure Function
@@ -55,13 +56,30 @@ app.http('AltoWebhook', {
             }
 
             // Parse webhook payload
-            const webhookData = JSON.parse(rawBody);
+            let webhookData = JSON.parse(rawBody);
             context.log('📦 Alto webhook payload:', JSON.stringify(webhookData, null, 2));
+
+            // ✅ HIGH-006 FIX: Validate Alto webhook request using Joi schema
+            try {
+                webhookData = validateRequestBody(webhookData, schemas.altoWebhookRequest);
+                context.log('✅ Alto webhook Joi schema validation passed');
+            } catch (validationError) {
+                if (validationError.name === 'ValidationError') {
+                    context.warn('❌ Alto webhook Joi schema validation failed:', validationError.validationErrors);
+
+                    return {
+                        status: 400,
+                        jsonBody: formatValidationError(validationError)
+                    };
+                }
+                // Re-throw unexpected errors
+                throw validationError;
+            }
 
             // Extract integration data from CloudEvents format
             const integrationData = extractIntegrationData(webhookData);
 
-            // Validate required fields
+            // Validate required fields (legacy validation - now supplemental to Joi)
             const validation = validateWebhookData(integrationData);
             if (!validation.isValid) {
                 context.log('❌ Webhook validation failed:', validation.errors);

@@ -17,6 +17,7 @@
 const configManager = require('../shared/config-manager');
 const telemetry = require('../shared/telemetry');
 const { checkRateLimit } = require('../shared/rate-limiter');
+const { validateRequestBody, schemas, formatValidationError } = require('../shared/validation-schemas');
 
 /**
  * Main Azure Function handler
@@ -206,18 +207,33 @@ async function getGlobalConfiguration(context) {
  * Body: { "routingMode": "legacy-only" | "salesforce-only" | "both" | "shadow" | "forwarding" }
  */
 async function updateRoutingMode(context, req) {
-  const { routingMode } = req.body;
+  // ✅ HIGH-006 FIX: Validate request body
+  // Prevents invalid routing mode values that could break traffic routing
+  let validatedBody;
+  try {
+    validatedBody = validateRequestBody(req.body, schemas.routingModeUpdate);
+    context.log('✅ Routing mode validation passed');
+  } catch (validationError) {
+    if (validationError.name === 'ValidationError') {
+      context.warn('❌ Routing mode validation failed:', validationError.validationErrors);
 
-  if (!routingMode) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: 'Missing required field: routingMode',
-        validModes: ['legacy-only', 'salesforce-only', 'both', 'shadow', 'forwarding']
-      }
-    };
+      // Track validation failure
+      telemetry.trackEvent('Config_Validation_Failed', {
+        endpoint: 'routingMode',
+        errorCount: validationError.validationErrors.length.toString(),
+        firstError: validationError.validationErrors[0]?.param || 'unknown'
+      });
+
+      return {
+        status: 400,
+        body: formatValidationError(validationError)
+      };
+    }
+    // Re-throw unexpected errors
+    throw validationError;
   }
+
+  const { routingMode } = validatedBody;
 
   context.log(`Updating routing mode to: ${routingMode}`);
 
@@ -265,29 +281,33 @@ async function updateRoutingMode(context, req) {
  * Body: { "percentage": 0-100 }
  */
 async function updateForwardingPercentage(context, req) {
-  const { percentage } = req.body;
+  // ✅ HIGH-006 FIX: Validate request body
+  // Prevents invalid percentage values that could break traffic split
+  let validatedBody;
+  try {
+    validatedBody = validateRequestBody(req.body, schemas.forwardingPercentageUpdate);
+    context.log('✅ Forwarding percentage validation passed');
+  } catch (validationError) {
+    if (validationError.name === 'ValidationError') {
+      context.warn('❌ Forwarding percentage validation failed:', validationError.validationErrors);
 
-  if (percentage === undefined || percentage === null) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: 'Missing required field: percentage (must be 0-100)'
-      }
-    };
+      // Track validation failure
+      telemetry.trackEvent('Config_Validation_Failed', {
+        endpoint: 'forwardingPercentage',
+        errorCount: validationError.validationErrors.length.toString(),
+        firstError: validationError.validationErrors[0]?.param || 'unknown'
+      });
+
+      return {
+        status: 400,
+        body: formatValidationError(validationError)
+      };
+    }
+    // Re-throw unexpected errors
+    throw validationError;
   }
 
-  const percentageNum = parseInt(percentage, 10);
-
-  if (isNaN(percentageNum) || percentageNum < 0 || percentageNum > 100) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: 'Invalid percentage value. Must be a number between 0 and 100'
-      }
-    };
-  }
+  const percentageNum = validatedBody.percentage;
 
   context.log(`Updating forwarding percentage to: ${percentageNum}%`);
 
@@ -380,30 +400,34 @@ async function getOrganizationConfiguration(context, agencyRef) {
  * Body: { "providerPreference": "current" | "salesforce" | "dual" | "auto" }
  */
 async function updateOrganizationProvider(context, req, agencyRef) {
-  const { providerPreference } = req.body;
+  // ✅ HIGH-006 FIX: Validate request body
+  // Prevents invalid provider preference values
+  let validatedBody;
+  try {
+    validatedBody = validateRequestBody(req.body, schemas.providerPreferenceUpdate);
+    context.log('✅ Provider preference validation passed');
+  } catch (validationError) {
+    if (validationError.name === 'ValidationError') {
+      context.warn('❌ Provider preference validation failed:', validationError.validationErrors);
 
-  if (!providerPreference) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: 'Missing required field: providerPreference',
-        validPreferences: ['current', 'salesforce', 'dual', 'auto']
-      }
-    };
+      // Track validation failure
+      telemetry.trackEvent('Config_Validation_Failed', {
+        endpoint: 'providerPreference',
+        agencyRef: agencyRef || 'unknown',
+        errorCount: validationError.validationErrors.length.toString(),
+        firstError: validationError.validationErrors[0]?.param || 'unknown'
+      });
+
+      return {
+        status: 400,
+        body: formatValidationError(validationError)
+      };
+    }
+    // Re-throw unexpected errors
+    throw validationError;
   }
 
-  const validPreferences = ['current', 'salesforce', 'dual', 'auto'];
-  if (!validPreferences.includes(providerPreference)) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: `Invalid provider preference: ${providerPreference}`,
-        validPreferences
-      }
-    };
-  }
+  const { providerPreference } = validatedBody;
 
   context.log(`Updating provider preference for ${agencyRef} to: ${providerPreference}`);
 

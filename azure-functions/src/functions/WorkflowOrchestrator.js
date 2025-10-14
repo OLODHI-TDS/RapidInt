@@ -1,6 +1,7 @@
 const { app } = require('@azure/functions');
 const axios = require('axios');
 const { IntegrationAuditLogger } = require('./IntegrationAuditLogger');
+const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
 
 /**
  * Workflow Orchestrator Azure Function
@@ -12,7 +13,25 @@ app.http('WorkflowOrchestrator', {
     route: 'workflows/alto-tds',
     handler: async (request, context) => {
         try {
-            const workflowData = await request.json();
+            let workflowData = await request.json();
+
+            // ✅ HIGH-006 FIX: Validate workflow orchestrator request body
+            try {
+                workflowData = validateRequestBody(workflowData, schemas.workflowOrchestratorRequest);
+                context.log('✅ Workflow orchestrator request validation passed');
+            } catch (validationError) {
+                if (validationError.name === 'ValidationError') {
+                    context.warn('❌ Workflow orchestrator request validation failed:', validationError.validationErrors);
+
+                    return {
+                        status: 400,
+                        jsonBody: formatValidationError(validationError)
+                    };
+                }
+                // Re-throw unexpected errors
+                throw validationError;
+            }
+
             context.log('🚀 Starting Alto → TDS workflow:', workflowData);
 
             const orchestrator = new AltoTDSOrchestrator(context);
@@ -61,29 +80,30 @@ class AltoTDSOrchestrator {
     }
 
     /**
-     * Normalize title to TDS-accepted values
-     * Based on testing, Salesforce TDS API accepts: Mr, Miss (possibly others, but Mrs and Ms are rejected)
+     * Normalize title to Salesforce TDS-accepted values
+     * Salesforce TDS API accepts: "Mr.", "Ms.", "Mrs.", "Dr.", "Prof.", "Mx." (with periods)
+     * Title is optional - if not recognized, return null and omit from payload
      */
     normalizeTitle(title) {
-        if (!title) return 'Mr'; // Default fallback
+        if (!title) return null; // No title provided - will be omitted
 
-        const titleLower = title.toLowerCase().trim();
+        // Remove any existing periods and convert to lowercase for matching
+        const titleLower = title.toLowerCase().trim().replace(/\./g, '');
 
-        // Map common variations to accepted titles
+        // Map common variations to Salesforce-accepted titles (WITH periods)
         const titleMap = {
-            'mr': 'Mr',
-            'mrs': 'Miss',  // Convert Mrs to Miss (TDS doesn't accept Mrs or Ms)
-            'miss': 'Miss',
-            'ms': 'Miss',   // Convert Ms to Miss (TDS doesn't accept Ms)
-            'dr': 'Dr',
-            'prof': 'Prof',
-            'rev': 'Rev',
-            'sir': 'Sir',
-            'lady': 'Lady',
-            'lord': 'Lord'
+            'mr': 'Mr.',
+            'mrs': 'Mrs.',
+            'miss': 'Ms.',  // Convert Miss to Ms.
+            'ms': 'Ms.',
+            'dr': 'Dr.',
+            'prof': 'Prof.',
+            'mx': 'Mx.'
         };
 
-        return titleMap[titleLower] || 'Mr'; // Default to Mr if not found
+        // Return matched title or null if not supported
+        // Null means don't send title field (it's optional in Salesforce API)
+        return titleMap[titleLower] || null;
     }
 
     /**
@@ -213,7 +233,8 @@ class AltoTDSOrchestrator {
                 agencyRef: altoData.tenancy?.agencyRef || workflowData.agencyRef,
                 branchId: altoData.tenancy?.branchId || workflowData.branchId,
                 workflowId: this.workflowId,
-                source: 'DIRECT_WEBHOOK',
+                source: workflowData.testMode ? 'TEST_WEBHOOK' : 'DIRECT_WEBHOOK',  // Tag test integrations
+                testMode: workflowData.testMode || false,                           // Add test mode flag
                 startedAt: new Date(this.startTime).toISOString(),
                 dan: tdsResult.dan,
                 depositId: tdsResult.depositId,
@@ -254,7 +275,8 @@ class AltoTDSOrchestrator {
                 agencyRef: workflowData.agencyRef || '',
                 branchId: workflowData.branchId || '',
                 workflowId: this.workflowId,
-                source: 'DIRECT_WEBHOOK',
+                source: workflowData.testMode ? 'TEST_WEBHOOK' : 'DIRECT_WEBHOOK',  // Tag test integrations
+                testMode: workflowData.testMode || false,                           // Add test mode flag
                 startedAt: new Date(this.startTime).toISOString(),
                 failureReason: IntegrationAuditLogger.determineFailureReason(error, currentStep),
                 failureDescription: error.message,
@@ -311,7 +333,9 @@ class AltoTDSOrchestrator {
                 {
                     environment,
                     agencyRef: workflowData.agencyRef,
-                    branchId: workflowData.branchId
+                    branchId: workflowData.branchId,
+                    testMode: workflowData.testMode || false,        // Pass test mode flag
+                    testConfig: workflowData.testConfig || {}        // Pass test configuration
                 },
                 {
                     headers: {
@@ -419,7 +443,15 @@ class AltoTDSOrchestrator {
         }
 
         // Validate ALL landlords - try /landlords endpoint first, fall back to property.owners
-        const allLandlords = altoData.landlords || altoData.property?.owners || [];
+        // Handle both structures: landlords object with items array, or direct array
+        let allLandlords = [];
+        if (altoData.landlords) {
+            // /landlords endpoint returns { totalCount, items: [] }
+            allLandlords = altoData.landlords.items || altoData.landlords;
+        } else if (altoData.property?.owners) {
+            // property.owners is a direct array
+            allLandlords = altoData.property.owners;
+        }
 
         if (!allLandlords || allLandlords.length === 0) {
             missingFields.contacts.push('landlord information');
@@ -637,6 +669,18 @@ class AltoTDSOrchestrator {
             };
 
         } catch (error) {
+            // In test mode, provide a default county if postcode lookup fails
+            // (faker.js generates fake postcodes that don't exist in the real database)
+            if (this.workflowData.testMode) {
+                this.context.log(`⚠️ TEST MODE: Postcode lookup failed for ${postcode}, using default county: Buckinghamshire`);
+                return {
+                    success: true,
+                    postcode,
+                    county: 'Buckinghamshire',
+                    isDefault: true
+                };
+            }
+
             return {
                 success: false,
                 postcode,
@@ -668,7 +712,15 @@ class AltoTDSOrchestrator {
 
         // Extract all landlords and tenants (validation already done in validateDataCompleteness)
         // Prefer altoData.landlords from /landlords endpoint (has addresses), fall back to property.owners
-        const allLandlords = altoData.landlords || property.owners || [];
+        // Handle both structures: landlords object with items array, or direct array
+        let allLandlords = [];
+        if (altoData.landlords) {
+            // /landlords endpoint returns { totalCount, items: [] }
+            allLandlords = altoData.landlords.items || altoData.landlords;
+        } else if (property.owners) {
+            // property.owners is a direct array
+            allLandlords = property.owners;
+        }
 
         // Extract all tenants - handle both structures:
         // 1. Multiple people in same contact: tenants[0].items[0].people[]
@@ -709,17 +761,12 @@ class AltoTDSOrchestrator {
             const landlordForename = landlord.forename || landlord.name?.forename;
             const landlordSurname = landlord.surname || landlord.name?.surname;
 
-            // Validate required fields
-            if (!landlordTitle) {
-                throw new Error(`Landlord ${index + 1} title is required but missing from Alto data`);
-            }
-
-            // Normalize title to TDS-accepted values
+            // Normalize title to TDS-accepted values (returns null if not supported)
             const normalizedTitle = this.normalizeTitle(landlordTitle);
 
-            return {
+            // Build landlord object - only include title if it's supported
+            const landlordData = {
                 id: landlord.id || landlord.ownerId || landlord.contactId,  // Use available ID field
-                title: normalizedTitle,
                 firstName: landlordForename,
                 lastName: landlordSurname,
                 email: landlordEmail,
@@ -727,6 +774,13 @@ class AltoTDSOrchestrator {
                 address: landlord.address,
                 county: landlordPostcodeResult.county  // All landlords use same postcode lookup for now
             };
+
+            // Only include title if it's a valid Salesforce title
+            if (normalizedTitle) {
+                landlordData.title = normalizedTitle;
+            }
+
+            return landlordData;
         });
 
         // Process all tenants
@@ -743,25 +797,27 @@ class AltoTDSOrchestrator {
             const tenantEmail = hasEmail ? tenant.emailAddresses[0].address : null;
             const tenantPhone = hasPhone ? tenant.phoneNumbers[0].number : null;
 
-            // Validate required fields
-            if (!tenant.title) {
-                throw new Error(`Tenant ${index + 1} title is required but missing from Alto data`);
-            }
-
-            // Normalize title to TDS-accepted values
+            // Normalize title to TDS-accepted values (returns null if not supported)
             const normalizedTitle = this.normalizeTitle(tenant.title);
 
             // Debug: Log the contactId to see if it exists
             this.context.log(`🔍 Processing tenant ${index + 1}, contactId:`, tenant.contactId);
 
-            return {
+            // Build tenant object - only include title if it's supported
+            const tenantData = {
                 id: tenant.contactId,  // Use the contact ID we added earlier
-                title: normalizedTitle,
                 firstName: tenant.forename,
                 lastName: tenant.surname,
                 email: tenantEmail,
                 phone: tenantPhone
             };
+
+            // Only include title if it's a valid Salesforce title
+            if (normalizedTitle) {
+                tenantData.title = normalizedTitle;
+            }
+
+            return tenantData;
         });
 
         return {
@@ -985,7 +1041,8 @@ class AltoTDSOrchestrator {
             depositId: tdsResult.depositId,
             dan: tdsResult.dan,
             status: 'completed',
-            source: 'DIRECT_WEBHOOK',
+            source: workflowData.testMode ? 'TEST_WEBHOOK' : 'DIRECT_WEBHOOK',  // Tag test integrations
+            testMode: workflowData.testMode || false,                           // Add test mode flag
             createdAt: new Date().toISOString(),
             completedAt: new Date().toISOString()
         };

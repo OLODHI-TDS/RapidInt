@@ -129,6 +129,716 @@ const schemas = {
     .messages({
       'string.base': 'Sort order must be a string',
       'any.only': 'Sort order must be either "asc" or "desc"'
+    }),
+
+  /**
+   * Alto Webhook Payload - HIGH-006 Security Fix
+   * Validates incoming webhook payloads from Alto property management system
+   *
+   * @security Prevents application crashes from malformed Alto webhooks
+   * @security Protects against null/undefined values causing TypeErrors
+   * @security Validates UUID formats to prevent XSS in agency references
+   */
+  altoWebhookPayload: Joi.object({
+    // Core identifiers
+    tenancyId: Joi.alternatives()
+      .try(
+        Joi.string().min(1).max(200),
+        Joi.number().integer().positive()
+      )
+      .required()
+      .custom((value, helpers) => {
+        // Convert to string for consistent handling
+        return String(value);
+      })
+      .messages({
+        'alternatives.match': 'tenancyId must be a string or number',
+        'any.required': 'tenancyId is required'
+      }),
+
+    agencyRef: Joi.string()
+      .uuid()
+      .required()
+      .messages({
+        'string.base': 'agencyRef must be a string',
+        'string.guid': 'agencyRef must be a valid UUID (e.g., 1af89d60-662c-475b-bcc8-9bcbf04b6322)',
+        'any.required': 'agencyRef is required'
+      }),
+
+    branchId: Joi.string()
+      .required()
+      .min(1)
+      .max(100)
+      .messages({
+        'string.base': 'branchId must be a string',
+        'string.empty': 'branchId cannot be empty',
+        'string.max': 'branchId cannot exceed 100 characters',
+        'any.required': 'branchId is required'
+      }),
+
+    // Financial data
+    depositAmount: Joi.number()
+      .positive()
+      .precision(2)
+      .max(1000000)
+      .optional()
+      .messages({
+        'number.base': 'depositAmount must be a number',
+        'number.positive': 'depositAmount must be a positive number',
+        'number.precision': 'depositAmount cannot have more than 2 decimal places',
+        'number.max': 'depositAmount cannot exceed £1,000,000'
+      }),
+
+    // Property address
+    propertyAddress: Joi.object({
+      line1: Joi.string().required().max(200).messages({
+        'string.base': 'propertyAddress.line1 must be a string',
+        'string.max': 'propertyAddress.line1 cannot exceed 200 characters',
+        'any.required': 'propertyAddress.line1 is required'
+      }),
+      line2: Joi.string().optional().allow('', null).max(200).messages({
+        'string.max': 'propertyAddress.line2 cannot exceed 200 characters'
+      }),
+      line3: Joi.string().optional().allow('', null).max(200).messages({
+        'string.max': 'propertyAddress.line3 cannot exceed 200 characters'
+      }),
+      city: Joi.string().required().max(100).messages({
+        'string.base': 'propertyAddress.city must be a string',
+        'string.max': 'propertyAddress.city cannot exceed 100 characters',
+        'any.required': 'propertyAddress.city is required'
+      }),
+      postcode: Joi.string().required().max(20).messages({
+        'string.base': 'propertyAddress.postcode must be a string',
+        'string.max': 'propertyAddress.postcode cannot exceed 20 characters',
+        'any.required': 'propertyAddress.postcode is required'
+      }),
+      county: Joi.string().optional().allow('', null).max(100).messages({
+        'string.max': 'propertyAddress.county cannot exceed 100 characters'
+      }),
+      country: Joi.string().optional().allow('', null).max(100).messages({
+        'string.max': 'propertyAddress.country cannot exceed 100 characters'
+      })
+    }).optional().messages({
+      'object.base': 'propertyAddress must be an object'
+    }),
+
+    // Tenant details (optional - may not always be provided in webhook)
+    tenantDetails: Joi.object({
+      title: Joi.string().optional().allow('', null).max(20),
+      firstName: Joi.string().optional().allow('', null).max(100),
+      lastName: Joi.string().optional().allow('', null).max(100),
+      email: Joi.string().email().optional().allow('', null).max(200),
+      phone: Joi.string().optional().allow('', null).max(50),
+      dateOfBirth: Joi.string().optional().allow('', null).isoDate()
+    }).optional(),
+
+    // Metadata (optional - additional context from Alto)
+    metadata: Joi.object({
+      altoAgencyRef: Joi.string().uuid().optional(),
+      altoBranchId: Joi.string().optional().max(100),
+      altoTenancyRef: Joi.string().optional().max(200),
+      webhookId: Joi.string().optional().max(200),
+      webhookTimestamp: Joi.string().optional().isoDate(),
+      eventType: Joi.string().optional().max(100)
+    }).optional().unknown(true), // Allow additional metadata fields
+
+    // Dates
+    tenancyStartDate: Joi.string().optional().allow('', null).isoDate().messages({
+      'string.isoDate': 'tenancyStartDate must be a valid ISO date (e.g., 2025-01-15)'
+    }),
+    tenancyEndDate: Joi.string().optional().allow('', null).isoDate().messages({
+      'string.isoDate': 'tenancyEndDate must be a valid ISO date (e.g., 2025-12-31)'
+    }),
+
+    // Additional optional fields
+    landlordReference: Joi.string().optional().allow('', null).max(200),
+    agentReference: Joi.string().optional().allow('', null).max(200),
+    notes: Joi.string().optional().allow('', null).max(5000)
+
+  }).options({
+    stripUnknown: true, // Remove unknown fields for security
+    abortEarly: false   // Collect all validation errors
+  }).messages({
+    'object.base': 'Request body must be a valid JSON object'
+  }),
+
+  /**
+   * Routing Mode Update - HIGH-006 Security Fix
+   * Validates ConfigurationAPI routing mode update requests
+   *
+   * @security Prevents invalid routing mode values that could break traffic routing
+   * @security Protects against null/undefined values causing TypeErrors
+   */
+  routingModeUpdate: Joi.object({
+    routingMode: Joi.string()
+      .valid('legacy-only', 'salesforce-only', 'both', 'shadow', 'forwarding')
+      .required()
+      .messages({
+        'string.base': 'routingMode must be a string',
+        'string.empty': 'routingMode cannot be empty',
+        'any.only': 'routingMode must be one of: legacy-only, salesforce-only, both, shadow, forwarding',
+        'any.required': 'routingMode is required'
+      })
+  }).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * Forwarding Percentage Update - HIGH-006 Security Fix
+   * Validates ConfigurationAPI forwarding percentage update requests
+   *
+   * @security Prevents invalid percentage values that could break traffic split
+   * @security Protects against negative or >100 values causing incorrect routing
+   */
+  forwardingPercentageUpdate: Joi.object({
+    percentage: Joi.number()
+      .integer()
+      .min(0)
+      .max(100)
+      .required()
+      .messages({
+        'number.base': 'percentage must be a number',
+        'number.integer': 'percentage must be a whole number (no decimals)',
+        'number.min': 'percentage must be at least 0',
+        'number.max': 'percentage cannot exceed 100',
+        'any.required': 'percentage is required'
+      })
+  }).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * Provider Preference Update - HIGH-006 Security Fix
+   * Validates ConfigurationAPI provider preference update requests
+   *
+   * @security Prevents invalid provider preference values
+   * @security Protects against null/undefined values causing TypeErrors
+   */
+  providerPreferenceUpdate: Joi.object({
+    providerPreference: Joi.string()
+      .valid('current', 'salesforce', 'dual', 'auto')
+      .required()
+      .messages({
+        'string.base': 'providerPreference must be a string',
+        'string.empty': 'providerPreference cannot be empty',
+        'any.only': 'providerPreference must be one of: current, salesforce, dual, auto',
+        'any.required': 'providerPreference is required'
+      })
+  }).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * Fetch Tenancy Request - HIGH-006 Security Fix
+   * Validates AltoIntegration fetch-tenancy request body
+   *
+   * @security Prevents invalid agencyRef/branchId causing Alto API failures
+   * @security Protects against null/undefined values causing TypeErrors
+   */
+  fetchTenancyRequest: Joi.object({
+    agencyRef: Joi.string()
+      .uuid()
+      .required()
+      .messages({
+        'string.base': 'agencyRef must be a string',
+        'string.guid': 'agencyRef must be a valid UUID (e.g., 1af89d60-662c-475b-bcc8-9bcbf04b6322)',
+        'any.required': 'agencyRef is required'
+      }),
+    branchId: Joi.string()
+      .optional()
+      .allow('', null)
+      .min(1)
+      .max(100)
+      .messages({
+        'string.base': 'branchId must be a string',
+        'string.min': 'branchId cannot be empty if provided',
+        'string.max': 'branchId cannot exceed 100 characters'
+      }),
+    environment: Joi.string()
+      .valid('development', 'production')
+      .optional()
+      .default('development')
+      .messages({
+        'string.base': 'environment must be a string',
+        'any.only': 'environment must be either "development" or "production"'
+      }),
+    testMode: Joi.boolean()
+      .optional()
+      .default(false)
+      .messages({
+        'boolean.base': 'testMode must be a boolean'
+      }),
+    testConfig: Joi.object()
+      .optional()
+      .unknown(true)
+      .messages({
+        'object.base': 'testConfig must be an object'
+      })
+  }).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * UK Postcode - HIGH-006 Security Fix
+   * Validates UK postcode format (supports outward and inward codes)
+   *
+   * @security Prevents malformed postcodes causing external API errors
+   * @security Protects against XSS in postcode parameters
+   * @example Valid: "SW1A 1AA", "M1 1AE", "GU16 7HF", "SW1A1AA" (with or without space)
+   */
+  ukPostcode: Joi.string()
+    .required()
+    .trim()
+    .min(5)
+    .max(10)
+    .pattern(/^[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}$/i)
+    .messages({
+      'string.base': 'postcode must be a string',
+      'string.empty': 'postcode cannot be empty',
+      'string.min': 'postcode must be at least 5 characters (e.g., M1 1AE)',
+      'string.max': 'postcode cannot exceed 10 characters',
+      'string.pattern.base': 'postcode must be a valid UK postcode (e.g., SW1A 1AA, M1 1AE, GU16 7HF)',
+      'any.required': 'postcode is required'
+    }),
+
+  /**
+   * Batch Postcode Lookup - HIGH-006 Security Fix
+   * Validates batch postcode lookup request body
+   *
+   * @security Prevents resource exhaustion from oversized batch requests
+   * @security Validates each postcode format before external API call
+   */
+  batchPostcodeLookup: Joi.object({
+    postcodes: Joi.array()
+      .items(
+        Joi.string()
+          .trim()
+          .min(5)
+          .max(10)
+          .pattern(/^[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}$/i)
+          .messages({
+            'string.pattern.base': 'Each postcode must be a valid UK postcode (e.g., SW1A 1AA)'
+          })
+      )
+      .min(1)
+      .max(100)
+      .required()
+      .messages({
+        'array.base': 'postcodes must be an array',
+        'array.min': 'postcodes array must contain at least 1 postcode',
+        'array.max': 'postcodes array cannot exceed 100 postcodes (batch limit)',
+        'any.required': 'postcodes array is required'
+      })
+  }).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * Organization Lookup Query - HIGH-006 Security Fix
+   * Validates OrganizationMapping lookup query parameters
+   *
+   * @security Prevents invalid UUID causing database errors
+   * @security Validates branchId to prevent XSS/SQL injection
+   */
+  organizationLookupQuery: Joi.object({
+    agencyRef: Joi.string()
+      .uuid()
+      .required()
+      .messages({
+        'string.base': 'agencyRef must be a string',
+        'string.guid': 'agencyRef must be a valid UUID (e.g., 1af89d60-662c-475b-bcc8-9bcbf04b6322)',
+        'any.required': 'agencyRef is required'
+      }),
+    branchId: Joi.string()
+      .optional()
+      .allow('', null)
+      .min(1)
+      .max(100)
+      .messages({
+        'string.base': 'branchId must be a string',
+        'string.min': 'branchId cannot be empty if provided',
+        'string.max': 'branchId cannot exceed 100 characters'
+      })
+  }).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * Organization Mapping Add - HIGH-006 Security Fix
+   * Validates OrganizationMapping add request body
+   *
+   * @security Prevents invalid organization mappings that could break integrations
+   * @security Validates all required TDS configuration fields
+   */
+  organizationMappingAdd: Joi.object({
+    organizationName: Joi.string()
+      .required()
+      .min(1)
+      .max(200)
+      .messages({
+        'string.base': 'organizationName must be a string',
+        'string.empty': 'organizationName cannot be empty',
+        'string.max': 'organizationName cannot exceed 200 characters',
+        'any.required': 'organizationName is required'
+      }),
+    environment: Joi.string()
+      .valid('development', 'production')
+      .optional()
+      .default('development')
+      .messages({
+        'string.base': 'environment must be a string',
+        'any.only': 'environment must be either "development" or "production"'
+      }),
+    integrationType: Joi.string()
+      .required()
+      .valid('alto', 'jupix', 'manual')
+      .messages({
+        'string.base': 'integrationType must be a string',
+        'any.only': 'integrationType must be one of: alto, jupix, manual',
+        'any.required': 'integrationType is required'
+      }),
+    integrationCredentials: Joi.object({
+      alto: Joi.object({
+        agencyRef: Joi.string().uuid().required(),
+        branchId: Joi.string().optional().allow('', null).max(100)
+      }).optional()
+    }).optional(),
+    tdsLegacyConfig: Joi.object({
+      memberId: Joi.string().required().min(1).max(100),
+      branchId: Joi.string().required().min(1).max(100),
+      apiKey: Joi.string().required().min(1).max(500)
+    }).required().messages({
+      'any.required': 'tdsLegacyConfig is required'
+    }),
+    tdsSalesforceConfig: Joi.object({
+      memberId: Joi.string().required().min(1).max(100),
+      branchId: Joi.string().required().min(1).max(100),
+      region: Joi.string().optional().valid('EW', 'NI', 'S'),
+      schemeType: Joi.string().optional().valid('Custodial', 'Insured'),
+      authMethod: Joi.string().optional().valid('api-key', 'oauth2'),
+      apiKey: Joi.string().optional().min(1).max(500),
+      clientId: Joi.string().optional().min(1).max(500),
+      clientSecret: Joi.string().optional().min(1).max(500)
+    }).required().messages({
+      'any.required': 'tdsSalesforceConfig is required'
+    }),
+    isActive: Joi.boolean()
+      .optional()
+      .default(true)
+      .messages({
+        'boolean.base': 'isActive must be a boolean'
+      })
+  }).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * Organization Mapping Update - HIGH-006 Security Fix
+   * Validates OrganizationMapping update request body
+   *
+   * @security Prevents malformed updates that could corrupt organization data
+   */
+  organizationMappingUpdate: Joi.object({
+    organizationName: Joi.string().required().min(1).max(200),
+    environment: Joi.string().required().valid('development', 'production'),
+    integrationType: Joi.string().required().valid('alto', 'jupix', 'manual'),
+    updatedOrganizationName: Joi.string().optional().min(1).max(200),
+    legacyMemberId: Joi.string().optional().min(1).max(100),
+    legacyBranchId: Joi.string().optional().min(1).max(100),
+    legacyApiKey: Joi.string().optional().min(1).max(500),
+    sfMemberId: Joi.string().optional().min(1).max(100),
+    sfBranchId: Joi.string().optional().min(1).max(100),
+    sfRegion: Joi.string().optional().valid('EW', 'NI', 'S'),
+    sfSchemeType: Joi.string().optional().valid('Custodial', 'Insured'),
+    sfAuthMethod: Joi.string().optional().valid('api-key', 'oauth2'),
+    sfApiKey: Joi.string().optional().min(1).max(500),
+    sfClientId: Joi.string().optional().min(1).max(500),
+    sfClientSecret: Joi.string().optional().min(1).max(500),
+    tdsProviderPreference: Joi.string().optional().valid('auto', 'current', 'salesforce'),
+    isActive: Joi.boolean().optional()
+  }).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * Organization Mapping Delete - HIGH-006 Security Fix
+   * Validates OrganizationMapping delete request body
+   *
+   * @security Validates required identifiers before deletion
+   */
+  organizationMappingDelete: Joi.object({
+    agencyRef: Joi.string()
+      .uuid()
+      .required()
+      .messages({
+        'string.guid': 'agencyRef must be a valid UUID',
+        'any.required': 'agencyRef is required'
+      }),
+    branchId: Joi.string()
+      .optional()
+      .default('DEFAULT')
+      .min(1)
+      .max(100)
+  }).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * Workflow Orchestrator Request - HIGH-006 Security Fix
+   * Validates WorkflowOrchestrator request body
+   *
+   * @security Prevents invalid workflow data causing integration failures
+   * @security Validates UUIDs to prevent malformed requests to Alto API
+   */
+  workflowOrchestratorRequest: Joi.object({
+    tenancyId: Joi.alternatives()
+      .try(
+        Joi.string().min(1).max(200),
+        Joi.number().integer().positive()
+      )
+      .required()
+      .custom((value, helpers) => {
+        // Convert to string for consistent handling
+        return String(value);
+      })
+      .messages({
+        'alternatives.match': 'tenancyId must be a string or number',
+        'any.required': 'tenancyId is required'
+      }),
+    agencyRef: Joi.string()
+      .uuid()
+      .required()
+      .messages({
+        'string.guid': 'agencyRef must be a valid UUID',
+        'any.required': 'agencyRef is required'
+      }),
+    branchId: Joi.string()
+      .optional()
+      .default('DEFAULT')
+      .min(1)
+      .max(100)
+      .messages({
+        'string.min': 'branchId cannot be empty if provided',
+        'string.max': 'branchId cannot exceed 100 characters'
+      }),
+    integrationId: Joi.string().optional().max(200),
+    webhookId: Joi.string().optional().max(200),
+    source: Joi.string().optional().max(100),
+    testMode: Joi.boolean().optional().default(false),
+    testConfig: Joi.object().optional().unknown(true)
+  }).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * Pending Integration ID - HIGH-006 Security Fix
+   * Validates pending integration ID from URL parameters
+   *
+   * @security Prevents malformed IDs causing database errors
+   */
+  pendingIntegrationId: Joi.string()
+    .required()
+    .pattern(/^pending_\d+_[a-z0-9]{8}$/)
+    .messages({
+      'string.base': 'Integration ID must be a string',
+      'string.empty': 'Integration ID cannot be empty',
+      'string.pattern.base': 'Integration ID must match format: pending_<timestamp>_<hash>',
+      'any.required': 'Integration ID is required'
+    }),
+
+  /**
+   * Alto Webhook Request - HIGH-006 Security Fix
+   * Enhanced webhook payload validation (CloudEvents format)
+   *
+   * @security Validates CloudEvents structure and required fields
+   * @security Prevents malformed webhooks causing workflow failures
+   */
+  altoWebhookRequest: Joi.alternatives().try(
+    // CloudEvents format
+    Joi.object({
+      specversion: Joi.string().valid('1.0').required(),
+      type: Joi.string().required().max(200),
+      source: Joi.string().required().max(500),
+      subject: Joi.string().optional().max(500),
+      id: Joi.string().required().max(200),
+      time: Joi.string().isoDate().optional(),
+      datacontenttype: Joi.string().optional(),
+      data: Joi.object({
+        subjectId: Joi.alternatives()
+          .try(
+            Joi.string().min(1).max(200),
+            Joi.number().integer().positive()
+          )
+          .optional()
+          .custom((value, helpers) => {
+            // Convert to string for consistent handling
+            return String(value);
+          }),
+        agencyRef: Joi.string().uuid().required(),
+        branchId: Joi.string().optional().max(100),
+        integrationId: Joi.string().optional().max(200),
+        relatedSubjects: Joi.array().optional()
+      }).required()
+    }),
+    // Direct format (backward compatibility)
+    Joi.object({
+      tenancyId: Joi.alternatives()
+        .try(
+          Joi.string().min(1).max(200),
+          Joi.number().integer().positive()
+        )
+        .required()
+        .custom((value, helpers) => {
+          // Convert to string for consistent handling
+          return String(value);
+        })
+        .messages({
+          'alternatives.match': 'tenancyId must be a string or number',
+          'any.required': 'tenancyId is required'
+        }),
+      agencyRef: Joi.string().uuid().required(),
+      branchId: Joi.string().optional().max(100),
+      integrationId: Joi.string().optional().max(200),
+      event: Joi.string().optional().max(100),
+      timestamp: Joi.string().isoDate().optional()
+    })
+  ).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * TDS Deposit Create - HIGH-006 Security Fix
+   * Validates TDSAdapter deposit creation request body
+   *
+   * @security Prevents invalid deposit data causing TDS API failures
+   * @security Validates financial amounts to prevent corruption
+   * @security Validates required contact information
+   */
+  tdsDepositCreate: Joi.object({
+    tenancyId: Joi.alternatives()
+      .try(
+        Joi.string().min(1).max(200),
+        Joi.number().integer().positive()
+      )
+      .required()
+      .custom((value, helpers) => {
+        // Convert to string for consistent handling
+        return String(value);
+      })
+      .messages({
+        'alternatives.match': 'tenancyId must be a string or number',
+        'any.required': 'tenancyId is required'
+      }),
+    agencyRef: Joi.string().uuid().required(),
+    branchId: Joi.string().required().min(1).max(100),
+    depositAmount: Joi.number()
+      .required()
+      .min(0)
+      .max(1000000)
+      .precision(2)
+      .messages({
+        'number.base': 'depositAmount must be a number',
+        'number.min': 'depositAmount must be at least 0',
+        'number.max': 'depositAmount cannot exceed £1,000,000',
+        'number.precision': 'depositAmount cannot have more than 2 decimal places',
+        'any.required': 'depositAmount is required'
+      }),
+    rentAmount: Joi.number().required().min(0).max(1000000).precision(2),
+    tenancyStartDate: Joi.string().isoDate().required(),
+    tenancyEndDate: Joi.string().isoDate().optional().allow(null),
+    property: Joi.object({
+      id: Joi.alternatives().try(Joi.string(), Joi.number()).required(),
+      address: Joi.object({
+        nameNo: Joi.string().required().max(200),
+        subDwelling: Joi.string().optional().allow('', null).max(200),
+        street: Joi.string().required().max(200),
+        town: Joi.string().required().max(100),
+        locality: Joi.string().optional().allow('', null).max(100),
+        postcode: Joi.string().required().max(20)
+      }).required(),
+      county: Joi.string().required().max(100),
+      propertyType: Joi.string().optional().max(50),
+      bedrooms: Joi.number().integer().min(0).max(50).optional(),
+      receptions: Joi.number().integer().min(0).max(50).optional()
+    }).required(),
+    tenants: Joi.array()
+      .items(
+        Joi.object({
+          id: Joi.alternatives().try(Joi.string(), Joi.number()).optional(),
+          title: Joi.string().optional().allow('', null).max(20),
+          firstName: Joi.string().required().min(1).max(100),
+          lastName: Joi.string().required().min(1).max(100),
+          email: Joi.string().email().optional().allow('', null).max(200),
+          phone: Joi.string().optional().allow('', null).max(50)
+        })
+      )
+      .min(1)
+      .max(10)
+      .required()
+      .messages({
+        'array.min': 'At least 1 tenant is required',
+        'array.max': 'Cannot exceed 10 tenants',
+        'any.required': 'tenants array is required'
+      }),
+    landlords: Joi.array()
+      .items(
+        Joi.object({
+          id: Joi.alternatives().try(Joi.string(), Joi.number()).optional(),
+          title: Joi.string().optional().allow('', null).max(20),
+          firstName: Joi.string().required().min(1).max(100),
+          lastName: Joi.string().required().min(1).max(100),
+          email: Joi.string().email().optional().allow('', null).max(200),
+          phone: Joi.string().optional().allow('', null).max(50),
+          address: Joi.object({
+            nameNo: Joi.string().required().max(200),
+            subDwelling: Joi.string().optional().allow('', null).max(200),
+            street: Joi.string().required().max(200),
+            town: Joi.string().required().max(100),
+            locality: Joi.string().optional().allow('', null).max(100),
+            postcode: Joi.string().required().max(20)
+          }).required(),
+          county: Joi.string().required().max(100)
+        })
+      )
+      .min(1)
+      .max(10)
+      .required()
+      .messages({
+        'array.min': 'At least 1 landlord is required',
+        'array.max': 'Cannot exceed 10 landlords',
+        'any.required': 'landlords array is required'
+      }),
+    createdAt: Joi.string().isoDate().optional()
+  }).options({
+    stripUnknown: true,
+    abortEarly: false
+  }),
+
+  /**
+   * Deposit ID - HIGH-006 Security Fix
+   * Validates deposit ID from URL parameters
+   *
+   * @security Prevents malformed IDs causing TDS API errors
+   */
+  depositId: Joi.string()
+    .required()
+    .pattern(/^(DEP_\d+|[A-Z0-9]{6,20})$/)
+    .messages({
+      'string.base': 'Deposit ID must be a string',
+      'string.empty': 'Deposit ID cannot be empty',
+      'string.pattern.base': 'Deposit ID must be either DEP_<number> or a 6-20 character alphanumeric DAN',
+      'any.required': 'Deposit ID is required'
     })
 };
 

@@ -1,5 +1,6 @@
 const { app } = require('@azure/functions');
 const axios = require('axios');
+const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
 
 // Cache for postcode lookups (5 minute TTL)
 const postcodeCache = new Map();
@@ -82,7 +83,7 @@ app.http('PostcodeLookup', {
 
             // Handle GET request - single postcode lookup
             if (request.method === 'GET') {
-                const postcode = request.params.postcode;
+                let postcode = request.params.postcode;
 
                 if (!postcode) {
                     return {
@@ -92,6 +93,29 @@ app.http('PostcodeLookup', {
                             usage: 'GET /api/postcode/{postcode}'
                         }
                     };
+                }
+
+                // ✅ HIGH-006 FIX: Validate UK postcode format
+                try {
+                    const { error, value } = schemas.ukPostcode.validate(postcode);
+                    if (error) {
+                        context.warn('❌ Postcode validation failed:', error.message);
+
+                        return {
+                            status: 400,
+                            jsonBody: {
+                                success: false,
+                                error: 'Invalid postcode format',
+                                message: error.message,
+                                postcode: postcode,
+                                suggestion: 'Please use valid UK postcode format (e.g., SW1A 1AA, M1 1AE, GU16 7HF)'
+                            }
+                        };
+                    }
+                    postcode = value; // Use validated/trimmed postcode
+                    context.log('✅ Postcode validation passed:', postcode);
+                } catch (validationError) {
+                    throw validationError;
                 }
 
                 const result = await lookupPostcodeFromAPI(postcode);
@@ -123,27 +147,26 @@ app.http('PostcodeLookup', {
             // Handle POST request - batch lookup
             if (request.method === 'POST') {
                 const body = await request.json();
-                const postcodes = body.postcodes;
 
-                if (!Array.isArray(postcodes)) {
-                    return {
-                        status: 400,
-                        jsonBody: {
-                            error: 'Request body must contain "postcodes" array',
-                            example: { postcodes: ['NN1 5SL', 'TR13 8AJ'] }
-                        }
-                    };
+                // ✅ HIGH-006 FIX: Validate batch postcode request
+                let validatedBody;
+                try {
+                    validatedBody = validateRequestBody(body, schemas.batchPostcodeLookup);
+                    context.log('✅ Batch postcode request validation passed');
+                } catch (validationError) {
+                    if (validationError.name === 'ValidationError') {
+                        context.warn('❌ Batch postcode request validation failed:', validationError.validationErrors);
+
+                        return {
+                            status: 400,
+                            jsonBody: formatValidationError(validationError)
+                        };
+                    }
+                    // Re-throw unexpected errors
+                    throw validationError;
                 }
 
-                if (postcodes.length > 100) {
-                    return {
-                        status: 400,
-                        jsonBody: {
-                            error: 'Batch size limited to 100 postcodes',
-                            provided: postcodes.length
-                        }
-                    };
-                }
+                const postcodes = validatedBody.postcodes;
 
                 // Lookup all postcodes
                 const results = await Promise.all(
