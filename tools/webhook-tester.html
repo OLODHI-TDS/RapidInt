@@ -342,6 +342,9 @@
         </div>
     </div>
 
+    <!-- XSS Protection: Safe DOM Rendering Utility -->
+    <script src="safe-render.js"></script>
+
     <script>
         const presets = {
             cloudevents: {
@@ -404,6 +407,7 @@
             }
         }
 
+        // ✅ XSS Protection: Uses safe-render.js functions
         async function validateEndpoint() {
             const url = document.getElementById('webhook-url').value;
             const resultDiv = document.getElementById('webhook-result');
@@ -417,30 +421,41 @@
 
                 const result = await response.json();
 
-                resultDiv.innerHTML = `
-                    <div class="result ${response.ok ? 'success' : 'error'}">
-                        <strong>Status:</strong> ${response.status} ${response.statusText}
-                        <strong>Response:</strong>
-                        ${JSON.stringify(result, null, 2)}
-                    </div>
-                `;
+                // ✅ XSS Protection: Build result using safe DOM creation
+                const resultContainer = document.createElement('div');
+                resultContainer.className = `result ${response.ok ? 'success' : 'error'}`;
+
+                resultContainer.appendChild(document.createElement('strong')).textContent = 'Status: ';
+                resultContainer.appendChild(safeCreateElement('span', `${response.status} ${response.statusText}`));
+                resultContainer.appendChild(document.createTextNode('\n'));
+                resultContainer.appendChild(document.createElement('strong')).textContent = 'Response:\n';
+                resultContainer.appendChild(safeCreateElement('span', JSON.stringify(result, null, 2)));
+
+                resultDiv.innerHTML = '';
+                resultDiv.appendChild(resultContainer);
 
                 showToast(response.ok ? 'Endpoint is active!' : 'Endpoint validation failed', response.ok ? 'success' : 'error');
             } catch (error) {
-                resultDiv.innerHTML = `
-                    <div class="result error">
-                        <strong>Error:</strong> ${error.message}
+                // ✅ XSS Protection: Build error using safe DOM creation
+                const errorContainer = document.createElement('div');
+                errorContainer.className = 'result error';
 
-                        <strong>Troubleshooting:</strong>
-                        • Ensure Azure Functions is running (func start)
-                        • Check the webhook URL is correct
-                        • Verify no firewall is blocking the request
-                    </div>
-                `;
+                errorContainer.appendChild(document.createElement('strong')).textContent = 'Error: ';
+                errorContainer.appendChild(safeCreateElement('span', error.message));
+                errorContainer.appendChild(document.createTextNode('\n\n'));
+                errorContainer.appendChild(document.createElement('strong')).textContent = 'Troubleshooting:\n';
+                errorContainer.appendChild(document.createTextNode('• Ensure Azure Functions is running (func start)\n'));
+                errorContainer.appendChild(document.createTextNode('• Check the webhook URL is correct\n'));
+                errorContainer.appendChild(document.createTextNode('• Verify no firewall is blocking the request'));
+
+                resultDiv.innerHTML = '';
+                resultDiv.appendChild(errorContainer);
+
                 showToast('Failed to connect to endpoint', 'error');
             }
         }
 
+        // ✅ XSS Protection: Uses safe-render.js functions
         async function sendWebhook() {
             const url = document.getElementById('webhook-url').value;
             const payloadText = document.getElementById('webhook-payload').value;
@@ -464,33 +479,49 @@
 
                 const result = await response.json();
 
-                resultDiv.innerHTML = `
-                    <div class="result ${response.ok ? 'success' : 'error'}">
-                        <strong>Status:</strong> ${response.status} ${response.statusText}
-                        <strong>Response:</strong>
-                        ${JSON.stringify(result, null, 2)}
+                // ✅ XSS Protection: Build result using safe DOM creation
+                const resultContainer = document.createElement('div');
+                resultContainer.className = `result ${response.ok ? 'success' : 'error'}`;
 
-                        ${response.ok ? `
-                        <strong style="display: block; margin-top: 15px;">✅ Next Steps:</strong>
-                        • Check the "Alto Integration Log" tab in the dashboard
-                        • Look for webhook ID: ${result.webhookId || 'N/A'}
-                        • If integration is pending, check "Pending Integrations" tab
-                        ` : ''}
-                    </div>
-                `;
+                resultContainer.appendChild(document.createElement('strong')).textContent = 'Status: ';
+                resultContainer.appendChild(safeCreateElement('span', `${response.status} ${response.statusText}`));
+                resultContainer.appendChild(document.createTextNode('\n'));
+                resultContainer.appendChild(document.createElement('strong')).textContent = 'Response:\n';
+                resultContainer.appendChild(safeCreateElement('span', JSON.stringify(result, null, 2)));
+
+                if (response.ok) {
+                    resultContainer.appendChild(document.createTextNode('\n\n'));
+                    const nextStepsStrong = document.createElement('strong');
+                    nextStepsStrong.style.display = 'block';
+                    nextStepsStrong.style.marginTop = '15px';
+                    nextStepsStrong.textContent = '✅ Next Steps:';
+                    resultContainer.appendChild(nextStepsStrong);
+                    resultContainer.appendChild(document.createTextNode('\n• Check the "Alto Integration Log" tab in the dashboard\n'));
+                    resultContainer.appendChild(document.createTextNode('• Look for webhook ID: '));
+                    resultContainer.appendChild(safeCreateElement('span', result.webhookId || 'N/A'));
+                    resultContainer.appendChild(document.createTextNode('\n• If integration is pending, check "Pending Integrations" tab'));
+                }
+
+                resultDiv.innerHTML = '';
+                resultDiv.appendChild(resultContainer);
 
                 showToast(response.ok ? 'Webhook sent successfully!' : 'Webhook failed', response.ok ? 'success' : 'error');
             } catch (error) {
-                resultDiv.innerHTML = `
-                    <div class="result error">
-                        <strong>Error:</strong> ${error.message}
+                // ✅ XSS Protection: Build error using safe DOM creation
+                const errorContainer = document.createElement('div');
+                errorContainer.className = 'result error';
 
-                        <strong>Common Issues:</strong>
-                        • Invalid JSON format - use "Format JSON" button
-                        • Azure Functions not running
-                        • Webhook endpoint URL incorrect
-                    </div>
-                `;
+                errorContainer.appendChild(document.createElement('strong')).textContent = 'Error: ';
+                errorContainer.appendChild(safeCreateElement('span', error.message));
+                errorContainer.appendChild(document.createTextNode('\n\n'));
+                errorContainer.appendChild(document.createElement('strong')).textContent = 'Common Issues:\n';
+                errorContainer.appendChild(document.createTextNode('• Invalid JSON format - use "Format JSON" button\n'));
+                errorContainer.appendChild(document.createTextNode('• Azure Functions not running\n'));
+                errorContainer.appendChild(document.createTextNode('• Webhook endpoint URL incorrect'));
+
+                resultDiv.innerHTML = '';
+                resultDiv.appendChild(errorContainer);
+
                 showToast('Failed to send webhook', 'error');
             }
         }

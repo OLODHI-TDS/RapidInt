@@ -52,9 +52,9 @@ app.http('OrganizationMapping', {
                     }
 
                     const { agencyRef, branchId } = validatedQuery;
-                    const mapping = await mappingService.getMapping(agencyRef, branchId);
+                    const result = await mappingService.getMapping(agencyRef, branchId);
 
-                    if (!mapping) {
+                    if (!result || !result.mapping) {
                         return {
                             status: 404,
                             jsonBody: {
@@ -65,12 +65,15 @@ app.http('OrganizationMapping', {
                         };
                     }
 
+                    const { mapping, storedBranchId } = result;
+
                     return {
                         status: 200,
                         jsonBody: {
                             success: true,
                             agencyRef,
-                            branchId: branchId || 'DEFAULT',
+                            branchId: branchId || 'DEFAULT',  // Requested branch ID
+                            organizationBranchId: storedBranchId,  // ✅ Actual stored branch ID from mapping
                             environment: mapping.environment,
                             tdsMapping: mapping,
                             timestamp: new Date().toISOString()
@@ -307,37 +310,46 @@ class OrganizationMappingService {
                     const isActive = entity.isActive === true || entity.isActive === 'true';
 
                     if (isActive) {
+                        // Extract stored branch ID from rowKey (format: "agencyRef:branchId")
+                        const rowKeyParts = entity.rowKey.split(':');
+                        const storedBranchId = rowKeyParts[1] || 'DEFAULT';
+
                         this.context.log(`✅ Found ACTIVE mapping in ${env} environment`);
                         this.context.log(`📊 TDS Provider Preference: ${entity.tdsProviderPreference || 'auto'}`);
-                        return {
-                            // Legacy/Current TDS credentials
-                            legacy: {
-                                memberId: entity.legacyMemberId || entity.tdsMemberId,
-                                branchId: entity.legacyBranchId || entity.tdsBranchId,
-                                apiKey: entity.legacyApiKey || entity.tdsApiKey
-                            },
-                            // Salesforce TDS credentials
-                            salesforce: {
-                                memberId: entity.sfMemberId,
-                                branchId: entity.sfBranchId,
-                                apiKey: entity.sfApiKey,
-                                region: entity.sfRegion,
-                                schemeType: entity.sfSchemeType,
-                                authMethod: entity.sfAuthMethod,
-                                clientId: entity.sfClientId,
-                                clientSecret: entity.sfClientSecret
-                            },
-                            // Metadata
-                            organizationName: entity.organizationName,
-                            environment: env,
-                            integrationType: entity.integrationType,
-                            tdsProviderPreference: entity.tdsProviderPreference || 'auto',
-                            isActive: true,
+                        this.context.log(`🔑 Stored Branch ID: ${storedBranchId}`);
 
-                            // Deprecated fields (for backward compatibility)
-                            tdsMemberId: entity.tdsMemberId,
-                            tdsBranchId: entity.tdsBranchId,
-                            tdsApiKey: entity.tdsApiKey
+                        return {
+                            mapping: {
+                                // Legacy/Current TDS credentials
+                                legacy: {
+                                    memberId: entity.legacyMemberId || entity.tdsMemberId,
+                                    branchId: entity.legacyBranchId || entity.tdsBranchId,
+                                    apiKey: entity.legacyApiKey || entity.tdsApiKey
+                                },
+                                // Salesforce TDS credentials
+                                salesforce: {
+                                    memberId: entity.sfMemberId,
+                                    branchId: entity.sfBranchId,
+                                    apiKey: entity.sfApiKey,
+                                    region: entity.sfRegion,
+                                    schemeType: entity.sfSchemeType,
+                                    authMethod: entity.sfAuthMethod,
+                                    clientId: entity.sfClientId,
+                                    clientSecret: entity.sfClientSecret
+                                },
+                                // Metadata
+                                organizationName: entity.organizationName,
+                                environment: env,
+                                integrationType: entity.integrationType,
+                                tdsProviderPreference: entity.tdsProviderPreference || 'auto',
+                                isActive: true,
+
+                                // Deprecated fields (for backward compatibility)
+                                tdsMemberId: entity.tdsMemberId,
+                                tdsBranchId: entity.tdsBranchId,
+                                tdsApiKey: entity.tdsApiKey
+                            },
+                            storedBranchId  // ✅ Return the stored branch ID
                         };
                     } else {
                         this.context.log(`⚠️ Found mapping in ${env} but it's INACTIVE, continuing search...`);

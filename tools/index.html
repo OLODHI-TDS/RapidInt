@@ -305,6 +305,9 @@
         </a>
     </div>
 
+    <!-- XSS Protection: Safe DOM Rendering Utility -->
+    <script src="safe-render.js"></script>
+
     <script>
         // Enhanced loading animation with Liquid Glass effects
         let loadingMessages = [
@@ -321,14 +324,17 @@
         function updateLoadingMessage() {
             const progressText = document.querySelector('.progress-text');
             if (currentMessage < loadingMessages.length) {
-                progressText.innerHTML = `
-                    ${loadingMessages[currentMessage]}
-                    <span class="loading-dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </span>
-                `;
+                // ✅ XSS Protection: Clear and rebuild with safe elements
+                progressText.textContent = loadingMessages[currentMessage];
+
+                // Add loading dots container
+                const dotsContainer = safeCreateElement('span', '', { className: 'loading-dots' });
+                for (let i = 0; i < 3; i++) {
+                    const dot = safeCreateElement('span', '');
+                    dotsContainer.appendChild(dot);
+                }
+                progressText.appendChild(dotsContainer);
+
                 currentMessage++;
             }
         }

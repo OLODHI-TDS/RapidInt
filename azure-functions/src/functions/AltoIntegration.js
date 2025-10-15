@@ -222,12 +222,13 @@ class AltoAPIClient {
         }
 
         try {
-            // For development, use mock token
-            if (process.env.NODE_ENV === 'development') {
-                this.accessToken = 'mock_token_' + Date.now();
-                this.tokenExpiry = Date.now() + (3600 * 1000); // 1 hour
-                return this.accessToken;
-            }
+            // ⚠️ DISABLED: Mock token was preventing real Alto API authentication
+            // Use real OAuth flow instead
+            // if (process.env.NODE_ENV === 'development') {
+            //     this.accessToken = 'mock_token_' + Date.now();
+            //     this.tokenExpiry = Date.now() + (3600 * 1000); // 1 hour
+            //     return this.accessToken;
+            // }
 
             const tokenUrl = `${this.baseUrl}/token`;
             console.log('🔐 Attempting Alto authentication:');
@@ -294,10 +295,11 @@ class AltoAPIClient {
             config.data = data;
         }
 
-        // For development, return mock data
-        if (process.env.NODE_ENV === 'development') {
-            return this.getMockData(endpoint, method);
-        }
+        // ⚠️ DISABLED: Mock data was causing branch ID mismatches
+        // Use real Alto API calls instead
+        // if (process.env.NODE_ENV === 'development') {
+        //     return this.getMockData(endpoint, method);
+        // }
 
         const response = await axios(config);
         return response.data;
@@ -508,7 +510,7 @@ class AltoAPIClient {
                 endDate: '2024-07-14',
                 status: 'active',
                 agencyRef: '1af89d60-662c-475b-bcc8-9bcbf04b6322',
-                branchId: 'MAIN'
+                branchId: '8282'  // ✅ Changed from 'MAIN' to match your actual Alto data
             },
             '/properties/': {
                 id: 'INV_789012',

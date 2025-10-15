@@ -309,8 +309,9 @@ class AltoTDSOrchestrator {
         this.context.log('📡 Fetching Alto tenancy data...');
 
         try {
-            // Get environment from organization mapping
+            // Get environment AND branchId from organization mapping
             let environment = 'development';
+            let effectiveBranchId = workflowData.branchId; // Default to webhook's branch ID
 
             if (workflowData.agencyRef) {
                 try {
@@ -320,7 +321,11 @@ class AltoTDSOrchestrator {
 
                     if (orgMappingResponse.data.success) {
                         environment = orgMappingResponse.data.environment || 'development';
+                        // ✅ Use organization mapping's branch ID (handles DEFAULT wildcard)
+                        effectiveBranchId = orgMappingResponse.data.organizationBranchId || workflowData.branchId;
+
                         this.context.log(`📊 Using environment from org mapping: ${environment}`);
+                        this.context.log(`🔑 Using branch ID from org mapping: ${effectiveBranchId}`);
                     }
                 } catch (error) {
                     this.context.log.warn('Could not determine environment from org mapping, using default:', error.message);
@@ -333,7 +338,7 @@ class AltoTDSOrchestrator {
                 {
                     environment,
                     agencyRef: workflowData.agencyRef,
-                    branchId: workflowData.branchId,
+                    branchId: effectiveBranchId,  // ✅ Use organization mapping's branch ID
                     testMode: workflowData.testMode || false,        // Pass test mode flag
                     testConfig: workflowData.testConfig || {}        // Pass test configuration
                 },

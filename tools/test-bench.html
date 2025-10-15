@@ -734,6 +734,9 @@
         </div>
     </div>
 
+    <!-- XSS Protection: Safe DOM Rendering Utility -->
+    <script src="safe-render.js"></script>
+
     <script>
         // API Configuration - will be updated from input field
         let API_BASE = 'http://localhost:7071/api';
@@ -901,20 +904,30 @@
         /**
          * Render authentication UI
          * Shows login button or user info based on auth state
+         * ✅ XSS Protection: Uses safe-render.js functions
          */
         function renderAuthUI(isAuthenticated) {
             const authSection = document.getElementById('authSection');
 
+            // ✅ XSS Protection: Clear container safely
+            authSection.innerHTML = '';
+
             if (!isAuthenticated) {
-                authSection.innerHTML = `
-                    <button onclick="login()" class="btn-primary" style="padding: var(--space-sm) var(--space-md);">
-                        🔐 Login with Microsoft
-                    </button>
-                    <p style="margin: var(--space-xs) 0 0 0; font-size: 0.8rem; color: var(--text-tertiary);">
-                        Required for PII decryption
-                    </p>
-                `;
+                // Create login button (safe - no user data)
+                const loginBtn = document.createElement('button');
+                loginBtn.onclick = login;
+                loginBtn.className = 'btn-primary';
+                loginBtn.style.padding = 'var(--space-sm) var(--space-md)';
+                loginBtn.textContent = '🔐 Login with Microsoft';
+
+                const helpText = safeCreateElement('p', 'Required for PII decryption', {
+                    style: { margin: 'var(--space-xs) 0 0 0', fontSize: '0.8rem', color: 'var(--text-tertiary)' }
+                });
+
+                authSection.appendChild(loginBtn);
+                authSection.appendChild(helpText);
             } else {
+                // ✅ XSS Protection: Create role badges safely
                 const rolesBadges = currentUser.roles.map(role => {
                     const colors = {
                         admin: '#4caf50',
@@ -922,25 +935,56 @@
                         viewer: '#ff9800'
                     };
                     const color = colors[role] || '#757575';
-                    return `<span style="display: inline-block; padding: 2px 8px; background: ${color}; color: white; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 4px;">${role.toUpperCase()}</span>`;
-                }).join('');
+                    return safeCreateElement('span', role.toUpperCase(), {
+                        style: {
+                            display: 'inline-block',
+                            padding: '2px 8px',
+                            background: color,
+                            color: 'white',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            marginLeft: '4px'
+                        }
+                    });
+                });
 
-                authSection.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: var(--space-sm);">
-                        <div style="text-align: right;">
-                            <div style="font-weight: 600; color: var(--text-primary);">
-                                ${currentUser.name || currentUser.username || currentUser.email}
-                                ${rolesBadges}
-                            </div>
-                            <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 2px;">
-                                ${currentUser.email || currentUser.username}
-                            </div>
-                        </div>
-                        <button onclick="logout()" class="btn-secondary" style="padding: var(--space-xs) var(--space-sm); font-size: 0.9rem;">
-                            Logout
-                        </button>
-                    </div>
-                `;
+                // Create user info container
+                const container = document.createElement('div');
+                container.style.display = 'flex';
+                container.style.alignItems = 'center';
+                container.style.gap = 'var(--space-sm)';
+
+                const userInfoDiv = document.createElement('div');
+                userInfoDiv.style.textAlign = 'right';
+
+                // User name with badges (✅ XSS Protection: textContent used)
+                const nameDiv = document.createElement('div');
+                nameDiv.style.fontWeight = '600';
+                nameDiv.style.color = 'var(--text-primary)';
+                const userName = safeCreateElement('span', currentUser.name || currentUser.username || currentUser.email);
+                nameDiv.appendChild(userName);
+                rolesBadges.forEach(badge => nameDiv.appendChild(badge));
+
+                // User email (✅ XSS Protection: safeCreateElement used)
+                const emailDiv = safeCreateElement('div', currentUser.email || currentUser.username, {
+                    style: { fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '2px' }
+                });
+
+                userInfoDiv.appendChild(nameDiv);
+                userInfoDiv.appendChild(emailDiv);
+
+                // Logout button (safe - no user data)
+                const logoutBtn = document.createElement('button');
+                logoutBtn.onclick = logout;
+                logoutBtn.className = 'btn-secondary';
+                logoutBtn.style.padding = 'var(--space-xs) var(--space-sm)';
+                logoutBtn.style.fontSize = '0.9rem';
+                logoutBtn.textContent = 'Logout';
+
+                container.appendChild(userInfoDiv);
+                container.appendChild(logoutBtn);
+                authSection.appendChild(container);
             }
         }
 
@@ -1205,6 +1249,7 @@
         }
 
         // Quick Test Functions
+        // ✅ XSS Protection: Uses safe-render.js functions
         async function runQuickTest() {
             const btn = document.getElementById('quickTestBtn');
             const status = document.getElementById('quickTestStatus');
@@ -1222,19 +1267,37 @@
                 status.textContent = result.success ? 'Success!' : 'Failed';
 
                 resultDiv.style.display = 'block';
-                resultDiv.innerHTML = result.success
-                    ? `<div class="result-success">
-                        ✓ Success!<br>
-                        <strong>DAN:</strong> ${result.dan || 'N/A'}<br>
-                        <strong>Tenancy ID:</strong> ${result.tenancyId}<br>
-                        <strong>Deposit ID:</strong> ${result.depositId || 'N/A'}<br>
-                        <strong>Time:</strong> ${(result.duration / 1000).toFixed(2)}s
-                       </div>`
-                    : `<div class="result-failed">
-                        ✗ Failed<br>
-                        <strong>Error:</strong> ${result.error || result.message}<br>
-                        <strong>Time:</strong> ${(result.duration / 1000).toFixed(2)}s
-                       </div>`;
+
+                // ✅ XSS Protection: Build result display using safe DOM creation
+                const resultContainer = document.createElement('div');
+                resultContainer.className = result.success ? 'result-success' : 'result-failed';
+
+                if (result.success) {
+                    resultContainer.appendChild(document.createTextNode('✓ Success!'));
+                    resultContainer.appendChild(document.createElement('br'));
+                    resultContainer.appendChild(document.createElement('strong')).textContent = 'DAN: ';
+                    resultContainer.appendChild(safeCreateElement('span', result.dan || 'N/A'));
+                    resultContainer.appendChild(document.createElement('br'));
+                    resultContainer.appendChild(document.createElement('strong')).textContent = 'Tenancy ID: ';
+                    resultContainer.appendChild(safeCreateElement('span', result.tenancyId));
+                    resultContainer.appendChild(document.createElement('br'));
+                    resultContainer.appendChild(document.createElement('strong')).textContent = 'Deposit ID: ';
+                    resultContainer.appendChild(safeCreateElement('span', result.depositId || 'N/A'));
+                    resultContainer.appendChild(document.createElement('br'));
+                    resultContainer.appendChild(document.createElement('strong')).textContent = 'Time: ';
+                    resultContainer.appendChild(safeCreateElement('span', (result.duration / 1000).toFixed(2) + 's'));
+                } else {
+                    resultContainer.appendChild(document.createTextNode('✗ Failed'));
+                    resultContainer.appendChild(document.createElement('br'));
+                    resultContainer.appendChild(document.createElement('strong')).textContent = 'Error: ';
+                    resultContainer.appendChild(safeCreateElement('span', result.error || result.message));
+                    resultContainer.appendChild(document.createElement('br'));
+                    resultContainer.appendChild(document.createElement('strong')).textContent = 'Time: ';
+                    resultContainer.appendChild(safeCreateElement('span', (result.duration / 1000).toFixed(2) + 's'));
+                }
+
+                resultDiv.innerHTML = '';
+                resultDiv.appendChild(resultContainer);
 
                 // Refresh results
                 setTimeout(loadResults, 1000);
@@ -1243,13 +1306,24 @@
                 status.textContent = 'Error';
 
                 resultDiv.style.display = 'block';
-                resultDiv.innerHTML = `<div class="result-failed">
-                    ✗ Connection Error<br>
-                    <strong>Error:</strong> ${error.message}<br>
-                    <strong>URL:</strong> ${API_BASE}/workflows/alto-tds<br>
-                    <br>
-                    <small>Check the API Configuration section above and click "Test Connection"</small>
-                </div>`;
+
+                // ✅ XSS Protection: Build error display safely
+                const errorContainer = document.createElement('div');
+                errorContainer.className = 'result-failed';
+                errorContainer.appendChild(document.createTextNode('✗ Connection Error'));
+                errorContainer.appendChild(document.createElement('br'));
+                errorContainer.appendChild(document.createElement('strong')).textContent = 'Error: ';
+                errorContainer.appendChild(safeCreateElement('span', error.message));
+                errorContainer.appendChild(document.createElement('br'));
+                errorContainer.appendChild(document.createElement('strong')).textContent = 'URL: ';
+                errorContainer.appendChild(safeCreateElement('span', `${API_BASE}/workflows/alto-tds`));
+                errorContainer.appendChild(document.createElement('br'));
+                errorContainer.appendChild(document.createElement('br'));
+                const smallText = safeCreateElement('small', 'Check the API Configuration section above and click "Test Connection"');
+                errorContainer.appendChild(smallText);
+
+                resultDiv.innerHTML = '';
+                resultDiv.appendChild(errorContainer);
             } finally {
                 btn.disabled = false;
                 setTimeout(() => {
@@ -1398,6 +1472,7 @@
             }
         }
 
+        // ✅ XSS Protection: Uses safe-render.js functions
         function renderResults() {
             const tbody = document.getElementById('resultsTableBody');
             const empty = document.getElementById('resultsEmpty');
@@ -1431,7 +1506,13 @@
             }
 
             empty.style.display = 'none';
-            tbody.innerHTML = filteredResults.map(result => createResultRow(result)).join('');
+
+            // ✅ XSS Protection: Use safe DOM creation instead of innerHTML
+            tbody.innerHTML = '';
+            filteredResults.forEach(result => {
+                const row = createResultRow(result);
+                tbody.appendChild(row);
+            });
 
             // Add event listeners for action buttons
             tbody.querySelectorAll('.copy-dan-btn').forEach(btn => {
@@ -1443,41 +1524,82 @@
             });
         }
 
+        // ✅ XSS Protection: Create table rows using safe DOM methods
         function createResultRow(result) {
             const isTest = result.testMode === true || result.source === 'TEST_WEBHOOK';
             const isSuccess = result.integrationStatus === 'COMPLETED';
-            const testModeClass = isTest ? 'test-mode' : '';
-            const testBadge = isTest ? '<span class="test-badge">TEST</span>' : '';
 
-            const statusIcon = isSuccess
-                ? '<span class="status-icon success">✓</span>'
-                : '<span class="status-icon failed">✗</span>';
+            const row = document.createElement('tr');
+            if (isTest) {
+                row.className = 'test-mode';
+            }
 
+            // Status icon cell
+            const statusCell = document.createElement('td');
+            const statusIcon = safeCreateElement('span', isSuccess ? '✓' : '✗', {
+                className: `status-icon ${isSuccess ? 'success' : 'failed'}`
+            });
+            statusCell.appendChild(statusIcon);
+            row.appendChild(statusCell);
+
+            // Tenancy ID cell with test badge
+            const tenancyCell = safeCreateElement('td', result.tenancyId || 'N/A', { className: 'tenancy-id' });
+            if (isTest) {
+                const testBadge = safeCreateElement('span', 'TEST', { className: 'test-badge' });
+                tenancyCell.appendChild(testBadge);
+            }
+            row.appendChild(tenancyCell);
+
+            // DAN cell
+            row.appendChild(safeCreateElement('td', result.danNumber || 'N/A'));
+
+            // Deposit ID cell
+            row.appendChild(safeCreateElement('td', result.tdsDepositId || 'N/A'));
+
+            // Workflow ID cell
+            const workflowCell = safeCreateElement('td', result.workflowId || 'N/A');
+            workflowCell.style.fontFamily = 'var(--font-mono)';
+            workflowCell.style.fontSize = '0.85rem';
+            row.appendChild(workflowCell);
+
+            // Agency Ref cell
+            const agencyRefText = result.agencyRef ? result.agencyRef.substring(0, 8) + '...' : 'N/A';
+            const agencyCell = safeCreateElement('td', agencyRefText);
+            agencyCell.style.fontFamily = 'var(--font-mono)';
+            agencyCell.style.fontSize = '0.85rem';
+            row.appendChild(agencyCell);
+
+            // Branch ID cell
+            row.appendChild(safeCreateElement('td', result.branchId || 'N/A'));
+
+            // Source cell
+            row.appendChild(safeCreateElement('td', result.source || 'N/A'));
+
+            // Processing time cell
             const processingTime = result.processingTimeMs
                 ? (result.processingTimeMs / 1000).toFixed(2) + 's'
                 : 'N/A';
+            row.appendChild(safeCreateElement('td', processingTime));
 
+            // Timestamp cell
             const timestamp = result.completedAt
                 ? new Date(result.completedAt).toLocaleString()
                 : 'N/A';
+            row.appendChild(safeCreateElement('td', timestamp));
 
-            return `
-                <tr class="${testModeClass}">
-                    <td>${statusIcon}</td>
-                    <td class="tenancy-id">${result.tenancyId || 'N/A'}${testBadge}</td>
-                    <td>${result.danNumber || 'N/A'}</td>
-                    <td>${result.tdsDepositId || 'N/A'}</td>
-                    <td style="font-family: var(--font-mono); font-size: 0.85rem;">${result.workflowId || 'N/A'}</td>
-                    <td style="font-family: var(--font-mono); font-size: 0.85rem;">${result.agencyRef ? result.agencyRef.substring(0, 8) + '...' : 'N/A'}</td>
-                    <td>${result.branchId || 'N/A'}</td>
-                    <td>${result.source || 'N/A'}</td>
-                    <td>${processingTime}</td>
-                    <td>${timestamp}</td>
-                    <td>
-                        ${result.danNumber ? `<button class="icon-btn copy-dan-btn" data-dan="${result.danNumber}" title="Copy DAN">📋</button>` : ''}
-                    </td>
-                </tr>
-            `;
+            // Actions cell
+            const actionsCell = document.createElement('td');
+            if (result.danNumber) {
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'icon-btn copy-dan-btn';
+                copyBtn.setAttribute('data-dan', result.danNumber);
+                copyBtn.title = 'Copy DAN';
+                copyBtn.textContent = '📋';
+                actionsCell.appendChild(copyBtn);
+            }
+            row.appendChild(actionsCell);
+
+            return row;
         }
 
         function filterResults() {

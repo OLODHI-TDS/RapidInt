@@ -1134,9 +1134,8 @@
             const actionsCell = document.createElement('td');
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'action-buttons';
-            // Note: getActionButtons() returns HTML string - we'll use innerHTML here but the
-            // function should be refactored separately to return DOM elements
-            actionsDiv.innerHTML = getActionButtons(org, index);
+            // ✅ XSS Protection: getActionButtons now returns DOM elements
+            actionsDiv.appendChild(getActionButtons(org, index));
             actionsCell.appendChild(actionsDiv);
             tr.appendChild(actionsCell);
 
@@ -1202,27 +1201,37 @@
             return 'progress-danger';
         }
 
+        // ✅ XSS Protection: Return DOM elements instead of HTML strings
         function getActionButtons(org, index) {
-            const escapedOrgName = (org.organizationName || '').replace(/'/g, "\\'");
-            const escapedEnv = (org.environment || '').replace(/'/g, "\\'");
-            const escapedIntType = (org.integrationType || '').replace(/'/g, "\\'");
+            const container = document.createDocumentFragment();
 
-            let buttons = `
-                <button class="icon-btn" onclick='editOrganizationMappingByIndex(${index})' title="Edit">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11.5 2.5l2 2L6 12H4v-2l7.5-7.5z" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M10 4l2 2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </button>
-                <button class="icon-btn" onclick="deleteOrganizationMapping('${escapedOrgName}', '${escapedEnv}', '${escapedIntType}')" title="Delete">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M2 4h12M5.5 4V2.5A1.5 1.5 0 0 1 7 1h2a1.5 1.5 0 0 1 1.5 1.5V4m2 0v10a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 2.5 14V4" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M6.5 7.5v4M9.5 7.5v4" stroke-linecap="round"/>
-                    </svg>
-                </button>
-            `;
+            // Edit button
+            const editBtn = document.createElement('button');
+            editBtn.className = 'icon-btn';
+            editBtn.title = 'Edit';
+            editBtn.onclick = () => editOrganizationMappingByIndex(index);
+            editBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11.5 2.5l2 2L6 12H4v-2l7.5-7.5z" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 4l2 2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>`;
+            container.appendChild(editBtn);
 
-            return buttons;
+            // Delete button (store data in dataset instead of inline onclick)
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'icon-btn';
+            deleteBtn.title = 'Delete';
+            deleteBtn.onclick = () => deleteOrganizationMapping(
+                org.organizationName || '',
+                org.environment || '',
+                org.integrationType || ''
+            );
+            deleteBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 4h12M5.5 4V2.5A1.5 1.5 0 0 1 7 1h2a1.5 1.5 0 0 1 1.5 1.5V4m2 0v10a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 2.5 14V4" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6.5 7.5v4M9.5 7.5v4" stroke-linecap="round"/>
+            </svg>`;
+            container.appendChild(deleteBtn);
+
+            return container;
         }
 
         function editOrganizationMappingByIndex(index) {
@@ -1427,9 +1436,12 @@
             document.getElementById('tableContainer').style.display = 'block';
         }
 
+        // ✅ XSS Protection: Use safe DOM creation for error messages
         function showError(message) {
             const errorContainer = document.getElementById('errorContainer');
-            errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+            errorContainer.innerHTML = '';
+            const errorDiv = safeCreateElement('div', message, { className: 'error-message' });
+            errorContainer.appendChild(errorDiv);
         }
 
         function hideError() {
@@ -2578,6 +2590,7 @@
 
         /**
          * Show TDS Settings Result
+         * ✅ XSS Protection: Uses safe DOM creation
          */
         function showTDSResult(result, type) {
             const resultDiv = document.getElementById('tds-settings-result');
@@ -2596,18 +2609,17 @@
                 info: '#0c5460'
             };
 
-            resultDiv.innerHTML = `
-                <div style="
-                    padding: 15px;
-                    border-radius: 8px;
-                    background: ${bgColors[type] || bgColors.info};
-                    color: ${textColors[type] || textColors.info};
-                    border: 1px solid ${textColors[type] || textColors.info}20;
-                    white-space: pre-wrap;
-                ">
-                    ${result.message}
-                </div>
-            `;
+            // ✅ XSS Protection: Create result container safely
+            resultDiv.innerHTML = '';
+            const messageDiv = document.createElement('div');
+            messageDiv.style.padding = '15px';
+            messageDiv.style.borderRadius = '8px';
+            messageDiv.style.background = bgColors[type] || bgColors.info;
+            messageDiv.style.color = textColors[type] || textColors.info;
+            messageDiv.style.border = `1px solid ${textColors[type] || textColors.info}20`;
+            messageDiv.style.whiteSpace = 'pre-wrap';
+            messageDiv.textContent = result.message; // ✅ Safe: textContent auto-escapes
+            resultDiv.appendChild(messageDiv);
 
             // Auto-hide after 5 seconds for success messages
             if (type === 'success' || type === 'info') {

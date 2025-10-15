@@ -2109,43 +2109,87 @@
 
                 if (result.success) {
                     const integration = result.integration;
+
+                    // ✅ XSS Protection: Build modal using safe DOM methods
                     const modal = document.createElement('div');
                     modal.className = 'audit-modal';
-                    modal.innerHTML = `
-                        <div class="audit-modal-content">
-                            <div class="audit-modal-header">
-                                <h3>Pending Integration Details - ${integration.tenancyId}</h3>
-                                <button class="close-modal" onclick="this.closest('.audit-modal').remove()">&times;</button>
-                            </div>
-                            <div class="audit-modal-body">
-                                <div class="audit-detail-grid">
-                                    <div><strong>ID:</strong> ${integration.id}</div>
-                                    <div><strong>Status:</strong> <span class="status-badge ${integration.integrationStatus.toLowerCase().replace('_', '-')}">${integration.integrationStatus}</span></div>
-                                    <div><strong>Tenancy ID:</strong> ${integration.tenancyId}</div>
-                                    <div><strong>Agency Ref:</strong> ${integration.agencyRef}</div>
-                                    <div><strong>Branch ID:</strong> ${integration.branchId}</div>
-                                    <div><strong>Poll Count:</strong> ${integration.pollCount}/${integration.maxPollCount}</div>
-                                    <div><strong>Next Poll:</strong> ${formatDateTime(integration.nextPollAt)}</div>
-                                    <div><strong>Last Polled:</strong> ${formatDateTime(integration.lastPolledAt)}</div>
-                                    <div><strong>Created:</strong> ${formatDateTime(integration.createdAt)}</div>
-                                    <div class="error-detail"><strong>Pending Reason:</strong> ${integration.pendingReason}</div>
-                                </div>
-                                ${integration.missingFields ? `
-                                    <div class="full-result">
-                                        <h4>Missing Fields:</h4>
-                                        <pre>${JSON.stringify(integration.missingFields, null, 2)}</pre>
-                                    </div>
-                                ` : ''}
-                                ${integration.webhookData ? `
-                                    <div class="full-result">
-                                        <h4>Webhook Data:</h4>
-                                        <pre>${JSON.stringify(integration.webhookData, null, 2)}</pre>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `;
 
+                    const modalContent = document.createElement('div');
+                    modalContent.className = 'audit-modal-content';
+
+                    // Header
+                    const header = document.createElement('div');
+                    header.className = 'audit-modal-header';
+                    const title = document.createElement('h3');
+                    title.appendChild(document.createTextNode('Pending Integration Details - '));
+                    title.appendChild(safeCreateElement('span', integration.tenancyId));
+                    header.appendChild(title);
+
+                    const closeBtn = document.createElement('button');
+                    closeBtn.className = 'close-modal';
+                    closeBtn.textContent = '×';
+                    closeBtn.onclick = () => modal.remove();
+                    header.appendChild(closeBtn);
+                    modalContent.appendChild(header);
+
+                    // Body
+                    const body = document.createElement('div');
+                    body.className = 'audit-modal-body';
+
+                    const detailGrid = document.createElement('div');
+                    detailGrid.className = 'audit-detail-grid';
+
+                    // Helper to create detail row
+                    const addDetail = (label, value, className = '') => {
+                        const div = document.createElement('div');
+                        if (className) div.className = className;
+                        div.appendChild(document.createElement('strong')).textContent = label + ': ';
+                        div.appendChild(safeCreateElement('span', value));
+                        detailGrid.appendChild(div);
+                    };
+
+                    addDetail('ID', integration.id);
+
+                    // Status with badge
+                    const statusDiv = document.createElement('div');
+                    statusDiv.appendChild(document.createElement('strong')).textContent = 'Status: ';
+                    const statusBadge = safeCreateElement('span', integration.integrationStatus, {
+                        className: `status-badge ${integration.integrationStatus.toLowerCase().replace('_', '-')}`
+                    });
+                    statusDiv.appendChild(statusBadge);
+                    detailGrid.appendChild(statusDiv);
+
+                    addDetail('Tenancy ID', integration.tenancyId);
+                    addDetail('Agency Ref', integration.agencyRef);
+                    addDetail('Branch ID', integration.branchId);
+                    addDetail('Poll Count', `${integration.pollCount}/${integration.maxPollCount}`);
+                    addDetail('Next Poll', formatDateTime(integration.nextPollAt));
+                    addDetail('Last Polled', formatDateTime(integration.lastPolledAt));
+                    addDetail('Created', formatDateTime(integration.createdAt));
+                    addDetail('Pending Reason', integration.pendingReason, 'error-detail');
+
+                    body.appendChild(detailGrid);
+
+                    // Missing fields if present
+                    if (integration.missingFields) {
+                        const missingDiv = document.createElement('div');
+                        missingDiv.className = 'full-result';
+                        missingDiv.appendChild(document.createElement('h4')).textContent = 'Missing Fields:';
+                        missingDiv.appendChild(safeCreateElement('pre', JSON.stringify(integration.missingFields, null, 2)));
+                        body.appendChild(missingDiv);
+                    }
+
+                    // Webhook data if present
+                    if (integration.webhookData) {
+                        const webhookDiv = document.createElement('div');
+                        webhookDiv.className = 'full-result';
+                        webhookDiv.appendChild(document.createElement('h4')).textContent = 'Webhook Data:';
+                        webhookDiv.appendChild(safeCreateElement('pre', JSON.stringify(integration.webhookData, null, 2)));
+                        body.appendChild(webhookDiv);
+                    }
+
+                    modalContent.appendChild(body);
+                    modal.appendChild(modalContent);
                     document.body.appendChild(modal);
                 } else {
                     showToast('Failed to load integration details', 'error');
@@ -2278,22 +2322,49 @@
             const endIndex = Math.min(startIndex + archivePageSize, archiveTotalEntries);
             const pageEntries = currentArchiveData.slice(startIndex, endIndex);
 
-            tableBody.innerHTML = pageEntries.map(item => `
-                <tr>
-                    <td>${item.tenancyId || 'N/A'}</td>
-                    <td><span class="status-badge ${(item.integrationStatus || '').toLowerCase()}">${item.integrationStatus || 'UNKNOWN'}</span></td>
-                    <td>${item.source || (item.failedStep ? `Failed at: ${item.failedStep}` : 'N/A')}</td>
-                    <td>${formatDateTime(item.startedAt || item.timestamp)}</td>
-                    <td>${formatDateTime(item.completedAt || item.timestamp)}</td>
-                    <td>${item.completedSteps || 0}/${item.totalSteps || 0}</td>
-                    <td>${item.tdsDepositId || item.danNumber || 'N/A'}</td>
-                    <td>
-                        <button class="btn btn-secondary btn-sm" onclick='viewArchivedIntegrationDetails(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
-                            View
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
+            // ✅ XSS Protection: Build table rows using safe DOM methods
+            tableBody.innerHTML = '';
+            pageEntries.forEach(item => {
+                const row = document.createElement('tr');
+
+                // Tenancy ID cell
+                row.appendChild(safeCreateElement('td', item.tenancyId || 'N/A'));
+
+                // Status badge cell
+                const statusCell = document.createElement('td');
+                const statusBadge = safeCreateElement('span', item.integrationStatus || 'UNKNOWN', {
+                    className: `status-badge ${(item.integrationStatus || '').toLowerCase()}`
+                });
+                statusCell.appendChild(statusBadge);
+                row.appendChild(statusCell);
+
+                // Source cell (with failedStep if present)
+                const sourceText = item.source || (item.failedStep ? `Failed at: ${item.failedStep}` : 'N/A');
+                row.appendChild(safeCreateElement('td', sourceText));
+
+                // Started time cell
+                row.appendChild(safeCreateElement('td', formatDateTime(item.startedAt || item.timestamp)));
+
+                // Completed time cell
+                row.appendChild(safeCreateElement('td', formatDateTime(item.completedAt || item.timestamp)));
+
+                // Steps cell
+                row.appendChild(safeCreateElement('td', `${item.completedSteps || 0}/${item.totalSteps || 0}`));
+
+                // Deposit ID cell
+                row.appendChild(safeCreateElement('td', item.tdsDepositId || item.danNumber || 'N/A'));
+
+                // Actions cell with view button
+                const actionsCell = document.createElement('td');
+                const viewBtn = document.createElement('button');
+                viewBtn.className = 'btn btn-secondary btn-sm';
+                viewBtn.textContent = 'View';
+                viewBtn.onclick = () => viewArchivedIntegrationDetails(item);
+                actionsCell.appendChild(viewBtn);
+                row.appendChild(actionsCell);
+
+                tableBody.appendChild(row);
+            });
 
             // Update pagination UI
             updateArchivePaginationUI(totalPages, startIndex, endIndex);
@@ -2354,58 +2425,121 @@
             `;
         }
 
+        // ✅ XSS Protection: Build modal using safe DOM methods
         function viewArchivedIntegrationDetails(integration) {
             const modal = document.createElement('div');
             modal.className = 'audit-modal';
             modal.style.display = 'flex';
             modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
-            modal.innerHTML = `
-                <div class="audit-modal-content">
-                    <div class="audit-modal-header">
-                        <h3>Integration Details - ${integration.tenancyId}</h3>
-                        <button class="close-modal" onclick="this.closest('.audit-modal').remove()">&times;</button>
-                    </div>
-                    <div class="audit-modal-body">
-                        <div class="audit-detail-grid">
-                            <div><strong>Status:</strong> <span class="status-badge ${(integration.integrationStatus || '').toLowerCase()}">${integration.integrationStatus}</span></div>
-                            <div><strong>Tenancy ID:</strong> ${integration.tenancyId}</div>
-                            <div><strong>Agency Ref:</strong> ${integration.agencyRef || 'N/A'}</div>
-                            <div><strong>Branch ID:</strong> ${integration.branchId || 'N/A'}</div>
-                            <div><strong>Source:</strong> ${integration.source || 'N/A'}</div>
-                            <div><strong>Workflow ID:</strong> ${integration.workflowId || 'N/A'}</div>
-                            <div><strong>Deposit ID:</strong> ${integration.tdsDepositId || 'N/A'}</div>
-                            <div><strong>DAN Number:</strong> ${integration.danNumber || 'N/A'}</div>
-                            <div><strong>Started:</strong> ${formatDateTime(integration.startedAt || integration.timestamp)}</div>
-                            <div><strong>Completed:</strong> ${formatDateTime(integration.completedAt || integration.timestamp)}</div>
-                            <div><strong>Processing Time:</strong> ${integration.processingTimeMs ? integration.processingTimeMs + 'ms' : 'N/A'}</div>
-                            <div><strong>Steps:</strong> ${integration.completedSteps || 0} / ${integration.totalSteps || 0}</div>
-                            ${integration.failedStep ? `<div class="error-detail"><strong>Failed Step:</strong> ${integration.failedStep}</div>` : ''}
-                            ${integration.failureReason ? `<div class="error-detail"><strong>Failure Reason:</strong> ${integration.failureReason}</div>` : ''}
-                            ${integration.failureDescription ? `<div class="error-detail"><strong>Failure Description:</strong> ${integration.failureDescription}</div>` : ''}
-                        </div>
-                        ${integration.workflowSteps && integration.workflowSteps.length > 0 ? `
-                            <div class="full-result">
-                                <strong>Workflow Steps:</strong>
-                                <pre>${JSON.stringify(integration.workflowSteps, null, 2)}</pre>
-                            </div>
-                        ` : ''}
-                        ${integration.tdsResponse ? `
-                            <div class="full-result">
-                                <strong>TDS Response:</strong>
-                                <pre>${JSON.stringify(integration.tdsResponse, null, 2)}</pre>
-                            </div>
-                        ` : ''}
-                        ${integration.lastError ? `
-                            <div class="full-result error-detail">
-                                <strong>Error Details:</strong>
-                                <pre>${JSON.stringify(integration.lastError, null, 2)}</pre>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
+            // Create modal content container
+            const modalContent = document.createElement('div');
+            modalContent.className = 'audit-modal-content';
 
+            // Create header
+            const header = document.createElement('div');
+            header.className = 'audit-modal-header';
+            const title = document.createElement('h3');
+            title.appendChild(document.createTextNode('Integration Details - '));
+            title.appendChild(safeCreateElement('span', integration.tenancyId));
+            header.appendChild(title);
+
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'close-modal';
+            closeBtn.textContent = '×';
+            closeBtn.onclick = () => modal.remove();
+            header.appendChild(closeBtn);
+
+            modalContent.appendChild(header);
+
+            // Create body
+            const body = document.createElement('div');
+            body.className = 'audit-modal-body';
+
+            // Create detail grid
+            const detailGrid = document.createElement('div');
+            detailGrid.className = 'audit-detail-grid';
+
+            // Helper function to create detail row
+            const createDetailRow = (label, value, className = '') => {
+                const div = document.createElement('div');
+                if (className) div.className = className;
+                div.appendChild(document.createElement('strong')).textContent = label + ': ';
+                if (typeof value === 'string' || typeof value === 'number') {
+                    div.appendChild(safeCreateElement('span', value));
+                } else {
+                    div.appendChild(value); // Already an element
+                }
+                return div;
+            };
+
+            // Status with badge
+            const statusDiv = document.createElement('div');
+            statusDiv.appendChild(document.createElement('strong')).textContent = 'Status: ';
+            const statusBadge = safeCreateElement('span', integration.integrationStatus, {
+                className: `status-badge ${(integration.integrationStatus || '').toLowerCase()}`
+            });
+            statusDiv.appendChild(statusBadge);
+            detailGrid.appendChild(statusDiv);
+
+            // Add all detail rows
+            detailGrid.appendChild(createDetailRow('Tenancy ID', integration.tenancyId));
+            detailGrid.appendChild(createDetailRow('Agency Ref', integration.agencyRef || 'N/A'));
+            detailGrid.appendChild(createDetailRow('Branch ID', integration.branchId || 'N/A'));
+            detailGrid.appendChild(createDetailRow('Source', integration.source || 'N/A'));
+            detailGrid.appendChild(createDetailRow('Workflow ID', integration.workflowId || 'N/A'));
+            detailGrid.appendChild(createDetailRow('Deposit ID', integration.tdsDepositId || 'N/A'));
+            detailGrid.appendChild(createDetailRow('DAN Number', integration.danNumber || 'N/A'));
+            detailGrid.appendChild(createDetailRow('Started', formatDateTime(integration.startedAt || integration.timestamp)));
+            detailGrid.appendChild(createDetailRow('Completed', formatDateTime(integration.completedAt || integration.timestamp)));
+            detailGrid.appendChild(createDetailRow('Processing Time', integration.processingTimeMs ? integration.processingTimeMs + 'ms' : 'N/A'));
+            detailGrid.appendChild(createDetailRow('Steps', `${integration.completedSteps || 0} / ${integration.totalSteps || 0}`));
+
+            // Error details if present
+            if (integration.failedStep) {
+                detailGrid.appendChild(createDetailRow('Failed Step', integration.failedStep, 'error-detail'));
+            }
+            if (integration.failureReason) {
+                detailGrid.appendChild(createDetailRow('Failure Reason', integration.failureReason, 'error-detail'));
+            }
+            if (integration.failureDescription) {
+                detailGrid.appendChild(createDetailRow('Failure Description', integration.failureDescription, 'error-detail'));
+            }
+
+            body.appendChild(detailGrid);
+
+            // Workflow steps if present
+            if (integration.workflowSteps && integration.workflowSteps.length > 0) {
+                const workflowDiv = document.createElement('div');
+                workflowDiv.className = 'full-result';
+                workflowDiv.appendChild(document.createElement('strong')).textContent = 'Workflow Steps:';
+                const pre = safeCreateElement('pre', JSON.stringify(integration.workflowSteps, null, 2));
+                workflowDiv.appendChild(pre);
+                body.appendChild(workflowDiv);
+            }
+
+            // TDS Response if present
+            if (integration.tdsResponse) {
+                const tdsDiv = document.createElement('div');
+                tdsDiv.className = 'full-result';
+                tdsDiv.appendChild(document.createElement('strong')).textContent = 'TDS Response:';
+                const pre = safeCreateElement('pre', JSON.stringify(integration.tdsResponse, null, 2));
+                tdsDiv.appendChild(pre);
+                body.appendChild(tdsDiv);
+            }
+
+            // Error details if present
+            if (integration.lastError) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'full-result error-detail';
+                errorDiv.appendChild(document.createElement('strong')).textContent = 'Error Details:';
+                const pre = safeCreateElement('pre', JSON.stringify(integration.lastError, null, 2));
+                errorDiv.appendChild(pre);
+                body.appendChild(errorDiv);
+            }
+
+            modalContent.appendChild(body);
+            modal.appendChild(modalContent);
             document.body.appendChild(modal);
         }
 
@@ -2561,6 +2695,7 @@
             const tableBody = document.querySelector('#audit-table tbody') || createAuditTableBody();
             tableBody.innerHTML = '';
 
+            // ✅ XSS Protection: Build table rows using safe DOM methods
             pageEntries.forEach(entry => {
                 const row = document.createElement('tr');
                 // Set row class based on status
@@ -2575,18 +2710,44 @@
                 const stepsInfo = entry.steps > 0 ? `${entry.completedSteps}/${entry.steps}` : '-';
                 const errorText = entry.error ? (entry.error.length > 50 ? entry.error.substring(0, 50) + '...' : entry.error) : '-';
 
-                row.innerHTML = `
-                    <td>${new Date(entry.timestamp).toLocaleString()}</td>
-                    <td>${entry.tenancyId}</td>
-                    <td><span class="status-badge ${entry.status.toLowerCase()}">${entry.status}</span></td>
-                    <td>${entry.dan}</td>
-                    <td>${entry.processingTime}</td>
-                    <td>${stepsInfo}</td>
-                    <td title="${entry.error}">${errorText}</td>
-                    <td>
-                        <button class="btn btn-secondary btn-sm" onclick="viewAuditDetails('${entry.workflowId || entry.timestamp}')">View</button>
-                    </td>
-                `;
+                // Timestamp cell
+                row.appendChild(safeCreateElement('td', new Date(entry.timestamp).toLocaleString()));
+
+                // Tenancy ID cell
+                row.appendChild(safeCreateElement('td', entry.tenancyId));
+
+                // Status badge cell
+                const statusCell = document.createElement('td');
+                const statusBadge = safeCreateElement('span', entry.status, {
+                    className: `status-badge ${entry.status.toLowerCase()}`
+                });
+                statusCell.appendChild(statusBadge);
+                row.appendChild(statusCell);
+
+                // DAN cell
+                row.appendChild(safeCreateElement('td', entry.dan));
+
+                // Processing time cell
+                row.appendChild(safeCreateElement('td', entry.processingTime));
+
+                // Steps info cell
+                row.appendChild(safeCreateElement('td', stepsInfo));
+
+                // Error text cell with title attribute
+                const errorCell = safeCreateElement('td', errorText);
+                if (entry.error) {
+                    errorCell.title = entry.error;
+                }
+                row.appendChild(errorCell);
+
+                // Actions cell with view button
+                const actionsCell = document.createElement('td');
+                const viewBtn = document.createElement('button');
+                viewBtn.className = 'btn btn-secondary btn-sm';
+                viewBtn.textContent = 'View';
+                viewBtn.onclick = () => viewAuditDetails(entry.workflowId || entry.timestamp);
+                actionsCell.appendChild(viewBtn);
+                row.appendChild(actionsCell);
 
                 tableBody.appendChild(row);
             });
@@ -3226,19 +3387,33 @@
                 if (result.success && result.data && result.data.stats && result.data.stats.length > 0) {
                     tbody.innerHTML = '';
 
+                    // ✅ XSS Protection: Build table rows using safe DOM methods
                     result.data.stats.forEach(stat => {
                         const row = document.createElement('tr');
                         const statusClass = stat.status === 'critical' ? 'status-badge failed' :
                                           stat.status === 'warning' ? 'status-badge pending' :
                                           'status-badge success';
 
-                        row.innerHTML = `
-                            <td>${stat.organizationId}</td>
-                            <td>${stat.current.minute} requests</td>
-                            <td>${stat.limits.minute} req/min</td>
-                            <td>${stat.usage.minutePercent}%</td>
-                            <td><span class="${statusClass}">${stat.status.toUpperCase()}</span></td>
-                        `;
+                        // Organization ID cell
+                        row.appendChild(safeCreateElement('td', stat.organizationId));
+
+                        // Current minute requests cell
+                        row.appendChild(safeCreateElement('td', `${stat.current.minute} requests`));
+
+                        // Limits cell
+                        row.appendChild(safeCreateElement('td', `${stat.limits.minute} req/min`));
+
+                        // Usage percentage cell
+                        row.appendChild(safeCreateElement('td', `${stat.usage.minutePercent}%`));
+
+                        // Status badge cell
+                        const statusCell = document.createElement('td');
+                        const statusBadge = safeCreateElement('span', stat.status.toUpperCase(), {
+                            className: statusClass
+                        });
+                        statusCell.appendChild(statusBadge);
+                        row.appendChild(statusCell);
+
                         tbody.appendChild(row);
                     });
 
