@@ -57,8 +57,8 @@
             border-color: var(--glass-border-heavy);
         }
 
-        .integration-box.alto { border-left: 4px solid var(--color-gray-300); }
-        .integration-box.jupix { opacity: 0.6; }
+        .integration-box.legacy-bridge { border-left: 4px solid var(--color-success); }
+        .integration-box.alto { border-left: 4px solid var(--color-warning); }
         .integration-box.reapit { opacity: 0.6; }
 
         .central-services {
@@ -288,13 +288,13 @@
                 <p>Active and planned property management system connections</p>
 
                 <div class="architecture-diagram">
+                    <div class="integration-box legacy-bridge" onclick="openLegacyBridge()" style="cursor: pointer;">
+                        <h3>Legacy to Salesforce Bridge</h3>
+                        <p>In Development</p>
+                    </div>
                     <div class="integration-box alto" onclick="openAltoDashboard()" style="cursor: pointer;">
                         <h3>Alto</h3>
                         <p>In Development</p>
-                    </div>
-                    <div class="integration-box jupix">
-                        <h3>PayProp</h3>
-                        <p>Planned</p>
                     </div>
                     <div class="integration-box reapit">
                         <h3>Vision+</h3>
@@ -379,6 +379,11 @@
 
             event.target.classList.add('tab-active');
             document.getElementById(tabName).classList.add('tab-content-active');
+        }
+
+        function openLegacyBridge() {
+            // Navigate to the Legacy to Salesforce Bridge dashboard
+            window.location.href = 'legacy-api-monitor.html';
         }
 
         function openAltoDashboard() {

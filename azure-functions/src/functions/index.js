@@ -13,6 +13,7 @@ require('./PollingSettings');
 require('./TDSSettings');
 require('./AltoSettings');
 require('./Auth');
+require('./LegacyAPIGateway');
 
 // Simple test function
 app.http('test', {

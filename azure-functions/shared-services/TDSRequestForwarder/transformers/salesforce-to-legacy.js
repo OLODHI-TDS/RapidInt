@@ -53,8 +53,8 @@ function transformSalesforceToLegacy(salesforceResponse, context) {
     // TDS EWC API responses are already in snake_case format
     // We just need to convert data types (dates, booleans, numbers)
 
-    // Check if it's a success/error response
-    if (salesforceResponse.success !== undefined) {
+    // Check if it's a success/error response (Salesforce uses uppercase Success)
+    if (salesforceResponse.success !== undefined || salesforceResponse.Success !== undefined) {
       return transformSuccessErrorResponse(salesforceResponse, context);
     }
 
@@ -74,13 +74,18 @@ function transformSalesforceToLegacy(salesforceResponse, context) {
 
 /**
  * Transform Salesforce EWC success/error response
+ * Handles CreateDeposit response with DAN
  */
 function transformSuccessErrorResponse(salesforceResponse, context) {
   const legacyResponse = {
-    success: stringToBoolean(salesforceResponse.success),
+    success: stringToBoolean(salesforceResponse.success || salesforceResponse.Success),
     batch_id: salesforceResponse.batch_id || null,
+    dan: salesforceResponse.DAN || salesforceResponse.dan || null,
+    status: salesforceResponse.DAN ? 'created' : 'unknown',
     message: salesforceResponse.message || '',
     error: salesforceResponse.error || null,
+    errors: salesforceResponse.errors || [],
+    warnings: salesforceResponse.warnings || [],
     timestamp: new Date().toISOString()
   };
 

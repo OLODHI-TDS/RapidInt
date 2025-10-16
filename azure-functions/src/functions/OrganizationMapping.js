@@ -426,6 +426,7 @@ class OrganizationMappingService {
                         sfAuthMethod: entity.sfAuthMethod,
                         sfApiKey: entity.sfApiKey,
                         sfClientId: entity.sfClientId,
+                        sfClientSecret: entity.sfClientSecret,  // ← ADD THIS!
                         tdsProviderPreference: entity.tdsProviderPreference,
                         isActive: entity.isActive,
                         createdAt: entity.createdAt,

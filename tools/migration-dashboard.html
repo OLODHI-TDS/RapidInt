@@ -2387,40 +2387,51 @@
                     environment,
                     integrationType,
                     updatedOrganizationName: updatedOrgName,
-                    legacyMemberId,
-                    legacyBranchId,
-                    sfMemberId,
-                    sfBranchId,
-                    sfRegion,
-                    sfSchemeType,
-                    sfAuthMethod,
-                    tdsProviderPreference,
                     isActive
                 };
 
-                // Include integration credentials if present
-                if (agencyRef || branchId) {
-                    updateData.integrationCredentials = {
-                        alto: {
-                            agencyRef: agencyRef || '',
-                            branchId: branchId || 'DEFAULT'
-                        }
-                    };
+                // Only include fields if they have valid non-empty values
+                if (legacyMemberId && legacyMemberId.trim()) {
+                    updateData.legacyMemberId = legacyMemberId.trim();
+                }
+                if (legacyBranchId && legacyBranchId.trim()) {
+                    updateData.legacyBranchId = legacyBranchId.trim();
+                }
+                if (legacyApiKey && legacyApiKey.trim()) {
+                    updateData.legacyApiKey = legacyApiKey.trim();
+                }
+                if (sfMemberId && sfMemberId.trim()) {
+                    updateData.sfMemberId = sfMemberId.trim();
+                }
+                if (sfBranchId && sfBranchId.trim()) {
+                    updateData.sfBranchId = sfBranchId.trim();
+                }
+                if (sfRegion && sfRegion.trim()) {
+                    updateData.sfRegion = sfRegion.trim();
+                }
+                if (sfSchemeType && sfSchemeType.trim()) {
+                    updateData.sfSchemeType = sfSchemeType.trim();
+                }
+                if (sfAuthMethod && sfAuthMethod.trim()) {
+                    // Normalize api_key to api-key (validation schema expects hyphen)
+                    const normalizedAuthMethod = sfAuthMethod.trim().replace('_', '-');
+                    updateData.sfAuthMethod = normalizedAuthMethod;
+                }
+                if (sfApiKey && sfApiKey.trim()) {
+                    updateData.sfApiKey = sfApiKey.trim();
+                }
+                if (sfClientId && sfClientId.trim()) {
+                    updateData.sfClientId = sfClientId.trim();
+                }
+                if (sfClientSecret && sfClientSecret.trim()) {
+                    updateData.sfClientSecret = sfClientSecret.trim();
+                }
+                if (tdsProviderPreference && tdsProviderPreference.trim()) {
+                    updateData.tdsProviderPreference = tdsProviderPreference.trim();
                 }
 
-                // Only include keys if they were entered
-                if (legacyApiKey.trim()) {
-                    updateData.legacyApiKey = legacyApiKey;
-                }
-                if (sfApiKey.trim()) {
-                    updateData.sfApiKey = sfApiKey;
-                }
-                if (sfClientId.trim()) {
-                    updateData.sfClientId = sfClientId;
-                }
-                if (sfClientSecret.trim()) {
-                    updateData.sfClientSecret = sfClientSecret;
-                }
+                // Note: integrationCredentials are not supported in the update schema
+                // AgencyRef and BranchId should be updated separately if needed
 
                 const response = await fetch(`${API_BASE_URL}/organization/update`, {
                     method: 'PUT',

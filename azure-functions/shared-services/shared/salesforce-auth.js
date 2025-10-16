@@ -273,7 +273,9 @@ async function performTokenRefresh(context, clientId, clientSecret, baseUrl = nu
   // Determine auth URL (declare outside try block so it's accessible in catch)
   let authUrl = CONFIG.authUrl;
   if (baseUrl) {
-    authUrl = `${baseUrl}/authorise`;
+    // OAuth2 token endpoint does NOT use /auth/ prefix (it's the authentication endpoint itself)
+    // Only API endpoints like /depositcreation use /auth/ prefix for OAuth2
+    authUrl = `${baseUrl}/services/apexrest/authorise`;
   }
 
   try {
@@ -293,6 +295,17 @@ async function performTokenRefresh(context, clientId, clientSecret, baseUrl = nu
 
     const authCode = `${scheme}-${type}-${clientId}-${clientSecret}-${effectiveMemberId}`;
 
+    context?.log(`🔐 OAuth2 auth_code components:`, {
+      region,
+      scheme,
+      schemeType,
+      type,
+      memberId,
+      effectiveMemberId,
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret
+    });
+    context?.log(`🔐 OAuth2 auth_code format: [scheme]-[type]-[clientId]-[clientSecret]-[memberId]`);
     context?.log(`Requesting TDS OAuth2 token from: ${authUrl}`);
 
     // Make token request - TDS uses GET with auth_code header
