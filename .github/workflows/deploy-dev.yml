@@ -1,0 +1,59 @@
+name: Deploy to Azure (Dev Environment)
+
+# Trigger workflow on push to Dev branch
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+env:
+  AZURE_FUNCTIONAPP_NAME: 'rapidintdev-d0ccheegc3anfedn' # Replace with your Azure Function App name
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: './azure-functions'
+  NODE_VERSION: '18.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: 'Development'
+      url: 'https://rapidintdev-d0ccheegc3anfedn.uksouth-01.azurewebsites.net'
+
+    steps:
+    - name: 'Checkout GitHub Action'
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: 'Resolve Project Dependencies'
+      shell: bash
+      run: |
+        pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+        npm ci --production
+        popd
+
+    - name: 'Run Azure Functions Action'
+      uses: Azure/functions-action@v1
+      id: fa
+      with:
+        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+        package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_DEV }}
+
+    - name: 'Deployment Summary'
+      run: |
+        echo "### Deployment Successful! :rocket:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** Development" >> $GITHUB_STEP_SUMMARY
+        echo "**Function App:** ${{ env.AZURE_FUNCTIONAPP_NAME }}" >> $GITHUB_STEP_SUMMARY
+        echo "**URL:** https://rapidintdev-d0ccheegc3anfedn.uksouth-01.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
+        echo "**Deployed from branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Verify deployment at the Azure portal" >> $GITHUB_STEP_SUMMARY
+        echo "- Test API endpoints" >> $GITHUB_STEP_SUMMARY
+        echo "- Check Application Insights for logs" >> $GITHUB_STEP_SUMMARY
