@@ -5,6 +5,7 @@ const { PollingSettingsManager } = require('./PollingSettings');
 const { getSalesforceAuthHeader } = require('../../shared-services/shared/salesforce-auth');
 const { sanitizeForLogging, getDepositSummary } = require('../../shared-services/shared/sanitized-logger');
 const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
+const { validateEntraToken, hasRole } = require('../../shared-services/shared/entra-auth-middleware');
 
 /**
  * Sanitize string for Salesforce API - removes special characters that Salesforce rejects
@@ -650,10 +651,11 @@ class SalesforceTDSProvider extends TDSProviderInterface {
      */
     async makeRequest(method, endpoint, payload = null) {
         // For OAuth2, prefix endpoint with /auth
-        // For API Key, use endpoint as-is
+        // For API Key, use endpoint as-is (no /auth prefix)
         let finalEndpoint = endpoint;
+
         if (this.authMethod && this.authMethod.toLowerCase() === 'oauth2') {
-            // Add /auth prefix for OAuth2 requests
+            // Add /auth prefix for OAuth2 requests only
             // Handle both /services/apexrest/... and other formats
             if (endpoint.startsWith('/services/apexrest/')) {
                 finalEndpoint = endpoint.replace('/services/apexrest/', '/services/apexrest/auth/');
@@ -665,6 +667,10 @@ class SalesforceTDSProvider extends TDSProviderInterface {
 
             if (this.context) {
                 this.context.log(`🔐 OAuth2 mode: Modified endpoint from ${endpoint} to ${finalEndpoint}`);
+            }
+        } else {
+            if (this.context) {
+                this.context.log(`🔐 API Key mode: Using endpoint as-is: ${endpoint}`);
             }
         }
 
@@ -972,9 +978,25 @@ class TDSAdapterFactory {
  */
 app.http('TDSAdapter', {
     methods: ['POST', 'GET', 'PUT'],
-    authLevel: 'function',
+    authLevel: 'anonymous',
     route: 'tds/{action?}/{depositId?}',
     handler: async (request, context) => {
+        // Validate Entra ID token
+        const authResult = await validateEntraToken(request, context);
+
+        if (!authResult.isValid) {
+            return {
+                status: 401,
+                jsonBody: {
+                    error: 'Unauthorized',
+                    message: authResult.error,
+                    errorCode: authResult.errorCode
+                }
+            };
+        }
+
+        context.log(`✅ Authenticated user: ${authResult.user.email}`);
+
         try {
             const action = request.params.action;
             const depositId = request.params.depositId;
@@ -993,9 +1015,15 @@ app.http('TDSAdapter', {
 
             if (requestData.agencyRef) {
                 try {
-                    const orgMappingResponse = await fetch(
-                        `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/lookup?agencyRef=${requestData.agencyRef}&branchId=${requestData.branchId || 'DEFAULT'}`
-                    );
+                    const functionKey = process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY || '';
+                    const orgMappingUrl = new URL(`${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/lookup`);
+                    orgMappingUrl.searchParams.append('agencyRef', requestData.agencyRef);
+                    orgMappingUrl.searchParams.append('branchId', requestData.branchId || 'DEFAULT');
+                    if (functionKey) {
+                        orgMappingUrl.searchParams.append('code', functionKey);
+                    }
+
+                    const orgMappingResponse = await fetch(orgMappingUrl.toString());
 
                     if (orgMappingResponse.ok) {
                         const orgMapping = await orgMappingResponse.json();
@@ -1037,16 +1065,20 @@ app.http('TDSAdapter', {
                         }
                     }
                 } catch (error) {
-                    context.log.warn('Failed to lookup organization mapping, using defaults:', error.message);
+                    context.warn('Failed to lookup organization mapping, using defaults:', error.message);
                 }
             }
 
             // Fetch TDS Settings to get dynamic API URLs
             let tdsSettings = null;
             try {
-                const tdsSettingsResponse = await fetch(
-                    `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/settings/tds`
-                );
+                const functionKey = process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY || '';
+                const tdsSettingsUrl = new URL(`${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/settings/tds`);
+                if (functionKey) {
+                    tdsSettingsUrl.searchParams.append('code', functionKey);
+                }
+
+                const tdsSettingsResponse = await fetch(tdsSettingsUrl.toString());
 
                 if (tdsSettingsResponse.ok) {
                     const settingsResult = await tdsSettingsResponse.json();
@@ -1056,7 +1088,7 @@ app.http('TDSAdapter', {
                     }
                 }
             } catch (error) {
-                context.log.warn('Failed to load TDS settings, using defaults:', error.message);
+                context.warn('Failed to load TDS settings, using defaults:', error.message);
             }
 
             // Determine TDS URLs based on environment and settings

@@ -2,6 +2,7 @@ const { app } = require('@azure/functions');
 const axios = require('axios');
 const { TableClient } = require('@azure/data-tables');
 const { IntegrationAuditLogger } = require('./IntegrationAuditLogger');
+const { validateEntraToken, hasRole } = require('../../shared-services/shared/entra-auth-middleware');
 
 /**
  * Pending Integration Polling Service Azure Function
@@ -37,9 +38,25 @@ app.timer('PendingPollingService', {
 // Manual trigger endpoint for testing
 app.http('PendingPollingServiceManual', {
     methods: ['POST'],
-    authLevel: 'function',
+    authLevel: 'anonymous',
     route: 'polling/manual-trigger',
     handler: async (request, context) => {
+        // Validate Entra ID token
+        const authResult = await validateEntraToken(request, context);
+
+        if (!authResult.isValid) {
+            return {
+                status: 401,
+                jsonBody: {
+                    error: 'Unauthorized',
+                    message: authResult.error,
+                    errorCode: authResult.errorCode
+                }
+            };
+        }
+
+        context.log(`✅ Authenticated user: ${authResult.user.email}`);
+
         try {
             context.log('🔄 Manual pending integration polling triggered...');
 
@@ -84,6 +101,22 @@ app.http('GetArchivedPendingIntegrations', {
     authLevel: 'anonymous',
     route: 'pending-integrations/archive',
     handler: async (request, context) => {
+        // Validate Entra ID token
+        const authResult = await validateEntraToken(request, context);
+
+        if (!authResult.isValid) {
+            return {
+                status: 401,
+                jsonBody: {
+                    error: 'Unauthorized',
+                    message: authResult.error,
+                    errorCode: authResult.errorCode
+                }
+            };
+        }
+
+        context.log(`✅ Authenticated user: ${authResult.user.email}`);
+
         try {
             context.log('📦 Fetching archived pending integrations...');
 
@@ -586,6 +619,9 @@ class PendingPollingServiceClass {
                     environment: integration.environment || 'development'
                 },
                 {
+                    params: {
+                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY
+                    },
                     headers: { 'Content-Type': 'application/json' },
                     timeout: 30000
                 }
@@ -737,6 +773,9 @@ class PendingPollingServiceClass {
                 `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/workflows/alto-tds`,
                 workflowData,
                 {
+                    params: {
+                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY
+                    },
                     headers: { 'Content-Type': 'application/json' },
                     timeout: 600000
                 }

@@ -2,6 +2,7 @@ const { app } = require('@azure/functions');
 const axios = require('axios');
 const telemetry = require('../../shared-services/shared/telemetry');
 const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
+const { validateEntraToken, hasRole } = require('../../shared-services/shared/entra-auth-middleware');
 
 /**
  * Alto Integration Service Azure Function
@@ -9,9 +10,25 @@ const { validateRequestBody, schemas, formatValidationError } = require('../../s
  */
 app.http('AltoIntegration', {
     methods: ['POST', 'GET'],
-    authLevel: 'function',
+    authLevel: 'anonymous',
     route: 'alto/{action?}/{tenancyId?}',
     handler: async (request, context) => {
+        // Validate Entra ID token
+        const authResult = await validateEntraToken(request, context);
+
+        if (!authResult.isValid) {
+            return {
+                status: 401,
+                jsonBody: {
+                    error: 'Unauthorized',
+                    message: authResult.error,
+                    errorCode: authResult.errorCode
+                }
+            };
+        }
+
+        context.log(`✅ Authenticated user: ${authResult.user.email}`);
+
         try {
             const action = request.params.action;
             const tenancyId = request.params.tenancyId;
@@ -64,9 +81,13 @@ app.http('AltoIntegration', {
             let altoApiUrl = process.env.ALTO_API_BASE_URL || 'https://api.alto.zoopladev.co.uk';
 
             try {
-                const altoSettingsResponse = await fetch(
-                    `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/settings/alto`
-                );
+                const functionKey = process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY || '';
+                const altoSettingsUrl = new URL(`${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/settings/alto`);
+                if (functionKey) {
+                    altoSettingsUrl.searchParams.append('code', functionKey);
+                }
+
+                const altoSettingsResponse = await fetch(altoSettingsUrl.toString());
 
                 if (altoSettingsResponse.ok) {
                     const settingsResult = await altoSettingsResponse.json();
@@ -81,7 +102,7 @@ app.http('AltoIntegration', {
                     }
                 }
             } catch (error) {
-                context.log.warn('Failed to load Alto settings, using defaults:', error.message);
+                context.warn('Failed to load Alto settings, using defaults:', error.message);
             }
 
             // Remove trailing slash from base URL to prevent double slashes

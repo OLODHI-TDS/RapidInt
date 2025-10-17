@@ -1,6 +1,7 @@
 const { app } = require('@azure/functions');
 const axios = require('axios');
 const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
+const { validateEntraToken, hasRole } = require('../../shared-services/shared/entra-auth-middleware');
 
 // Cache for postcode lookups (5 minute TTL)
 const postcodeCache = new Map();
@@ -75,9 +76,25 @@ async function lookupPostcodeFromAPI(postcode) {
  */
 app.http('PostcodeLookup', {
     methods: ['GET', 'POST'],
-    authLevel: 'function',
+    authLevel: 'anonymous',
     route: 'postcode/{postcode?}',
     handler: async (request, context) => {
+        // Validate Entra ID token
+        const authResult = await validateEntraToken(request, context);
+
+        if (!authResult.isValid) {
+            return {
+                status: 401,
+                jsonBody: {
+                    error: 'Unauthorized',
+                    message: authResult.error,
+                    errorCode: authResult.errorCode
+                }
+            };
+        }
+
+        context.log(`✅ Authenticated user: ${authResult.user.email}`);
+
         try {
             const startTime = Date.now();
 

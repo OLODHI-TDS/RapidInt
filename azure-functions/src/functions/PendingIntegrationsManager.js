@@ -1,6 +1,7 @@
 const { app } = require('@azure/functions');
 const { TableClient } = require('@azure/data-tables');
 const { schemas } = require('../../shared-services/shared/validation-schemas');
+const { validateEntraToken, hasRole } = require('../../shared-services/shared/entra-auth-middleware');
 
 /**
  * Pending Integrations Manager Azure Function
@@ -8,9 +9,25 @@ const { schemas } = require('../../shared-services/shared/validation-schemas');
  */
 app.http('PendingIntegrationsManager', {
     methods: ['GET', 'POST', 'DELETE'],
-    authLevel: 'function',
+    authLevel: 'anonymous',
     route: 'pending-integrations/{action?}/{id?}',
     handler: async (request, context) => {
+        // Validate Entra ID token
+        const authResult = await validateEntraToken(request, context);
+
+        if (!authResult.isValid) {
+            return {
+                status: 401,
+                jsonBody: {
+                    error: 'Unauthorized',
+                    message: authResult.error,
+                    errorCode: authResult.errorCode
+                }
+            };
+        }
+
+        context.log(`✅ Authenticated user: ${authResult.user.email}`);
+
         try {
             const action = request.params.action || 'list';
             let id = request.params.id;
@@ -1022,6 +1039,9 @@ class PendingIntegrationsManagerClass {
                     environment: integration.environment || 'development'
                 },
                 {
+                    params: {
+                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY
+                    },
                     headers: { 'Content-Type': 'application/json' },
                     timeout: 30000
                 }
@@ -1189,6 +1209,9 @@ class PendingIntegrationsManagerClass {
                 `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/workflows/alto-tds`,
                 workflowData,
                 {
+                    params: {
+                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY
+                    },
                     headers: { 'Content-Type': 'application/json' },
                     timeout: 600000
                 }

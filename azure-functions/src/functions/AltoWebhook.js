@@ -101,7 +101,9 @@ app.http('AltoWebhook', {
             context.log('🚀 Queuing Alto integration workflow:', webhookId);
 
             // Call the WorkflowOrchestrator via HTTP (don't await - fire and forget)
-            const workflowUrl = process.env.WORKFLOW_ORCHESTRATOR_URL || 'http://localhost:7071/api/workflows/alto-tds';
+            const functionKey = process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY || '';
+            const workflowBaseUrl = process.env.WORKFLOW_ORCHESTRATOR_URL || `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/workflows/alto-tds`;
+            const workflowUrl = functionKey ? `${workflowBaseUrl}?code=${functionKey}` : workflowBaseUrl;
 
             // Trigger workflow asynchronously
             fetch(workflowUrl, {

@@ -59,9 +59,13 @@ async function authenticateLegacyRequest(legacyPayload, context) {
     context.log(`🔐 Authenticating Legacy API request: Member ID: ${member_id}, Branch ID: ${branch_id}`);
 
     // Query OrganizationMapping to find org with matching Legacy credentials
-    const orgMappingResponse = await axios.get(
-      `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/list`
-    );
+    const functionKey = process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY || '';
+    const orgListUrl = new URL(`${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/list`);
+    if (functionKey) {
+      orgListUrl.searchParams.append('code', functionKey);
+    }
+
+    const orgMappingResponse = await axios.get(orgListUrl.toString());
 
     if (!orgMappingResponse.data.success) {
       throw new Error('Failed to retrieve organization mappings');
@@ -452,9 +456,13 @@ app.http('LegacyAPIGateway', {
           const allBatches = [];
 
           // Get list of organizations with Legacy credentials
-          const orgMappingResponse = await axios.get(
-            `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/list`
-          );
+          const functionKey = process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY || '';
+          const orgListUrl = new URL(`${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/list`);
+          if (functionKey) {
+            orgListUrl.searchParams.append('code', functionKey);
+          }
+
+          const orgMappingResponse = await axios.get(orgListUrl.toString());
 
           if (orgMappingResponse.data.success) {
             const orgs = orgMappingResponse.data.mappings.filter(org => org.legacyMemberId && org.isActive);

@@ -2,6 +2,7 @@ const { app } = require('@azure/functions');
 const axios = require('axios');
 const { IntegrationAuditLogger } = require('./IntegrationAuditLogger');
 const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
+const { validateEntraToken, hasRole } = require('../../shared-services/shared/entra-auth-middleware');
 
 /**
  * Workflow Orchestrator Azure Function
@@ -9,9 +10,25 @@ const { validateRequestBody, schemas, formatValidationError } = require('../../s
  */
 app.http('WorkflowOrchestrator', {
     methods: ['POST'],
-    authLevel: 'function',
+    authLevel: 'anonymous',
     route: 'workflows/alto-tds',
     handler: async (request, context) => {
+        // Validate Entra ID token
+        const authResult = await validateEntraToken(request, context);
+
+        if (!authResult.isValid) {
+            return {
+                status: 401,
+                jsonBody: {
+                    error: 'Unauthorized',
+                    message: authResult.error,
+                    errorCode: authResult.errorCode
+                }
+            };
+        }
+
+        context.log(`✅ Authenticated user: ${authResult.user.email}`);
+
         try {
             let workflowData = await request.json();
 
@@ -314,22 +331,31 @@ class AltoTDSOrchestrator {
             let effectiveBranchId = workflowData.branchId; // Default to webhook's branch ID
 
             if (workflowData.agencyRef) {
-                try {
-                    const orgMappingResponse = await axios.get(
-                        `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/lookup?agencyRef=${workflowData.agencyRef}&branchId=${workflowData.branchId || 'DEFAULT'}`
-                    );
-
-                    if (orgMappingResponse.data.success) {
-                        environment = orgMappingResponse.data.environment || 'development';
-                        // ✅ Use organization mapping's branch ID (handles DEFAULT wildcard)
-                        effectiveBranchId = orgMappingResponse.data.organizationBranchId || workflowData.branchId;
-
-                        this.context.log(`📊 Using environment from org mapping: ${environment}`);
-                        this.context.log(`🔑 Using branch ID from org mapping: ${effectiveBranchId}`);
+                // ✅ Get organization mapping with authentication - NO FALLBACK
+                // If org mapping doesn't exist, workflow should fail immediately
+                const orgMappingResponse = await axios.get(
+                    `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/lookup`,
+                    {
+                        params: {
+                            agencyRef: workflowData.agencyRef,
+                            branchId: workflowData.branchId || 'DEFAULT',
+                            code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY
+                        }
                     }
-                } catch (error) {
-                    this.context.log.warn('Could not determine environment from org mapping, using default:', error.message);
+                );
+
+                if (!orgMappingResponse.data.success) {
+                    throw new Error(`Organization mapping not found for agencyRef: ${workflowData.agencyRef}, branchId: ${workflowData.branchId || 'DEFAULT'}`);
                 }
+
+                environment = orgMappingResponse.data.environment || 'development';
+                // ✅ Use organization mapping's branch ID (handles DEFAULT wildcard)
+                effectiveBranchId = orgMappingResponse.data.organizationBranchId || workflowData.branchId;
+
+                this.context.log(`📊 Using environment from org mapping: ${environment}`);
+                this.context.log(`🔑 Using branch ID from org mapping: ${effectiveBranchId}`);
+            } else {
+                throw new Error('agencyRef is required to lookup organization mapping');
             }
 
             // Call our Alto integration function with environment and agencyRef
@@ -343,6 +369,9 @@ class AltoTDSOrchestrator {
                     testConfig: workflowData.testConfig || {}        // Pass test configuration
                 },
                 {
+                    params: {
+                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY  // ✅ Add function key
+                    },
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -664,7 +693,12 @@ class AltoTDSOrchestrator {
             // Call our postcode lookup function
             const response = await axios.get(
                 `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/postcode/${postcode}`,
-                { timeout: 10000 }
+                {
+                    params: {
+                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY  // ✅ Add function key
+                    },
+                    timeout: 10000
+                }
             );
 
             return {
@@ -865,6 +899,9 @@ class AltoTDSOrchestrator {
                 `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/tds/create`,
                 payload,
                 {
+                    params: {
+                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY  // ✅ Add function key
+                    },
                     headers: { 'Content-Type': 'application/json' },
                     timeout: 600000
                 }
