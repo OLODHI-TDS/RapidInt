@@ -235,7 +235,7 @@
             <h3>⚙️ Webhook Configuration</h3>
             <div class="form-group">
                 <label>Webhook Endpoint URL</label>
-                <input type="text" id="webhook-url" value="http://localhost:7071/api/webhooks/alto" placeholder="http://localhost:7071/api/webhooks/alto">
+                <input type="text" id="webhook-url" value="https://rapidintdev-d0ccheegc3anfedn.uksouth-01.azurewebsites.net/api/webhooks/alto" placeholder="https://rapidintdev-d0ccheegc3anfedn.uksouth-01.azurewebsites.net/api/webhooks/alto">
                 <small style="color: var(--text-secondary);">This is where Alto will send webhook notifications</small>
             </div>
             <div class="form-group">
@@ -340,12 +340,96 @@
                 <p>If the integration was queued due to missing data, check the "Pending Integrations" tab to monitor retry attempts.</p>
             </div>
         </div>
-    </div>
+    </div> <!-- End Container -->
+
+    <!-- Footer -->
+    <footer style="background: var(--glass-surface); border: 1px solid var(--glass-border); padding: 15px 30px; border-radius: 16px; margin: 25px auto 20px auto; max-width: 1200px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(30px);">
+        <div style="color: var(--text-secondary); font-size: 13px;">
+            © 2025 TDS RapidInt Platform
+        </div>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <span id="userInfo" style="color: var(--text-secondary); font-size: 14px;"></span>
+            <button class="btn btn-secondary" onclick="signOut()" id="signOutBtn" style="display:none; padding: 8px 16px;">
+                Sign Out
+            </button>
+        </div>
+    </footer>
 
     <!-- XSS Protection: Safe DOM Rendering Utility -->
     <script src="safe-render.js"></script>
 
+    <!-- Microsoft Authentication Library -->
+    <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+
+    <!-- Environment-specific configuration (NOT in git) -->
+    <script src="dashboard-config.js"></script>
+
     <script>
+        // Configuration - from dashboard-config.js
+        const AUTH_METHOD = DASHBOARD_CONFIG.authMethod;
+
+        // MSAL Configuration
+        let msalInstance = null;
+        let currentUser = null;
+
+        /**
+         * Helper function to run code when DOM is ready
+         * Works both for initial page load and after redirects
+         */
+        function runWhenReady(callback) {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', callback);
+            } else {
+                // DOM is already loaded, run immediately
+                callback();
+            }
+        }
+
+        if (AUTH_METHOD === 'entra-id') {
+            const msalConfig = {
+                auth: {
+                    clientId: DASHBOARD_CONFIG.entraId.clientId,
+                    authority: DASHBOARD_CONFIG.entraId.authority,
+                    redirectUri: window.location.origin + window.location.pathname
+                },
+                cache: {
+                    cacheLocation: 'localStorage',
+                    storeAuthStateInCookie: false
+                }
+            };
+
+            msalInstance = new msal.PublicClientApplication(msalConfig);
+
+            // Handle redirect response
+            msalInstance.handleRedirectPromise().then(response => {
+                if (response) {
+                    console.log('✅ Login successful:', response.account.username);
+                    currentUser = response.account;
+                }
+                // Update user info if authenticated
+                const accounts = msalInstance.getAllAccounts();
+                if (accounts.length > 0) {
+                    currentUser = accounts[0];
+                    const userInfoEl = document.getElementById('userInfo');
+                    if (userInfoEl) {
+                        userInfoEl.textContent = `Welcome, ${currentUser.name || currentUser.username}`;
+                        document.getElementById('signOutBtn').style.display = 'inline-block';
+                    }
+                }
+            }).catch(error => {
+                console.error('❌ Authentication error:', error);
+            });
+        }
+
+        /**
+         * Sign out user (Entra ID only)
+         */
+        async function signOut() {
+            if (AUTH_METHOD === 'entra-id' && msalInstance) {
+                await msalInstance.logoutRedirect();
+            }
+        }
+
         const presets = {
             cloudevents: {
                 specversion: "1.0",
@@ -565,7 +649,7 @@
         }
 
         // Load default preset on page load
-        document.addEventListener('DOMContentLoaded', () => {
+        runWhenReady(() => {
             loadPreset('cloudevents');
         });
     </script>

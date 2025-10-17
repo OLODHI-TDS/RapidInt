@@ -308,8 +308,75 @@
     <!-- XSS Protection: Safe DOM Rendering Utility -->
     <script src="safe-render.js"></script>
 
+    <!-- Dashboard Configuration -->
+    <script src="dashboard-config.js"></script>
+
+    <!-- MSAL Authentication Library (only needed for Entra ID) -->
+    <script src="https://alcdn.msauth.net/browser/2.32.2/js/msal-browser.min.js"></script>
+
     <script>
-        // Enhanced loading animation with Liquid Glass effects
+        // ============================================================================
+        // AUTHENTICATION CHECK
+        // ============================================================================
+        let msalInstance = null;
+        let isAuthenticated = false;
+
+        // Initialize authentication if Entra ID is enabled
+        async function initializeAuth() {
+            if (DASHBOARD_CONFIG.authMethod === 'entra-id') {
+                // Configure MSAL
+                const msalConfig = {
+                    auth: {
+                        clientId: DASHBOARD_CONFIG.entraId.clientId,
+                        authority: DASHBOARD_CONFIG.entraId.authority,
+                        redirectUri: window.location.origin + window.location.pathname
+                    },
+                    cache: {
+                        cacheLocation: 'localStorage',
+                        storeAuthStateInCookie: false
+                    }
+                };
+
+                msalInstance = new msal.PublicClientApplication(msalConfig);
+                await msalInstance.initialize();
+
+                // Handle redirect response
+                try {
+                    const response = await msalInstance.handleRedirectPromise();
+                    if (response) {
+                        console.log('Login successful:', response.account.username);
+                    }
+                } catch (error) {
+                    console.error('Redirect error:', error);
+                }
+
+                // Check if user is authenticated
+                const accounts = msalInstance.getAllAccounts();
+
+                if (accounts.length === 0) {
+                    // No user logged in - redirect to login
+                    console.log('No authenticated user found, redirecting to login...');
+                    await msalInstance.loginRedirect({
+                        scopes: [DASHBOARD_CONFIG.entraId.apiScope]
+                    });
+                    // Stop further execution - user will be redirected to login
+                    return false;
+                } else {
+                    // User is authenticated
+                    console.log('User authenticated:', accounts[0].username);
+                    isAuthenticated = true;
+                    return true;
+                }
+            } else {
+                // Function key mode - no authentication needed
+                isAuthenticated = true;
+                return true;
+            }
+        }
+
+        // ============================================================================
+        // LOADING ANIMATION
+        // ============================================================================
         let loadingMessages = [
             "Initializing integration framework",
             "Loading integration modules",
@@ -340,17 +407,27 @@
         }
 
         function skipLoader() {
-            clearInterval(messageInterval);
-            window.location.href = 'multi-integration-dashboard.html';
+            if (isAuthenticated) {
+                clearInterval(messageInterval);
+                window.location.href = 'multi-integration-dashboard.html';
+            }
         }
 
-        // Auto redirect after loading animation
-        setTimeout(() => {
-            window.location.href = 'multi-integration-dashboard.html';
-        }, 4000);
+        // Initialize authentication and start loading flow
+        (async function init() {
+            const authenticated = await initializeAuth();
 
-        // Update loading messages every 800ms
-        messageInterval = setInterval(updateLoadingMessage, 800);
+            if (authenticated) {
+                // User is authenticated, start loading animation
+                messageInterval = setInterval(updateLoadingMessage, 800);
+
+                // Auto redirect after loading animation
+                setTimeout(() => {
+                    window.location.href = 'multi-integration-dashboard.html';
+                }, 4000);
+            }
+            // If not authenticated, user will be redirected to login by initializeAuth()
+        })();
 
         // Add mouse movement effects for enhanced interactivity
         document.addEventListener('mousemove', (e) => {

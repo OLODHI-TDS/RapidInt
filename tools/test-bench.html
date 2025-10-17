@@ -520,15 +520,12 @@
 <body>
     <div class="page-container">
         <!-- Header -->
-        <header style="margin-bottom: var(--space-xl); display: flex; justify-content: space-between; align-items: start;">
+        <header style="margin-bottom: var(--space-xl);">
             <div>
                 <h1 style="margin: 0; font-size: 2rem;">🧪 TDS RapidInt - Test Bench</h1>
                 <p style="margin: var(--space-sm) 0 0 0; color: var(--text-secondary);">
                     Test Alto integration with fake data - OAuth verification + unlimited testing
                 </p>
-            </div>
-            <div id="authSection" style="text-align: right;">
-                <!-- Auth UI will be inserted here dynamically -->
             </div>
         </header>
 
@@ -538,7 +535,7 @@
             <div style="display: flex; gap: var(--space-md); align-items: center; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 300px;">
                     <label style="display: block; margin-bottom: var(--space-xs); font-size: 0.9rem; color: var(--text-secondary);">API Base URL</label>
-                    <input type="text" id="apiBaseUrl" value="http://localhost:7071/api" style="width: 100%; padding: var(--space-sm); background: var(--glass-bg-medium); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.9rem;">
+                    <input type="text" id="apiBaseUrl" value="https://rapidintdev-d0ccheegc3anfedn.uksouth-01.azurewebsites.net/api" style="width: 100%; padding: var(--space-sm); background: var(--glass-bg-medium); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.9rem;">
                 </div>
                 <button id="testConnectionBtn" class="btn-secondary" style="margin-top: 20px;">Test Connection</button>
                 <div id="connectionStatus" style="margin-top: 20px; padding: var(--space-sm) var(--space-md); background: var(--glass-bg-medium); border-radius: var(--radius-md); font-size: 0.9rem;">
@@ -732,18 +729,67 @@
                 <p>No results yet. Run a test or wait for auto-refresh to load data.</p>
             </div>
         </div>
-    </div>
+    </div> <!-- End Container -->
+
+    <!-- Footer -->
+    <footer class="glass card" style="margin: 25px auto 20px auto; max-width: 1400px; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="color: var(--text-secondary); font-size: 13px;">
+            © 2025 TDS RapidInt Platform
+        </div>
+        <div id="authSection" style="display: flex; gap: 15px; align-items: center;">
+            <!-- Auth UI will be inserted here dynamically -->
+        </div>
+    </footer>
 
     <!-- XSS Protection: Safe DOM Rendering Utility -->
     <script src="safe-render.js"></script>
 
-    <script>
-        // API Configuration - will be updated from input field
-        let API_BASE = 'http://localhost:7071/api';
+    <!-- Microsoft Authentication Library -->
+    <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 
-        // Authentication State
+    <!-- Environment-specific configuration (NOT in git) -->
+    <script src="dashboard-config.js"></script>
+
+    <script>
+        // Configuration - from dashboard-config.js
+        let API_BASE = DASHBOARD_CONFIG.apiBaseUrl;
+        const AUTH_METHOD = DASHBOARD_CONFIG.authMethod;
+
+        // MSAL Configuration
+        let msalInstance = null;
         let currentUser = null;
-        let accessToken = null;
+
+        /**
+         * Helper function to run code when DOM is ready
+         * Works both for initial page load and after redirects
+         */
+        function runWhenReady(callback) {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', callback);
+            } else {
+                // DOM is already loaded, run immediately
+                callback();
+            }
+        }
+
+        if (AUTH_METHOD === 'entra-id') {
+            const msalConfig = {
+                auth: {
+                    clientId: DASHBOARD_CONFIG.entraId.clientId,
+                    authority: DASHBOARD_CONFIG.entraId.authority,
+                    redirectUri: window.location.origin + window.location.pathname
+                },
+                cache: {
+                    cacheLocation: 'localStorage',
+                    storeAuthStateInCookie: false
+                }
+            };
+
+            msalInstance = new msal.PublicClientApplication(msalConfig);
+        } else {
+            // Function key mode (legacy)
+            const FUNCTION_KEY = DASHBOARD_CONFIG.functionKey;
+        }
 
         // State
         let currentConfig = {
@@ -761,16 +807,38 @@
         let allResults = [];
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Load API URL from localStorage if available
-            const savedApiUrl = localStorage.getItem('apiBaseUrl');
-            if (savedApiUrl) {
-                API_BASE = savedApiUrl;
-                document.getElementById('apiBaseUrl').value = savedApiUrl;
+        runWhenReady(async () => {
+            // Load API URL from localStorage if available (only for function key mode)
+            if (AUTH_METHOD !== 'entra-id') {
+                const savedApiUrl = localStorage.getItem('apiBaseUrl');
+                if (savedApiUrl) {
+                    API_BASE = savedApiUrl;
+                    document.getElementById('apiBaseUrl').value = savedApiUrl;
+                }
+            } else {
+                document.getElementById('apiBaseUrl').value = API_BASE;
             }
 
-            // Check authentication status
-            await checkAuthStatus();
+            // Handle MSAL redirect if using Entra ID
+            if (AUTH_METHOD === 'entra-id') {
+                await msalInstance.handleRedirectPromise().then(response => {
+                    if (response) {
+                        console.log('✅ Login successful:', response.account.username);
+                        currentUser = response.account;
+                    }
+                    // Check if already authenticated
+                    const accounts = msalInstance.getAllAccounts();
+                    if (accounts.length > 0) {
+                        currentUser = accounts[0];
+                    }
+                    renderAuthUI(currentUser !== null);
+                }).catch(error => {
+                    console.error('❌ Authentication error:', error);
+                    renderAuthUI(false);
+                });
+            } else {
+                renderAuthUI(false);
+            }
 
             initializeEventListeners();
             testConnection(true); // Test connection on load (silent)
@@ -785,118 +853,103 @@
         // ============================================================================
 
         /**
-         * Check authentication status on page load
-         * Loads user info from localStorage and validates
+         * Get access token for API calls
          */
-        async function checkAuthStatus() {
-            const authData = localStorage.getItem('alto_auth');
-
-            if (!authData) {
-                renderAuthUI(false);
-                return;
+        async function getAccessToken() {
+            if (AUTH_METHOD !== 'entra-id') {
+                return null; // Function key mode
             }
 
             try {
-                const auth = JSON.parse(authData);
+                const accounts = msalInstance.getAllAccounts();
 
-                // Check if token is expired
-                const expiresOn = new Date(auth.expiresOn);
-                if (expiresOn < new Date()) {
-                    console.log('[AUTH] Token expired, clearing auth data');
-                    localStorage.removeItem('alto_auth');
-                    renderAuthUI(false);
-                    return;
+                if (accounts.length === 0) {
+                    // No accounts, redirect to login
+                    await msalInstance.loginRedirect({
+                        scopes: [DASHBOARD_CONFIG.entraId.apiScope]
+                    });
+                    return null;
                 }
 
-                // Token is valid
-                accessToken = auth.accessToken;
-                currentUser = auth.account;
+                // Try to acquire token silently
+                const silentRequest = {
+                    scopes: [DASHBOARD_CONFIG.entraId.apiScope],
+                    account: accounts[0]
+                };
 
-                console.log('[AUTH] Authenticated as:', currentUser.username);
-                renderAuthUI(true);
-
+                const response = await msalInstance.acquireTokenSilent(silentRequest);
+                return response.accessToken;
             } catch (error) {
-                console.error('[AUTH] Failed to parse auth data:', error);
-                localStorage.removeItem('alto_auth');
-                renderAuthUI(false);
+                console.warn('Silent token acquisition failed, trying interactive:', error);
+
+                if (error instanceof msal.InteractionRequiredAuthError) {
+                    // Fallback to interactive login
+                    await msalInstance.loginRedirect({
+                        scopes: [DASHBOARD_CONFIG.entraId.apiScope]
+                    });
+                } else {
+                    console.error('Token acquisition error:', error);
+                    throw error;
+                }
+
+                return null;
+            }
+        }
+
+        /**
+         * Make authenticated API request
+         */
+        async function makeAuthenticatedRequest(url, options = {}) {
+            if (AUTH_METHOD === 'entra-id') {
+                // Entra ID mode - use Bearer token
+                const token = await getAccessToken();
+
+                if (!token) {
+                    throw new Error('Failed to acquire access token');
+                }
+
+                return await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+            } else {
+                // Function key mode (legacy)
+                const separator = url.includes('?') ? '&' : '?';
+                const authenticatedUrl = `${url}${separator}code=${DASHBOARD_CONFIG.functionKey}`;
+
+                return await fetch(authenticatedUrl, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
             }
         }
 
         /**
          * Initiate login flow
-         * Redirects to Azure AD or returns mock token in development
          */
         async function login() {
-            try {
-                // Call /api/auth/login endpoint
-                const response = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
+            if (AUTH_METHOD === 'entra-id') {
+                await msalInstance.loginRedirect({
+                    scopes: [DASHBOARD_CONFIG.entraId.apiScope]
                 });
-
-                if (response.status === 302) {
-                    // Production: Redirect to Azure AD
-                    const location = response.headers.get('Location');
-                    window.location.href = location;
-                } else if (response.ok) {
-                    // Development: Mock authentication
-                    const data = await response.json();
-
-                    if (data.success) {
-                        // Store mock auth
-                        const authData = {
-                            accessToken: data.accessToken,
-                            expiresOn: new Date(Date.now() + 3600000).toISOString(), // 1 hour
-                            account: data.user,
-                            timestamp: new Date().toISOString()
-                        };
-
-                        localStorage.setItem('alto_auth', JSON.stringify(authData));
-
-                        accessToken = data.accessToken;
-                        currentUser = data.user;
-
-                        console.log('[AUTH] Authenticated (development mode):', currentUser.email);
-                        renderAuthUI(true);
-
-                        alert(`✅ Authenticated as ${currentUser.name} (${currentUser.email})\n\n` +
-                              `Roles: ${currentUser.roles.join(', ')}\n\n` +
-                              `Mode: Development (mock user)`);
-                    }
-                } else {
-                    throw new Error(`Login failed: ${response.status} ${response.statusText}`);
-                }
-
-            } catch (error) {
-                console.error('[AUTH] Login error:', error);
-                alert(`❌ Login failed: ${error.message}`);
             }
         }
 
         /**
          * Logout current user
-         * Clears authentication data and UI
          */
         async function logout() {
-            try {
-                // Call /api/auth/logout endpoint
-                await fetch(`${API_BASE}/auth/logout`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                    }
-                });
-
-            } catch (error) {
-                console.warn('[AUTH] Logout endpoint error:', error);
-            } finally {
-                // Clear local state regardless of API call success
-                localStorage.removeItem('alto_auth');
-                accessToken = null;
+            if (AUTH_METHOD === 'entra-id' && msalInstance) {
+                await msalInstance.logoutRedirect();
+            } else {
                 currentUser = null;
-
-                console.log('[AUTH] Logged out');
                 renderAuthUI(false);
             }
         }
@@ -920,35 +973,13 @@
                 loginBtn.style.padding = 'var(--space-sm) var(--space-md)';
                 loginBtn.textContent = '🔐 Login with Microsoft';
 
-                const helpText = safeCreateElement('p', 'Required for PII decryption', {
+                const helpText = safeCreateElement('p', AUTH_METHOD === 'entra-id' ? 'Sign in to access test bench' : 'Test Mode - No authentication required', {
                     style: { margin: 'var(--space-xs) 0 0 0', fontSize: '0.8rem', color: 'var(--text-tertiary)' }
                 });
 
                 authSection.appendChild(loginBtn);
                 authSection.appendChild(helpText);
             } else {
-                // ✅ XSS Protection: Create role badges safely
-                const rolesBadges = currentUser.roles.map(role => {
-                    const colors = {
-                        admin: '#4caf50',
-                        support: '#2196f3',
-                        viewer: '#ff9800'
-                    };
-                    const color = colors[role] || '#757575';
-                    return safeCreateElement('span', role.toUpperCase(), {
-                        style: {
-                            display: 'inline-block',
-                            padding: '2px 8px',
-                            background: color,
-                            color: 'white',
-                            borderRadius: '4px',
-                            fontSize: '10px',
-                            fontWeight: 'bold',
-                            marginLeft: '4px'
-                        }
-                    });
-                });
-
                 // Create user info container
                 const container = document.createElement('div');
                 container.style.display = 'flex';
@@ -958,13 +989,12 @@
                 const userInfoDiv = document.createElement('div');
                 userInfoDiv.style.textAlign = 'right';
 
-                // User name with badges (✅ XSS Protection: textContent used)
+                // User name (✅ XSS Protection: textContent used)
                 const nameDiv = document.createElement('div');
                 nameDiv.style.fontWeight = '600';
                 nameDiv.style.color = 'var(--text-primary)';
                 const userName = safeCreateElement('span', currentUser.name || currentUser.username || currentUser.email);
                 nameDiv.appendChild(userName);
-                rolesBadges.forEach(badge => nameDiv.appendChild(badge));
 
                 // User email (✅ XSS Protection: safeCreateElement used)
                 const emailDiv = safeCreateElement('div', currentUser.email || currentUser.username, {
@@ -986,22 +1016,6 @@
                 container.appendChild(logoutBtn);
                 authSection.appendChild(container);
             }
-        }
-
-        /**
-         * Get headers for authenticated API requests
-         * Includes Authorization header if user is logged in
-         */
-        function getAuthHeaders() {
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-
-            if (accessToken) {
-                headers['Authorization'] = `Bearer ${accessToken}`;
-            }
-
-            return headers;
         }
 
         // Event Listeners
@@ -1096,9 +1110,8 @@
 
             try {
                 // Try to fetch the audit log endpoint as a simple connection test
-                const response = await fetch(`${API_BASE}/integration-audit/list`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
+                const response = await makeAuthenticatedRequest(`${API_BASE}/integration-audit/list`, {
+                    method: 'GET'
                 });
 
                 if (response.ok) {
@@ -1183,7 +1196,7 @@
             btn.textContent = 'Loading...';
 
             try {
-                const response = await fetch(`${API_BASE}/organization/list`);
+                const response = await makeAuthenticatedRequest(`${API_BASE}/organization/list`);
                 const data = await response.json();
 
                 if (data.success && data.mappings) {
@@ -1426,9 +1439,8 @@
             const startTime = Date.now();
 
             try {
-                const response = await fetch(`${API_BASE}/workflows/alto-tds`, {
+                const response = await makeAuthenticatedRequest(`${API_BASE}/workflows/alto-tds`, {
                     method: 'POST',
-                    headers: getAuthHeaders(), // ✅ Include authentication
                     body: JSON.stringify(payload)
                 });
 
@@ -1460,7 +1472,7 @@
         // Results Dashboard Functions
         async function loadResults() {
             try {
-                const response = await fetch(`${API_BASE}/integration-audit/list`);
+                const response = await makeAuthenticatedRequest(`${API_BASE}/integration-audit/list`);
                 const data = await response.json();
 
                 if (data.success && data.auditLog) {

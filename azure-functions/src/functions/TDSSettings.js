@@ -1,5 +1,6 @@
 const { app } = require('@azure/functions');
 const { TableClient } = require('@azure/data-tables');
+const { validateEntraToken, hasRole } = require('../../shared-services/shared/entra-auth-middleware');
 
 /**
  * TDS Settings Azure Function
@@ -7,9 +8,25 @@ const { TableClient } = require('@azure/data-tables');
  */
 app.http('TDSSettings', {
     methods: ['GET', 'POST'],
-    authLevel: 'function',
+    authLevel: 'anonymous',
     route: 'settings/tds',
     handler: async (request, context) => {
+        // Validate Entra ID token
+        const authResult = await validateEntraToken(request, context);
+
+        if (!authResult.isValid) {
+            return {
+                status: 401,
+                jsonBody: {
+                    error: 'Unauthorized',
+                    message: authResult.error,
+                    errorCode: authResult.errorCode
+                }
+            };
+        }
+
+        context.log(`✅ Authenticated user: ${authResult.user.email}`);
+
         try {
             const connectionString = process.env.AzureWebJobsStorage || 'UseDevelopmentStorage=true';
             const tableClient = TableClient.fromConnectionString(connectionString, 'TDSSettings');

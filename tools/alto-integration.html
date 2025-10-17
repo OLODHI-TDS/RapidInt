@@ -394,6 +394,12 @@
     </style>
     <!-- XSS Protection: Safe DOM Rendering Utility (HIGH-004 Fix) -->
     <script src="safe-render.js"></script>
+
+    <!-- Microsoft Authentication Library -->
+    <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+
+    <!-- Environment-specific configuration (NOT in git) -->
+    <script src="dashboard-config.js"></script>
 </head>
 <body>
     <div class="container">
@@ -405,7 +411,7 @@
                         <h1 style="color: var(--text-primary); font-weight: 700; background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.8) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">Alto Integration Dashboard</h1>
                     </div>
                 </div>
-                <div>
+                <div style="display: flex; gap: 15px; align-items: center;">
                     <button class="btn btn-secondary" onclick="goBackToHub()" style="background: var(--glass-hover); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 10px 20px; border-radius: 12px; cursor: pointer; backdrop-filter: blur(20px);">
                         ← Back to Integration Hub
                     </button>
@@ -427,8 +433,8 @@
                 <div class="service-card glass">
                     <h4>Azure Functions <span class="status running" id="functions-status">Checking...</span></h4>
                     <div class="endpoints">
-                        <a href="http://localhost:7071/api/health" class="endpoint" target="_blank">GET /api/health</a>
-                        <a href="http://localhost:7071/admin/functions" class="endpoint" target="_blank">Admin Dashboard</a>
+                        <a href="https://rapidintdev-d0ccheegc3anfedn.uksouth-01.azurewebsites.net/api/health" class="endpoint" target="_blank">GET /api/health</a>
+                        <a href="https://rapidintdev-d0ccheegc3anfedn.uksouth-01.azurewebsites.net/admin/functions" class="endpoint" target="_blank">Admin Dashboard</a>
                     </div>
                 </div>
 
@@ -875,8 +881,8 @@
                 <div class="card glass">
                     <h3>📡 Webhook Endpoint</h3>
                     <div class="endpoints">
-                        <div class="endpoint">POST http://localhost:7071/api/webhooks/alto</div>
-                        <div class="endpoint">GET http://localhost:7071/api/webhooks/alto (Status)</div>
+                        <div class="endpoint">POST https://rapidintdev-d0ccheegc3anfedn.uksouth-01.azurewebsites.net/api/webhooks/alto</div>
+                        <div class="endpoint">GET https://rapidintdev-d0ccheegc3anfedn.uksouth-01.azurewebsites.net/api/webhooks/alto (Status)</div>
                     </div>
                     <p><strong>CloudEvents Format:</strong> Supports CloudEvents v1.0 specification</p>
                     <p><strong>Signature Verification:</strong> HMAC SHA-256 with webhook secret</p>
@@ -1124,10 +1130,81 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> <!-- End Container -->
+
+    <!-- Footer -->
+    <footer class="glass card" style="margin: 25px auto 20px auto; max-width: 1400px; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="color: var(--text-secondary); font-size: 13px;">
+            © 2025 TDS RapidInt Platform
+        </div>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <span id="userInfo" style="color: var(--text-secondary); font-size: 14px;"></span>
+            <button class="btn btn-secondary" onclick="signOut()" id="signOutBtn" style="display:none; background: var(--glass-hover); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 12px; cursor: pointer; backdrop-filter: blur(20px); font-size: 13px;">
+                Sign Out
+            </button>
+        </div>
+    </footer>
 
     <script>
-        const API_BASE = 'http://localhost:7071/api';
+        // Configuration - from dashboard-config.js
+        const API_BASE = DASHBOARD_CONFIG.apiBaseUrl;
+        const AUTH_METHOD = DASHBOARD_CONFIG.authMethod;
+
+        // MSAL Configuration
+        let msalInstance = null;
+        let currentUser = null;
+
+        /**
+         * Helper function to run code when DOM is ready
+         * Works both for initial page load and after redirects
+         */
+        function runWhenReady(callback) {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', callback);
+            } else {
+                // DOM is already loaded, run immediately
+                callback();
+            }
+        }
+
+        if (AUTH_METHOD === 'entra-id') {
+            const msalConfig = {
+                auth: {
+                    clientId: DASHBOARD_CONFIG.entraId.clientId,
+                    authority: DASHBOARD_CONFIG.entraId.authority,
+                    redirectUri: window.location.origin + window.location.pathname
+                },
+                cache: {
+                    cacheLocation: 'localStorage',
+                    storeAuthStateInCookie: false
+                }
+            };
+
+            msalInstance = new msal.PublicClientApplication(msalConfig);
+
+            // Handle redirect response
+            msalInstance.handleRedirectPromise().then(response => {
+                if (response) {
+                    console.log('✅ Login successful:', response.account.username);
+                    currentUser = response.account;
+                }
+                // Initialize dashboard after authentication
+                runWhenReady(function() {
+                    // Update user info if Entra ID authenticated
+                    const accounts = msalInstance.getAllAccounts();
+                    if (accounts.length > 0) {
+                        currentUser = accounts[0];
+                        document.getElementById('userInfo').textContent = `Welcome, ${currentUser.name || currentUser.username}`;
+                        document.getElementById('signOutBtn').style.display = 'block';
+                    }
+                });
+            }).catch(error => {
+                console.error('❌ Authentication error:', error);
+            });
+        } else {
+            // Function key mode (legacy)
+            const FUNCTION_KEY = DASHBOARD_CONFIG.functionKey;
+        }
 
         // Global variable to store merged audit log for viewAuditDetails function
         let currentMergedAuditLog = [];
@@ -1172,12 +1249,111 @@
             }
         }
 
+        /**
+         * Get access token for API calls
+         */
+        async function getAccessToken() {
+            if (AUTH_METHOD !== 'entra-id') {
+                return null; // Function key mode
+            }
+
+            try {
+                const accounts = msalInstance.getAllAccounts();
+
+                if (accounts.length === 0) {
+                    // No accounts, redirect to login
+                    await msalInstance.loginRedirect({
+                        scopes: [DASHBOARD_CONFIG.entraId.apiScope]
+                    });
+                    return null;
+                }
+
+                // Try to acquire token silently
+                const silentRequest = {
+                    scopes: [DASHBOARD_CONFIG.entraId.apiScope],
+                    account: accounts[0]
+                };
+
+                const response = await msalInstance.acquireTokenSilent(silentRequest);
+                return response.accessToken;
+            } catch (error) {
+                console.warn('Silent token acquisition failed, trying interactive:', error);
+
+                if (error instanceof msal.InteractionRequiredAuthError) {
+                    // Fallback to interactive login
+                    await msalInstance.loginRedirect({
+                        scopes: [DASHBOARD_CONFIG.entraId.apiScope]
+                    });
+                } else {
+                    console.error('Token acquisition error:', error);
+                    throw error;
+                }
+
+                return null;
+            }
+        }
+
+        /**
+         * Make authenticated API request
+         */
+        async function makeAuthenticatedRequest(url, options = {}) {
+            if (AUTH_METHOD === 'entra-id') {
+                // Entra ID mode - use Bearer token
+                const token = await getAccessToken();
+
+                if (!token) {
+                    throw new Error('Failed to acquire access token');
+                }
+
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+
+                // Handle token expiration
+                if (response.status === 401) {
+                    console.warn('Token expired, redirecting to login...');
+                    await msalInstance.loginRedirect({
+                        scopes: [DASHBOARD_CONFIG.entraId.apiScope]
+                    });
+                    return null;
+                }
+
+                return response;
+            } else {
+                // Function key mode (legacy)
+                const separator = url.includes('?') ? '&' : '?';
+                const authenticatedUrl = `${url}${separator}code=${DASHBOARD_CONFIG.functionKey}`;
+
+                return await fetch(authenticatedUrl, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+            }
+        }
+
+        /**
+         * Sign out user (Entra ID only)
+         */
+        async function signOut() {
+            if (AUTH_METHOD === 'entra-id' && msalInstance) {
+                await msalInstance.logoutRedirect();
+            }
+        }
+
+        /**
+         * Legacy wrapper for makeAuthenticatedRequest
+         */
         async function makeRequest(url, options = {}) {
             try {
-                const response = await fetch(url, {
-                    headers: { 'Content-Type': 'application/json' },
-                    ...options
-                });
+                const response = await makeAuthenticatedRequest(url, options);
                 return await response.json();
             } catch (error) {
                 return { error: error.message, success: false };
@@ -1216,7 +1392,7 @@
         }
 
         function viewFunctionList() {
-            window.open('http://localhost:7071/admin/functions', '_blank');
+            window.open('https://rapidintdev-d0ccheegc3anfedn.uksouth-01.azurewebsites.net/admin/functions', '_blank');
         }
 
         function clearResults() {
@@ -3074,7 +3250,7 @@
          */
         async function loadAltoSettings() {
             try {
-                const response = await fetch(`${API_BASE}/settings/alto`);
+                const response = await makeAuthenticatedRequest(`${API_BASE}/settings/alto`);
                 const result = await response.json();
 
                 if (result.success && result.settings) {
@@ -3124,9 +3300,8 @@
 
             try {
                 // Save to backend
-                const response = await fetch(`${API_BASE}/settings/alto`, {
+                const response = await makeAuthenticatedRequest(`${API_BASE}/settings/alto`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(environmentSettings)
                 });
 
@@ -3201,7 +3376,7 @@
          */
         async function loadDefaultRateLimits() {
             try {
-                const response = await fetch(`${API_BASE}/rate-limits/alto/config`);
+                const response = await makeAuthenticatedRequest(`${API_BASE}/rate-limits/alto/config`);
                 const result = await response.json();
 
                 if (result.success && result.data) {
@@ -3226,9 +3401,8 @@
                     burstAllowance: parseInt(document.getElementById('default-burst').value)
                 };
 
-                const response = await fetch(`${API_BASE}/rate-limits/alto/config`, {
+                const response = await makeAuthenticatedRequest(`${API_BASE}/rate-limits/alto/config`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(config)
                 });
 
@@ -3263,7 +3437,7 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE}/rate-limits/alto/organizations/${encodeURIComponent(organizationId)}`);
+                const response = await makeAuthenticatedRequest(`${API_BASE}/rate-limits/alto/organizations/${encodeURIComponent(organizationId)}`);
                 const result = await response.json();
 
                 if (result.success && result.data) {
@@ -3308,9 +3482,8 @@
                     burstAllowance: 20  // Default burst
                 };
 
-                const response = await fetch(`${API_BASE}/rate-limits/alto/organizations/${encodeURIComponent(organizationId)}`, {
+                const response = await makeAuthenticatedRequest(`${API_BASE}/rate-limits/alto/organizations/${encodeURIComponent(organizationId)}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(config)
                 });
 
@@ -3349,7 +3522,7 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE}/rate-limits/alto/organizations/${encodeURIComponent(organizationId)}`, {
+                const response = await makeAuthenticatedRequest(`${API_BASE}/rate-limits/alto/organizations/${encodeURIComponent(organizationId)}`, {
                     method: 'DELETE'
                 });
 
@@ -3379,7 +3552,7 @@
          */
         async function refreshRateLimitStats() {
             try {
-                const response = await fetch(`${API_BASE}/rate-limits/alto/stats`);
+                const response = await makeAuthenticatedRequest(`${API_BASE}/rate-limits/alto/stats`);
                 const result = await response.json();
 
                 const tbody = document.getElementById('rate-limit-stats-body');

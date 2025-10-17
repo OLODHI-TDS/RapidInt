@@ -1,19 +1,57 @@
 const { app } = require('@azure/functions');
 const { TableClient } = require('@azure/data-tables');
 const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
+const { validateEntraToken, hasRole } = require('../../shared-services/shared/entra-auth-middleware');
 
 /**
  * Organization Mapping Service Azure Function
  * Maps Alto Agency Ref + Branch ID to TDS Member ID + Branch ID + API Key
+ *
+ * Authentication: Microsoft Entra ID
+ * - Anonymous auth level (Entra ID tokens validated in handler)
+ * - Read operations: Any authenticated user
+ * - Write operations (add/update/delete): Requires 'Admin' role
  */
 app.http('OrganizationMapping', {
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    authLevel: 'function',
+    authLevel: 'anonymous',  // Changed from 'function' - now using Entra ID
     route: 'organization/{action?}',
     handler: async (request, context) => {
-        try {
-            const action = request.params.action || 'lookup';
+        // Validate Entra ID token
+        const authResult = await validateEntraToken(request, context);
 
+        if (!authResult.isValid) {
+            return {
+                status: 401,
+                jsonBody: {
+                    error: 'Unauthorized',
+                    message: authResult.error,
+                    errorCode: authResult.errorCode
+                }
+            };
+        }
+
+        context.log(`✅ Authenticated user: ${authResult.user.email}`);
+
+        // Get action from request
+        const action = request.params.action || 'lookup';
+
+        // Check role-based access for write operations
+        const writeActions = ['add', 'update', 'delete'];
+        if (writeActions.includes(action) && !hasRole(authResult.user, 'Admin')) {
+            context.log(`❌ User ${authResult.user.email} lacks Admin role for action: ${action}`);
+            return {
+                status: 403,
+                jsonBody: {
+                    error: 'Forbidden',
+                    message: 'Admin role required for this operation',
+                    requiredRole: 'Admin',
+                    userRoles: authResult.user.roles
+                }
+            };
+        }
+
+        try {
             const mappingService = new OrganizationMappingService(context);
 
             switch (action) {

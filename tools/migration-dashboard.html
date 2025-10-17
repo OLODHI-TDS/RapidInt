@@ -630,6 +630,12 @@
     </style>
     <!-- XSS Protection: Safe DOM Rendering Utility (HIGH-004 Fix) -->
     <script src="safe-render.js"></script>
+
+    <!-- Microsoft Authentication Library -->
+    <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+
+    <!-- Environment-specific configuration (NOT in git) -->
+    <script src="dashboard-config.js"></script>
 </head>
 <body>
     <div class="container">
@@ -641,7 +647,7 @@
                         <h1 style="color: var(--text-primary); font-weight: 700; background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.8) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">API Management Dashboard</h1>
                     </div>
                 </div>
-                <div>
+                <div style="display: flex; gap: 15px; align-items: center;">
                     <button class="btn btn-secondary" onclick="goBackToHub()" style="background: var(--glass-hover); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 10px 20px; border-radius: 12px; cursor: pointer; backdrop-filter: blur(20px);">
                         ← Back to Integration Hub
                     </button>
@@ -912,7 +918,20 @@
             </div>
         </div> <!-- End Settings Tab -->
 
-    </div>
+    </div> <!-- End Container -->
+
+    <!-- Footer -->
+    <footer class="glass card" style="margin: 25px auto 20px auto; max-width: 1400px; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="color: var(--text-secondary); font-size: 13px;">
+            © 2025 TDS RapidInt Platform
+        </div>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <span id="userInfo" style="color: var(--text-secondary); font-size: 14px;"></span>
+            <button class="btn btn-secondary" onclick="signOut()" id="signOutBtn" style="display:none; background: var(--glass-hover); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 12px; cursor: pointer; backdrop-filter: blur(20px); font-size: 13px;">
+                Sign Out
+            </button>
+        </div>
+    </footer>
 
     <!-- Details Modal -->
     <div id="detailsModal" class="modal">
@@ -942,8 +961,78 @@
     </div>
 
     <script>
-        // Configuration
-        const API_BASE_URL = 'http://localhost:7071/api'; // Update this to your Azure Function URL
+        // Configuration - from dashboard-config.js
+        const API_BASE_URL = DASHBOARD_CONFIG.apiBaseUrl;
+        const AUTH_METHOD = DASHBOARD_CONFIG.authMethod;
+
+        // MSAL Configuration
+        let msalInstance = null;
+        let currentUser = null;
+
+        /**
+         * Helper function to run code when DOM is ready
+         * Works both for initial page load and after redirects
+         */
+        function runWhenReady(callback) {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', callback);
+            } else {
+                // DOM is already loaded, run immediately
+                callback();
+            }
+        }
+
+        if (AUTH_METHOD === 'entra-id') {
+            const msalConfig = {
+                auth: {
+                    clientId: DASHBOARD_CONFIG.entraId.clientId,
+                    authority: DASHBOARD_CONFIG.entraId.authority,
+                    redirectUri: window.location.origin + window.location.pathname
+                },
+                cache: {
+                    cacheLocation: 'localStorage',
+                    storeAuthStateInCookie: false
+                }
+            };
+
+            msalInstance = new msal.PublicClientApplication(msalConfig);
+
+            // Handle redirect response
+            msalInstance.handleRedirectPromise().then(response => {
+                if (response) {
+                    console.log('✅ Login successful:', response.account.username);
+                    currentUser = response.account;
+                }
+
+                // Initialize dashboard after authentication
+                // Use runWhenReady to handle both initial load and post-redirect scenarios
+                runWhenReady(function() {
+                    // Update user info if Entra ID authenticated
+                    const accounts = msalInstance.getAllAccounts();
+                    if (accounts.length > 0) {
+                        currentUser = accounts[0];
+                        document.getElementById('userInfo').textContent = `Welcome, ${currentUser.name || currentUser.username}`;
+                        document.getElementById('signOutBtn').style.display = 'block';
+                    }
+
+                    loadData();
+                    setupEventListeners();
+                });
+            }).catch(error => {
+                console.error('❌ Authentication error:', error);
+                runWhenReady(function() {
+                    document.getElementById('error').textContent = `Authentication failed: ${error.message}`;
+                });
+            });
+        } else {
+            // Function key mode (legacy)
+            const FUNCTION_KEY = DASHBOARD_CONFIG.functionKey;
+
+            runWhenReady(function() {
+                loadData();
+                setupEventListeners();
+            });
+        }
 
         let organizations = [];
         let filteredOrganizations = [];
@@ -954,11 +1043,104 @@
         let orgPageSize = 10;
         let orgTotalEntries = 0;
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            loadData();
-            setupEventListeners();
-        });
+        /**
+         * Get access token for API calls
+         */
+        async function getAccessToken() {
+            if (AUTH_METHOD !== 'entra-id') {
+                return null; // Function key mode
+            }
+
+            try {
+                const accounts = msalInstance.getAllAccounts();
+
+                if (accounts.length === 0) {
+                    // No accounts, redirect to login
+                    await msalInstance.loginRedirect({
+                        scopes: [DASHBOARD_CONFIG.entraId.apiScope]
+                    });
+                    return null;
+                }
+
+                // Try to acquire token silently
+                const silentRequest = {
+                    scopes: [DASHBOARD_CONFIG.entraId.apiScope],
+                    account: accounts[0]
+                };
+
+                const response = await msalInstance.acquireTokenSilent(silentRequest);
+                return response.accessToken;
+            } catch (error) {
+                console.warn('Silent token acquisition failed, trying interactive:', error);
+
+                if (error instanceof msal.InteractionRequiredAuthError) {
+                    // Fallback to interactive login
+                    await msalInstance.loginRedirect({
+                        scopes: [DASHBOARD_CONFIG.entraId.apiScope]
+                    });
+                } else {
+                    console.error('Token acquisition error:', error);
+                    throw error;
+                }
+
+                return null;
+            }
+        }
+
+        /**
+         * Make authenticated API request
+         */
+        async function makeAuthenticatedRequest(url, options = {}) {
+            if (AUTH_METHOD === 'entra-id') {
+                // Entra ID mode - use Bearer token
+                const token = await getAccessToken();
+
+                if (!token) {
+                    throw new Error('Failed to acquire access token');
+                }
+
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+
+                // Handle token expiration
+                if (response.status === 401) {
+                    console.warn('Token expired, redirecting to login...');
+                    await msalInstance.loginRedirect({
+                        scopes: [DASHBOARD_CONFIG.entraId.apiScope]
+                    });
+                    return null;
+                }
+
+                return response;
+            } else {
+                // Function key mode (legacy)
+                const separator = url.includes('?') ? '&' : '?';
+                const authenticatedUrl = `${url}${separator}code=${DASHBOARD_CONFIG.functionKey}`;
+
+                return await fetch(authenticatedUrl, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+            }
+        }
+
+        /**
+         * Sign out user (Entra ID only)
+         */
+        async function signOut() {
+            if (AUTH_METHOD === 'entra-id' && msalInstance) {
+                await msalInstance.logoutRedirect();
+            }
+        }
 
         function setupEventListeners() {
             document.getElementById('statusFilter').addEventListener('change', applyFilters);
@@ -986,7 +1168,7 @@
         async function fetchOrganizations() {
             try {
                 // Fetch all organizations and filter by current environment
-                const response = await fetch(`${API_BASE_URL}/organization/list`);
+                const response = await makeAuthenticatedRequest(`${API_BASE_URL}/organization/list`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch organizations');
                 }
@@ -2103,7 +2285,9 @@
 
         async function addOrganizationMapping() {
             const integrationType = document.getElementById('add-integrationType').value;
-            const sfAuthMethod = document.getElementById('add-sfAuthMethod').value;
+            const sfAuthMethodRaw = document.getElementById('add-sfAuthMethod').value;
+            // Normalize api_key to api-key for validation schema
+            const sfAuthMethod = sfAuthMethodRaw.replace('_', '-');
 
             // Build integration credentials
             const integrationCredentials = {};
@@ -2129,7 +2313,7 @@
                 authMethod: sfAuthMethod
             };
 
-            if (sfAuthMethod === 'api_key') {
+            if (sfAuthMethod === 'api-key') {
                 tdsSalesforceConfig.apiKey = document.getElementById('add-sfApiKey').value;
             } else {
                 tdsSalesforceConfig.clientId = document.getElementById('add-sfClientId').value;
@@ -2167,7 +2351,7 @@
                 return;
             }
 
-            if (sfAuthMethod === 'api_key' && !tdsSalesforceConfig.apiKey) {
+            if (sfAuthMethod === 'api-key' && !tdsSalesforceConfig.apiKey) {
                 alert('Please enter Salesforce API Key');
                 return;
             }
@@ -2178,9 +2362,8 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE_URL}/organization/add`, {
+                const response = await makeAuthenticatedRequest(`${API_BASE_URL}/organization/add`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
 
@@ -2433,9 +2616,8 @@
                 // Note: integrationCredentials are not supported in the update schema
                 // AgencyRef and BranchId should be updated separately if needed
 
-                const response = await fetch(`${API_BASE_URL}/organization/update`, {
+                const response = await makeAuthenticatedRequest(`${API_BASE_URL}/organization/update`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updateData)
                 });
 
@@ -2460,9 +2642,8 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE_URL}/organization/delete`, {
+                const response = await makeAuthenticatedRequest(`${API_BASE_URL}/organization/delete`, {
                     method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         organizationName,
                         environment,
@@ -2499,7 +2680,7 @@
         }
 
         // Initialize mapping on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        runWhenReady(function() {
             // Show default tab
             const mappingContent = document.getElementById('mappingContent');
             if (mappingContent) {
@@ -2540,9 +2721,8 @@
             };
 
             try {
-                const response = await fetch(`${API_BASE_URL}/settings/tds`, {
+                const response = await makeAuthenticatedRequest(`${API_BASE_URL}/settings/tds`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(tdsSettings)
                 });
 
@@ -2572,7 +2752,7 @@
          */
         async function loadTDSSettings() {
             try {
-                const response = await fetch(`${API_BASE_URL}/settings/tds`);
+                const response = await makeAuthenticatedRequest(`${API_BASE_URL}/settings/tds`);
                 const result = await response.json();
 
                 if (result.success && result.settings) {

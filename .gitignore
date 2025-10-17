@@ -75,9 +75,24 @@ SALESFORCE-AUTH-IMPLEMENTATION-SUMMARY.md
 SALESFORCE-AUTH-SETUP.md
 SALESFORCE-EWC-API-DETAILS.md
 
+# Entra ID documentation (local only)
+ENTRA_ID_CODE_CHANGES.md
+ENTRA_ID_IMPLEMENTATION.md
+ENTRA_ID_LOCAL_SETUP_GUIDE.md
+ENTRA_ID_QUICK_REFERENCE.md
+
+# Other local documentation
+ISO_27001_COMPLIANCE_ANALYSIS.md
+MEETING_PREP_OFFSHORE_DEV.md
+SECURITY_AUDIT_REPORT_V2.md
+START_LOCAL_DEVELOPMENT.md
+
 # Azure deployment
 .deployment
 
 # Debug files
 debug-*.js
 test-*.js
+
+# Dashboard environment-specific config (NOT committed)
+tools/dashboard-config.js
