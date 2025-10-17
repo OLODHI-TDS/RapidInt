@@ -8,7 +8,7 @@ on:
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 env:
-  AZURE_FUNCTIONAPP_NAME: 'rapidintdev-d0ccheegc3anfedn'
+  AZURE_FUNCTIONAPP_NAME: 'rapidintdev'
   AZURE_FUNCTIONAPP_PACKAGE_PATH: './azure-functions'
   NODE_VERSION: '18.x'
 
