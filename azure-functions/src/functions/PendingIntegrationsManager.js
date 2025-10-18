@@ -2,6 +2,8 @@ const { app } = require('@azure/functions');
 const { TableClient } = require('@azure/data-tables');
 const { schemas } = require('../../shared-services/shared/validation-schemas');
 const { validateEntraToken, hasRole } = require('../../shared-services/shared/entra-auth-middleware');
+const { AltoAPIClient } = require('../../shared-services/shared/alto-api-client');
+const { AltoTDSOrchestrator } = require('./WorkflowOrchestrator');
 
 /**
  * Pending Integrations Manager Azure Function
@@ -1027,27 +1029,57 @@ class PendingIntegrationsManagerClass {
 
     /**
      * Fetch Alto data for retry validation
+     * Uses direct AltoAPIClient call instead of HTTP (more secure, no auth needed for internal calls)
      */
     async fetchAltoDataForRetry(integration) {
         try {
-            const axios = require('axios');
-            const response = await axios.post(
-                `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/alto/fetch-tenancy/${integration.tenancyId}`,
-                {
-                    agencyRef: integration.agencyRef,
-                    branchId: integration.branchId,
-                    environment: integration.environment || 'development'
-                },
-                {
-                    params: {
-                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY
-                    },
-                    headers: { 'Content-Type': 'application/json' },
-                    timeout: 30000
-                }
+            // Get Alto API URL from AltoSettings
+            let altoApiUrl = process.env.ALTO_API_BASE_URL || 'https://api.alto.zoopladev.co.uk';
+            const environment = integration.environment || 'development';
+
+            try {
+                // Load Alto settings directly from table storage
+                const connectionString = process.env.AzureWebJobsStorage || 'UseDevelopmentStorage=true';
+                const settingsTableClient = TableClient.fromConnectionString(connectionString, 'AltoSettings');
+
+                const settingsEntity = await settingsTableClient.getEntity('Settings', 'AltoConfig');
+                const settings = {
+                    development: JSON.parse(settingsEntity.developmentSettings || '{}'),
+                    production: JSON.parse(settingsEntity.productionSettings || '{}')
+                };
+
+                altoApiUrl = environment === 'production'
+                    ? settings.production.altoApi || altoApiUrl
+                    : settings.development.altoApi || altoApiUrl;
+
+                this.context.log(`✅ Using Alto API URL for ${environment}: ${altoApiUrl}`);
+            } catch (error) {
+                // 404 or other error - use defaults
+                this.context.log('⚠️ Failed to load Alto settings, using defaults:', error.message);
+            }
+
+            // Remove trailing slash
+            altoApiUrl = altoApiUrl.replace(/\/$/, '');
+
+            // Initialize Alto API client
+            const altoClient = new AltoAPIClient({
+                baseUrl: altoApiUrl,
+                clientId: process.env.ALTO_CLIENT_ID,
+                clientSecret: process.env.ALTO_CLIENT_SECRET,
+                timeout: 30000,
+                context: this.context
+            });
+
+            // Fetch tenancy data directly (no HTTP call, no auth needed)
+            const tenancyData = await altoClient.fetchFullTenancyData(
+                integration.tenancyId,
+                integration.agencyRef,
+                integration.branchId,
+                false, // testMode
+                {}     // testConfig
             );
 
-            return response.data.success ? response.data.data : null;
+            return tenancyData;
 
         } catch (error) {
             this.context.log(`❌ Failed to fetch Alto data for ${integration.tenancyId}:`, error.message);
@@ -1201,28 +1233,22 @@ class PendingIntegrationsManagerClass {
 
     /**
      * Trigger workflow orchestrator
+     * Uses direct AltoTDSOrchestrator call instead of HTTP (more secure, no auth needed for internal calls)
      */
     async triggerWorkflowOrchestrator(workflowData) {
         try {
-            const axios = require('axios');
-            const response = await axios.post(
-                `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/workflows/alto-tds`,
-                workflowData,
-                {
-                    params: {
-                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY
-                    },
-                    headers: { 'Content-Type': 'application/json' },
-                    timeout: 600000
-                }
-            );
+            // Create orchestrator instance and execute workflow directly
+            // No bearer token needed since this is an internal call
+            const orchestrator = new AltoTDSOrchestrator(this.context, null);
+            const result = await orchestrator.execute(workflowData);
 
-            return response.data;
+            // Return result in same format as HTTP endpoint
+            return result;
 
         } catch (error) {
             return {
                 success: false,
-                error: error.response?.data?.error || error.message
+                error: error.message
             };
         }
     }

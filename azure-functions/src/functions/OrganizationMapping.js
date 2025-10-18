@@ -881,3 +881,5 @@ class OrganizationMappingService {
     }
 
 }
+// Export for internal use (no HTTP, no auth needed)
+module.exports = { OrganizationMappingService };

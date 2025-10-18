@@ -6,6 +6,8 @@ const { getSalesforceAuthHeader } = require('../../shared-services/shared/salesf
 const { sanitizeForLogging, getDepositSummary } = require('../../shared-services/shared/sanitized-logger');
 const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
 const { validateEntraToken, hasRole } = require('../../shared-services/shared/entra-auth-middleware');
+const { OrganizationMappingService } = require('./OrganizationMapping');
+const { loadTDSSettings } = require('../../shared-services/shared/service-helpers');
 
 /**
  * Sanitize string for Salesforce API - removes special characters that Salesforce rejects
@@ -1015,53 +1017,47 @@ app.http('TDSAdapter', {
 
             if (requestData.agencyRef) {
                 try {
-                    const functionKey = process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY || '';
-                    const orgMappingUrl = new URL(`${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/lookup`);
-                    orgMappingUrl.searchParams.append('agencyRef', requestData.agencyRef);
-                    orgMappingUrl.searchParams.append('branchId', requestData.branchId || 'DEFAULT');
-                    if (functionKey) {
-                        orgMappingUrl.searchParams.append('code', functionKey);
-                    }
+                    // Use direct OrganizationMappingService (no HTTP, no auth needed for internal calls)
+                    const mappingService = new OrganizationMappingService(context);
+                    const result = await mappingService.getMapping(
+                        requestData.agencyRef,
+                        requestData.branchId || 'DEFAULT'
+                    );
 
-                    const orgMappingResponse = await fetch(orgMappingUrl.toString());
+                    if (result && result.mapping) {
+                        const mapping = result.mapping;
 
-                    if (orgMappingResponse.ok) {
-                        const orgMapping = await orgMappingResponse.json();
-                        if (orgMapping.success) {
-                            const mapping = orgMapping.tdsMapping;
+                        // Store both sets of credentials separately
+                        legacyConfig = {
+                            apiKey: mapping.legacy?.apiKey,
+                            memberId: mapping.legacy?.memberId,
+                            branchId: mapping.legacy?.branchId
+                        };
 
-                            // Store both sets of credentials separately
-                            legacyConfig = {
-                                apiKey: mapping.legacy?.apiKey,
-                                memberId: mapping.legacy?.memberId,
-                                branchId: mapping.legacy?.branchId
-                            };
+                        salesforceConfig = {
+                            apiKey: mapping.salesforce?.apiKey,
+                            memberId: mapping.salesforce?.memberId,
+                            branchId: mapping.salesforce?.branchId,
+                            region: mapping.salesforce?.region,
+                            schemeType: mapping.salesforce?.schemeType,
+                            authMethod: mapping.salesforce?.authMethod,
+                            clientId: mapping.salesforce?.clientId,
+                            clientSecret: mapping.salesforce?.clientSecret
+                        };
 
-                            salesforceConfig = {
-                                apiKey: mapping.salesforce?.apiKey,
-                                memberId: mapping.salesforce?.memberId,
-                                branchId: mapping.salesforce?.branchId,
-                                region: mapping.salesforce?.region,
-                                schemeType: mapping.salesforce?.schemeType,
-                                authMethod: mapping.salesforce?.authMethod,
-                                clientId: mapping.salesforce?.clientId,
-                                clientSecret: mapping.salesforce?.clientSecret
-                            };
+                        // Get environment from organization mapping
+                        orgEnvironment = mapping.environment || 'development';
+                        // Get TDS provider preference from organization mapping
+                        tdsProviderPreference = mapping.tdsProviderPreference || 'auto';
 
-                            // Get environment from organization mapping
-                            orgEnvironment = orgMapping.environment || 'development';
-                            // Get TDS provider preference from organization mapping
-                            tdsProviderPreference = mapping.tdsProviderPreference || 'auto';
-
-                            context.log(`📊 Organization Mapping Found:`);
-                            context.log(`   Environment: ${orgEnvironment}`);
-                            context.log(`   TDS Provider: ${tdsProviderPreference}`);
-                            if (legacyConfig.memberId) {
-                                context.log(`   Legacy - Member: ${legacyConfig.memberId}, Branch: ${legacyConfig.branchId}`);
-                            }
-                            if (salesforceConfig.memberId) {
-                                context.log(`   Salesforce - Member: ${salesforceConfig.memberId}, Branch: ${salesforceConfig.branchId}`);
-                            }
+                        context.log(`📊 Organization Mapping Found:`);
+                        context.log(`   Environment: ${orgEnvironment}`);
+                        context.log(`   TDS Provider: ${tdsProviderPreference}`);
+                        if (legacyConfig.memberId) {
+                            context.log(`   Legacy - Member: ${legacyConfig.memberId}, Branch: ${legacyConfig.branchId}`);
+                        }
+                        if (salesforceConfig.memberId) {
+                            context.log(`   Salesforce - Member: ${salesforceConfig.memberId}, Branch: ${salesforceConfig.branchId}`);
                         }
                     }
                 } catch (error) {
@@ -1070,23 +1066,11 @@ app.http('TDSAdapter', {
             }
 
             // Fetch TDS Settings to get dynamic API URLs
+            // Use direct loadTDSSettings helper (no HTTP, no auth needed for internal calls)
             let tdsSettings = null;
             try {
-                const functionKey = process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY || '';
-                const tdsSettingsUrl = new URL(`${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/settings/tds`);
-                if (functionKey) {
-                    tdsSettingsUrl.searchParams.append('code', functionKey);
-                }
-
-                const tdsSettingsResponse = await fetch(tdsSettingsUrl.toString());
-
-                if (tdsSettingsResponse.ok) {
-                    const settingsResult = await tdsSettingsResponse.json();
-                    if (settingsResult.success) {
-                        tdsSettings = settingsResult.settings;
-                        context.log(`✅ TDS Settings loaded successfully for ${orgEnvironment} environment`);
-                    }
-                }
+                tdsSettings = await loadTDSSettings(context);
+                context.log(`✅ TDS Settings loaded successfully for ${orgEnvironment} environment`);
             } catch (error) {
                 context.warn('Failed to load TDS settings, using defaults:', error.message);
             }

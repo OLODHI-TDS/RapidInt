@@ -3,6 +3,9 @@ const axios = require('axios');
 const { IntegrationAuditLogger } = require('./IntegrationAuditLogger');
 const { validateRequestBody, schemas, formatValidationError } = require('../../shared-services/shared/validation-schemas');
 const { validateEntraToken, hasRole } = require('../../shared-services/shared/entra-auth-middleware');
+const { AltoAPIClient } = require('../../shared-services/shared/alto-api-client');
+const { OrganizationMappingService } = require('./OrganizationMapping');
+const { lookupPostcode } = require('../../shared-services/shared/service-helpers');
 
 /**
  * Workflow Orchestrator Azure Function
@@ -336,28 +339,21 @@ class AltoTDSOrchestrator {
             let effectiveBranchId = workflowData.branchId; // Default to webhook's branch ID
 
             if (workflowData.agencyRef) {
-                // ✅ Get organization mapping with authentication - NO FALLBACK
+                // ✅ Get organization mapping - use direct service call (no HTTP, no auth needed for internal calls)
                 // If org mapping doesn't exist, workflow should fail immediately
-                const orgMappingResponse = await axios.get(
-                    `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/lookup`,
-                    {
-                        params: {
-                            agencyRef: workflowData.agencyRef,
-                            branchId: workflowData.branchId || 'DEFAULT'
-                        },
-                        headers: this.bearerToken ? {
-                            'Authorization': `Bearer ${this.bearerToken}`
-                        } : {}
-                    }
+                const mappingService = new OrganizationMappingService(this.context);
+                const result = await mappingService.getMapping(
+                    workflowData.agencyRef,
+                    workflowData.branchId || 'DEFAULT'
                 );
 
-                if (!orgMappingResponse.data.success) {
+                if (!result || !result.mapping) {
                     throw new Error(`Organization mapping not found for agencyRef: ${workflowData.agencyRef}, branchId: ${workflowData.branchId || 'DEFAULT'}`);
                 }
 
-                environment = orgMappingResponse.data.environment || 'development';
+                environment = result.mapping.environment || 'development';
                 // ✅ Use organization mapping's branch ID (handles DEFAULT wildcard)
-                effectiveBranchId = orgMappingResponse.data.organizationBranchId || workflowData.branchId;
+                effectiveBranchId = result.storedBranchId || workflowData.branchId;
 
                 this.context.log(`📊 Using environment from org mapping: ${environment}`);
                 this.context.log(`🔑 Using branch ID from org mapping: ${effectiveBranchId}`);
@@ -365,32 +361,52 @@ class AltoTDSOrchestrator {
                 throw new Error('agencyRef is required to lookup organization mapping');
             }
 
-            // Call our Alto integration function with environment and agencyRef
-            const response = await axios.post(
-                `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/alto/fetch-tenancy/${workflowData.tenancyId}`,
-                {
-                    environment,
-                    agencyRef: workflowData.agencyRef,
-                    branchId: effectiveBranchId,  // ✅ Use organization mapping's branch ID
-                    testMode: workflowData.testMode || false,        // Pass test mode flag
-                    testConfig: workflowData.testConfig || {}        // Pass test configuration
-                },
-                {
-                    headers: this.bearerToken ? {
-                        'Authorization': `Bearer ${this.bearerToken}`,
-                        'Content-Type': 'application/json'
-                    } : {
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 600000
-                }
+            // Use direct AltoAPIClient (no HTTP, no auth needed for internal calls)
+            // Get Alto API URL from settings
+            let altoApiUrl = process.env.ALTO_API_BASE_URL || 'https://api.alto.zoopladev.co.uk';
+
+            try {
+                const { TableClient } = require('@azure/data-tables');
+                const connectionString = process.env.AzureWebJobsStorage || 'UseDevelopmentStorage=true';
+                const settingsTableClient = TableClient.fromConnectionString(connectionString, 'AltoSettings');
+
+                const settingsEntity = await settingsTableClient.getEntity('Settings', 'AltoConfig');
+                const settings = {
+                    development: JSON.parse(settingsEntity.developmentSettings || '{}'),
+                    production: JSON.parse(settingsEntity.productionSettings || '{}')
+                };
+
+                altoApiUrl = environment === 'production'
+                    ? settings.production.altoApi || altoApiUrl
+                    : settings.development.altoApi || altoApiUrl;
+
+                this.context.log(`✅ Using Alto API URL for ${environment}: ${altoApiUrl}`);
+            } catch (error) {
+                this.context.log('⚠️ Failed to load Alto settings, using defaults:', error.message);
+            }
+
+            // Remove trailing slash
+            altoApiUrl = altoApiUrl.replace(/\/$/, '');
+
+            // Initialize Alto API client
+            const altoClient = new AltoAPIClient({
+                baseUrl: altoApiUrl,
+                clientId: process.env.ALTO_CLIENT_ID,
+                clientSecret: process.env.ALTO_CLIENT_SECRET,
+                timeout: 600000,
+                context: this.context
+            });
+
+            // Fetch tenancy data directly
+            const altoData = await altoClient.fetchFullTenancyData(
+                workflowData.tenancyId,
+                workflowData.agencyRef,
+                effectiveBranchId,  // ✅ Use organization mapping's branch ID
+                workflowData.testMode || false,
+                workflowData.testConfig || {}
             );
 
-            if (response.data.success) {
-                return response.data.data;
-            } else {
-                throw new Error('Failed to fetch Alto data');
-            }
+            return altoData;
 
         } catch (error) {
             // No fallback - throw real error
@@ -697,21 +713,13 @@ class AltoTDSOrchestrator {
         }
 
         try {
-            // Call our postcode lookup function
-            const response = await axios.get(
-                `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/postcode/${postcode}`,
-                {
-                    headers: this.bearerToken ? {
-                        'Authorization': `Bearer ${this.bearerToken}`
-                    } : {},
-                    timeout: 10000
-                }
-            );
+            // Use direct lookupPostcode helper (no HTTP, no auth needed for internal calls)
+            const result = await lookupPostcode(postcode, this.context);
 
             return {
                 success: true,
                 postcode,
-                county: response.data.county
+                county: result.region
             };
 
         } catch (error) {
