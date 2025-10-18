@@ -29,6 +29,10 @@ app.http('WorkflowOrchestrator', {
 
         context.log(`✅ Authenticated user: ${authResult.user.email}`);
 
+        // Extract Bearer token for internal API calls
+        const authHeader = request.headers.get('authorization');
+        const bearerToken = authHeader ? authHeader.substring(7) : null; // Remove 'Bearer ' prefix
+
         try {
             let workflowData = await request.json();
 
@@ -51,7 +55,7 @@ app.http('WorkflowOrchestrator', {
 
             context.log('🚀 Starting Alto → TDS workflow:', workflowData);
 
-            const orchestrator = new AltoTDSOrchestrator(context);
+            const orchestrator = new AltoTDSOrchestrator(context, bearerToken);
             const result = await orchestrator.execute(workflowData);
 
             // Determine status code:
@@ -89,8 +93,9 @@ app.http('WorkflowOrchestrator', {
  * Alto to TDS Integration Orchestrator
  */
 class AltoTDSOrchestrator {
-    constructor(context) {
+    constructor(context, bearerToken = null) {
         this.context = context;
+        this.bearerToken = bearerToken;
         this.workflowId = `wf_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
         this.startTime = Date.now();
         this.auditLogger = new IntegrationAuditLogger(context);
@@ -338,9 +343,11 @@ class AltoTDSOrchestrator {
                     {
                         params: {
                             agencyRef: workflowData.agencyRef,
-                            branchId: workflowData.branchId || 'DEFAULT',
-                            code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY
-                        }
+                            branchId: workflowData.branchId || 'DEFAULT'
+                        },
+                        headers: this.bearerToken ? {
+                            'Authorization': `Bearer ${this.bearerToken}`
+                        } : {}
                     }
                 );
 
@@ -369,10 +376,10 @@ class AltoTDSOrchestrator {
                     testConfig: workflowData.testConfig || {}        // Pass test configuration
                 },
                 {
-                    params: {
-                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY  // ✅ Add function key
-                    },
-                    headers: {
+                    headers: this.bearerToken ? {
+                        'Authorization': `Bearer ${this.bearerToken}`,
+                        'Content-Type': 'application/json'
+                    } : {
                         'Content-Type': 'application/json'
                     },
                     timeout: 600000
@@ -694,9 +701,9 @@ class AltoTDSOrchestrator {
             const response = await axios.get(
                 `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/postcode/${postcode}`,
                 {
-                    params: {
-                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY  // ✅ Add function key
-                    },
+                    headers: this.bearerToken ? {
+                        'Authorization': `Bearer ${this.bearerToken}`
+                    } : {},
                     timeout: 10000
                 }
             );
@@ -899,10 +906,12 @@ class AltoTDSOrchestrator {
                 `${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/tds/create`,
                 payload,
                 {
-                    params: {
-                        code: process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY  // ✅ Add function key
+                    headers: this.bearerToken ? {
+                        'Authorization': `Bearer ${this.bearerToken}`,
+                        'Content-Type': 'application/json'
+                    } : {
+                        'Content-Type': 'application/json'
                     },
-                    headers: { 'Content-Type': 'application/json' },
                     timeout: 600000
                 }
             );
