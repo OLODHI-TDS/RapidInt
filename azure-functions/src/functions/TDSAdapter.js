@@ -497,7 +497,11 @@ class CurrentTDSProvider extends TDSProviderInterface {
 class SalesforceTDSProvider extends TDSProviderInterface {
     constructor(config) {
         super();
-        this.instanceUrl = config.instanceUrl;
+        // ✅ Strip trailing /services/apexrest if already present (prevent endpoint duplication)
+        // Endpoints like /services/apexrest/depositcreation will be appended to this base URL
+        this.instanceUrl = config.instanceUrl
+            ? config.instanceUrl.replace(/\/services\/apexrest\/?$/, '')
+            : config.instanceUrl;
         this.apiKey = config.apiKey;
         this.memberId = config.memberId;
         this.branchId = config.branchId;

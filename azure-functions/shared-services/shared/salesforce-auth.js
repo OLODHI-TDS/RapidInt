@@ -283,7 +283,10 @@ async function performTokenRefresh(context, clientId, clientSecret, baseUrl = nu
   if (baseUrl) {
     // OAuth2 token endpoint does NOT use /auth/ prefix (it's the authentication endpoint itself)
     // Only API endpoints like /depositcreation use /auth/ prefix for OAuth2
-    authUrl = `${baseUrl}/services/apexrest/authorise`;
+
+    // ✅ Strip trailing /services/apexrest if already present (prevent duplication)
+    const cleanBaseUrl = baseUrl.replace(/\/services\/apexrest\/?$/, '');
+    authUrl = `${cleanBaseUrl}/services/apexrest/authorise`;
   }
 
   try {
