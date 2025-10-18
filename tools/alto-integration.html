@@ -216,6 +216,7 @@
         .status-badge.success,
         .status-badge.completed { background: rgba(16, 185, 129, 0.15); color: var(--color-success-light); border: 1px solid rgba(16, 185, 129, 0.3); }
         .status-badge.failed { background: rgba(239, 68, 68, 0.15); color: var(--color-error-light); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .status-badge.rejected { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
         .status-badge.pending,
         .status-badge.pending-deposit,
         .status-badge.pending-data { background: rgba(245, 158, 11, 0.15); color: var(--color-warning-light); border: 1px solid rgba(245, 158, 11, 0.3); }
@@ -2441,32 +2442,87 @@
 
         async function loadArchivedIntegrations(silent = false) {
             try {
-                console.log('Loading completed/failed integrations from audit log...');
-                const result = await makeRequest(`${API_BASE}/integration-audit/list`);
-                console.log('Audit log API response:', result);
+                console.log('Loading completed/failed/rejected integrations...');
 
-                if (result && result.success) {
-                    // Filter for completed or failed integrations only
-                    const completedOrFailed = (result.auditLog || []).filter(item =>
+                // Load from both audit log AND archive table
+                const [auditResult, archiveResult] = await Promise.all([
+                    makeRequest(`${API_BASE}/integration-audit/list`).catch(err => ({ success: false, auditLog: [] })),
+                    makeRequest(`${API_BASE}/pending-integrations/archive`).catch(err => ({ success: false, archived: [] }))
+                ]);
+
+                console.log('Audit log API response:', auditResult);
+                console.log('Archive API response:', archiveResult);
+
+                // Combine data from both sources
+                let allIntegrations = [];
+
+                // Add from audit log (COMPLETED and FAILED integrations)
+                if (auditResult && auditResult.success) {
+                    const completedOrFailed = (auditResult.auditLog || []).filter(item =>
                         item.integrationStatus === 'COMPLETED' ||
                         item.integrationStatus === 'FAILED'
                     );
-                    console.log(`Filtered ${completedOrFailed.length} completed/failed integrations from ${result.auditLog.length} total`);
+                    console.log(`Found ${completedOrFailed.length} completed/failed from audit log`);
+                    allIntegrations.push(...completedOrFailed);
+                }
 
-                    // Store data and reset pagination
-                    currentArchiveData = completedOrFailed;
-                    archiveTotalEntries = completedOrFailed.length;
-                    archiveCurrentPage = 1;
+                // Add from archive table (REJECTED integrations and any other archived records)
+                if (archiveResult && archiveResult.success) {
+                    const archivedRecords = (archiveResult.archived || []).map(record => ({
+                        // Convert archive format to audit log format for consistent display
+                        timestamp: record.archivedAt || record.createdAt,
+                        tenancyId: record.tenancyId,
+                        agencyRef: record.agencyRef,
+                        branchId: record.branchId,
+                        status: record.finalStatus === 'REJECTED' ? 'Rejected' : record.finalStatus === 'COMPLETED' ? 'Success' : 'Failed',
+                        integrationStatus: record.integrationStatus || record.finalStatus,
+                        dan: record.danNumber || '-',
+                        depositId: record.tdsDepositId || '-',
+                        processingTime: '-',
+                        steps: 0,
+                        completedSteps: 0,
+                        failedStep: '-',
+                        error: record.archiveReason || '',
+                        workflowId: record.workflowId || record.rowKey,
+                        source: 'ARCHIVE',
+                        depositSchemeType: record.depositSchemeType || '',
+                        archiveReason: record.archiveReason || '',
+                        fullResult: {
+                            success: record.finalStatus === 'COMPLETED',
+                            rejected: record.finalStatus === 'REJECTED',
+                            depositSchemeType: record.depositSchemeType
+                        }
+                    }));
+                    console.log(`Found ${archivedRecords.length} archived records (including ${archivedRecords.filter(r => r.integrationStatus === 'REJECTED').length} rejected)`);
 
-                    displayArchivedIntegrations();
+                    // Only add archived records that aren't already in audit log (avoid duplicates)
+                    const auditWorkflowIds = new Set(allIntegrations.map(i => i.workflowId));
+                    const uniqueArchivedRecords = archivedRecords.filter(r => !auditWorkflowIds.has(r.workflowId));
+                    allIntegrations.push(...uniqueArchivedRecords);
+                }
 
-                    // Only show toast if not in silent mode
-                    if (!silent) {
-                        showToast(`Loaded ${completedOrFailed.length} completed integrations`, 'success');
-                    }
-                } else {
-                    console.error('API returned unsuccessful response:', result);
-                    throw new Error('API returned unsuccessful response');
+                console.log(`Total integrations: ${allIntegrations.length}`);
+
+                // Sort all integrations by timestamp (newest first)
+                allIntegrations.sort((a, b) => {
+                    const dateA = new Date(a.timestamp || a.archivedAt || a.createdAt || 0);
+                    const dateB = new Date(b.timestamp || b.archivedAt || b.createdAt || 0);
+                    return dateB - dateA; // Descending order (newest first)
+                });
+
+                console.log(`Sorted integrations by date (newest first)`);
+
+                // Store data and reset pagination
+                currentArchiveData = allIntegrations;
+                archiveTotalEntries = allIntegrations.length;
+                archiveCurrentPage = 1;
+
+                displayArchivedIntegrations();
+
+                // Only show toast if not in silent mode
+                if (!silent) {
+                    const rejectedCount = allIntegrations.filter(i => i.integrationStatus === 'REJECTED').length;
+                    showToast(`Loaded ${allIntegrations.length} archived integrations (${rejectedCount} rejected)`, 'success');
                 }
             } catch (error) {
                 console.error('Error loading archived integrations:', error);
@@ -2652,8 +2708,9 @@
             // Status with badge
             const statusDiv = document.createElement('div');
             statusDiv.appendChild(document.createElement('strong')).textContent = 'Status: ';
-            const statusBadge = safeCreateElement('span', integration.integrationStatus, {
-                className: `status-badge ${(integration.integrationStatus || '').toLowerCase()}`
+            const statusText = integration.integrationStatus || 'UNKNOWN';
+            const statusBadge = safeCreateElement('span', statusText, {
+                className: `status-badge ${statusText.toLowerCase()}`
             });
             statusDiv.appendChild(statusBadge);
             detailGrid.appendChild(statusDiv);
@@ -2670,6 +2727,16 @@
             detailGrid.appendChild(createDetailRow('Completed', formatDateTime(integration.completedAt || integration.timestamp)));
             detailGrid.appendChild(createDetailRow('Processing Time', integration.processingTimeMs ? integration.processingTimeMs + 'ms' : 'N/A'));
             detailGrid.appendChild(createDetailRow('Steps', `${integration.completedSteps || 0} / ${integration.totalSteps || 0}`));
+
+            // Rejection details if present (for REJECTED status)
+            if (statusText === 'REJECTED') {
+                if (integration.depositSchemeType) {
+                    detailGrid.appendChild(createDetailRow('Deposit Scheme Type', integration.depositSchemeType, 'error-detail'));
+                }
+                if (integration.archiveReason) {
+                    detailGrid.appendChild(createDetailRow('Rejection Reason', integration.archiveReason, 'error-detail'));
+                }
+            }
 
             // Error details if present
             if (integration.failedStep) {

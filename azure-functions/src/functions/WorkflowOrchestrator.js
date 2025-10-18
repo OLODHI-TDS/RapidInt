@@ -158,6 +158,39 @@ class AltoTDSOrchestrator {
 
             const validationResult = await this.validateAndEnrichData(altoData);
 
+            // Check if this tenancy is permanently rejected (wrong deposit scheme type)
+            if (!validationResult.isValid && validationResult.validationResult?.isPermanentRejection) {
+                this.context.log('🚫 Tenancy rejected: ' + validationResult.validationResult.rejectionReason);
+
+                // Archive this integration immediately - no polling needed
+                const rejectionResult = await this.archiveTenancyRejection(
+                    workflowData,
+                    altoData,
+                    validationResult.validationResult.rejectionReason
+                );
+
+                steps[steps.length - 1].status = 'completed';
+                steps[steps.length - 1].result = {
+                    rejected: true,
+                    reason: validationResult.validationResult.rejectionReason
+                };
+
+                const processingTime = Date.now() - this.startTime;
+
+                return {
+                    success: false,
+                    rejected: true,
+                    workflowId: this.workflowId,
+                    tenancyId: workflowData.tenancyId,
+                    status: 'REJECTED',
+                    message: 'Tenancy rejected - not for TDS Custodial scheme',
+                    rejectionReason: validationResult.validationResult.rejectionReason,
+                    processingTime: `${processingTime}ms`,
+                    steps,
+                    timestamp: new Date().toISOString()
+                };
+            }
+
             // Check if data is incomplete but can be handled with delayed processing
             if (!validationResult.isValid && validationResult.validationResult?.canPendForPolling) {
                 this.context.log('💤 Data incomplete but suitable for delayed processing');
@@ -428,6 +461,32 @@ class AltoTDSOrchestrator {
 
         let isComplete = true;
 
+        // Check deposit scheme type - critical filter for TDS custodial tenancies
+        const depositSchemeType = altoData.tenancy?.depositSchemeType;
+
+        // If depositSchemeType is present but not TDS Custodial or Unspecified, this is a permanent rejection
+        if (depositSchemeType &&
+            depositSchemeType !== 'DisputeServiceCustodial' &&
+            depositSchemeType !== 'Unspecified') {
+            this.context.log(`🚫 Tenancy rejected: Tenancy is not for TDS Custodial (scheme type: ${depositSchemeType})`);
+            // This tenancy is for a different scheme - permanently reject
+            return {
+                isComplete: false,
+                isPermanentRejection: true,
+                rejectionReason: `Tenancy is not for TDS Custodial scheme (scheme type: ${depositSchemeType})`,
+                missingFields: {},
+                summary: `Tenancy is not for TDS Custodial scheme (scheme type: ${depositSchemeType})`,
+                canPendForPolling: false
+            };
+        }
+
+        // If depositSchemeType is "Unspecified", treat as missing field (can pend for polling)
+        if (!depositSchemeType || depositSchemeType === 'Unspecified') {
+            missingFields.tenancy.push('deposit scheme type');
+            isComplete = false;
+            this.context.log(`⏳ Deposit scheme type is unspecified - will pend for polling`);
+        }
+
         // Required tenancy fields
         const requiredTenancyFields = ['id', 'startDate'];
         if (altoData.tenancy) {
@@ -583,7 +642,12 @@ class AltoTDSOrchestrator {
 
         // Handle tenancy fields
         if (missingFields.tenancy.length > 0) {
-            messages.push('Please complete tenancy details in Alto');
+            // Check for specific tenancy fields to provide better messaging
+            if (missingFields.tenancy.includes('deposit scheme type')) {
+                messages.push('Please specify the deposit scheme type in Alto');
+            } else {
+                messages.push('Please complete tenancy details in Alto');
+            }
         }
 
         // Handle property fields
@@ -1080,6 +1144,103 @@ class AltoTDSOrchestrator {
         } catch (error) {
             this.context.log('❌ Failed to create pending integration record:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Archive a rejected tenancy (not for TDS Custodial scheme)
+     */
+    async archiveTenancyRejection(workflowData, altoData, rejectionReason) {
+        this.context.log('📦 Archiving rejected tenancy...');
+
+        const { TableClient } = require('@azure/data-tables');
+
+        try {
+            const integrationId = `rejected_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+            const archiveEntity = {
+                partitionKey: 'ArchivedIntegration',
+                rowKey: integrationId,
+                workflowId: this.workflowId || '',
+                tenancyId: workflowData.tenancyId || '',
+                agencyRef: workflowData.agencyRef || altoData.tenancy?.agencyRef || '',
+                branchId: workflowData.branchId || altoData.tenancy?.branchId || '',
+
+                // Status tracking
+                webhookStatus: 'COMPLETED',
+                altoDataRetrievalStatus: 'COMPLETED',
+                tdsCreationStatus: 'NOT_ATTEMPTED',
+                integrationStatus: 'REJECTED',
+                finalStatus: 'REJECTED',
+                archiveReason: rejectionReason || '',
+                depositSchemeType: altoData.tenancy?.depositSchemeType || '',
+                pendingReason: rejectionReason || '',
+
+                // Store retrieved data for audit trail
+                webhookData: workflowData ? JSON.stringify(workflowData) : '',
+                altoTenancyData: altoData?.tenancy ? JSON.stringify(altoData.tenancy) : '',
+                altoPropertyData: altoData?.property ? JSON.stringify(altoData.property) : '',
+                altoLandlordData: '',
+                altoTenantData: altoData?.tenants ? JSON.stringify(altoData.tenants) : '',
+
+                // Empty fields
+                externalReference: workflowData.tenancyId || '',
+                tdsPayloadData: '',
+                tdsResponse: '',
+                danNumber: '',
+                tdsDepositId: '',
+                lastError: '',
+                missingFields: '',
+
+                // Timestamps
+                webhookReceivedAt: new Date().toISOString(),
+                altoDataRetrievedAt: new Date().toISOString(),
+                tdsCreatedAt: '',
+                danReceivedAt: '',
+                lastPolledAt: '',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                archivedAt: new Date().toISOString(),
+                originalPartitionKey: 'PendingIntegration',
+
+                // Polling fields
+                pollCount: 0,
+                maxPollCount: 0,
+                nextPollAt: ''
+            };
+
+            // Store to archive table
+            const connectionString = process.env.AzureWebJobsStorage || 'UseDevelopmentStorage=true';
+            const archiveTableClient = TableClient.fromConnectionString(connectionString, 'PendingIntegrationArchive');
+
+            // Create table if it doesn't exist
+            this.context.log('📦 Creating archive table if needed...');
+            await archiveTableClient.createTable().catch(err => {
+                if (err.statusCode !== 409) { // 409 = already exists
+                    this.context.log('⚠️ Table creation warning:', err.message);
+                    throw err;
+                }
+            });
+
+            this.context.log('📦 Creating archive entity...');
+            await archiveTableClient.createEntity(archiveEntity);
+
+            this.context.log(`✅ Archived rejected tenancy: ${integrationId} to table PendingIntegrationArchive`);
+
+            return {
+                success: true,
+                integrationId: integrationId,
+                status: 'REJECTED'
+            };
+
+        } catch (error) {
+            this.context.log('❌ Failed to archive rejected tenancy:', error);
+            this.context.log('❌ Error details:', error.message);
+            this.context.log('❌ Error stack:', error.stack);
+            // Don't throw - archival failure shouldn't break the workflow response
+            return {
+                success: false,
+                error: error.message
+            };
         }
     }
 

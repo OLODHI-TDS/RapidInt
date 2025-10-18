@@ -299,7 +299,7 @@ class PendingPollingServiceClass {
 
                 this.context.log(`🔍 Checking ${entity.rowKey}: status=${entity.integrationStatus}, pollCount=${entity.pollCount}/${maxPollCount}`);
 
-                // Archive if: exceeded max attempts, COMPLETED, FAILED, EXPIRED, or CANCELLED
+                // Archive if: exceeded max attempts, COMPLETED, FAILED, EXPIRED, CANCELLED, or REJECTED
                 if ((entity.pollCount || 0) >= maxPollCount) {
                     this.context.log(`📦 Archiving ${entity.rowKey}: exceeded max attempts`);
                     await this.archiveIntegration(entity, 'FAILED', `Exceeded maximum poll attempts (${maxPollCount})`);
@@ -319,6 +319,10 @@ class PendingPollingServiceClass {
                 } else if (entity.integrationStatus === 'CANCELLED') {
                     this.context.log(`📦 Archiving ${entity.rowKey}: CANCELLED`);
                     await this.archiveIntegration(entity, 'FAILED', entity.pendingReason || 'Manually cancelled');
+                    archivedCount++;
+                } else if (entity.integrationStatus === 'REJECTED') {
+                    this.context.log(`📦 Archiving ${entity.rowKey}: REJECTED`);
+                    await this.archiveIntegration(entity, 'REJECTED', entity.pendingReason || 'Rejected - not for TDS Custodial scheme');
                     archivedCount++;
                 } else if (entity.integrationStatus === 'PROCESSING') {
                     // Check if PROCESSING is abandoned (stuck for > 15 minutes)
@@ -438,6 +442,22 @@ class PendingPollingServiceClass {
             }
 
             const validationResult = this.validateDataCompleteness(altoData, parsedMissingFields);
+
+            // Check if this tenancy is permanently rejected (wrong deposit scheme type)
+            if (validationResult.isPermanentRejection) {
+                this.context.log(`🚫 ${integration.rowKey} permanently rejected: ${validationResult.rejectionReason}`);
+
+                // Mark as rejected and archive
+                integration.integrationStatus = 'REJECTED';
+                integration.pendingReason = validationResult.rejectionReason;
+                integration.depositSchemeType = altoData.tenancy?.depositSchemeType || '';
+                integration.failedAt = new Date().toISOString();
+
+                // Archive the rejected integration
+                await this.archiveIntegration(integration, 'REJECTED', validationResult.rejectionReason);
+
+                return { status: 'rejected', reason: 'wrong_deposit_scheme_type', rejectionReason: validationResult.rejectionReason };
+            }
 
             if (validationResult.isComplete) {
                 this.context.log(`✅ ${integration.rowKey} data complete - triggering workflow`);
@@ -681,6 +701,31 @@ class PendingPollingServiceClass {
 
         let isComplete = true;
 
+        // Check deposit scheme type - critical filter for TDS custodial tenancies
+        const depositSchemeType = altoData.tenancy?.depositSchemeType;
+
+        // If depositSchemeType is present but not TDS Custodial or Unspecified, this is a permanent rejection
+        if (depositSchemeType &&
+            depositSchemeType !== 'DisputeServiceCustodial' &&
+            depositSchemeType !== 'Unspecified') {
+            this.context.log(`🚫 Tenancy rejected: Tenancy is not for TDS Custodial (scheme type: ${depositSchemeType})`);
+            // This tenancy is for a different scheme - permanently reject
+            return {
+                isComplete: false,
+                isPermanentRejection: true,
+                rejectionReason: `Tenancy is not for TDS Custodial scheme (scheme type: ${depositSchemeType})`,
+                missingFields: {},
+                summary: `Tenancy is not for TDS Custodial scheme (scheme type: ${depositSchemeType})`
+            };
+        }
+
+        // If depositSchemeType is "Unspecified", treat as missing field (can continue polling)
+        if (!depositSchemeType || depositSchemeType === 'Unspecified') {
+            missingFields.tenancy.push('deposit scheme type');
+            isComplete = false;
+            this.context.log(`⏳ Deposit scheme type is unspecified - will continue polling`);
+        }
+
         // Check deposit availability
         const depositRequested = altoData.tenancy?.depositRequested;
         const depositAmount = altoData.tenancy?.depositAmount;
@@ -848,12 +893,14 @@ class PendingPollingServiceClass {
      */
     async archiveIntegration(integration, finalStatus, reason) {
         try {
+            this.context.log(`📦 Starting archival for ${integration.rowKey} with status ${finalStatus}`);
+
             const archiveEntity = {
+                // Copy all original fields FIRST
+                ...integration,
+                // Then override with archive-specific values (this prevents spread from overwriting)
                 partitionKey: 'ArchivedIntegration',
                 rowKey: integration.rowKey,
-                // Copy all original fields
-                ...integration,
-                // Add archive-specific metadata
                 finalStatus: finalStatus,
                 archiveReason: reason,
                 archivedAt: new Date().toISOString(),
@@ -870,15 +917,29 @@ class PendingPollingServiceClass {
                     : integration.tdsResponse
             };
 
+            // Remove any undefined/null values that could cause Azure Table Storage errors
+            Object.keys(archiveEntity).forEach(key => {
+                if (archiveEntity[key] === undefined || archiveEntity[key] === null) {
+                    archiveEntity[key] = '';
+                }
+            });
+
+            this.context.log(`📦 Archive entity prepared with partitionKey: ${archiveEntity.partitionKey}, rowKey: ${archiveEntity.rowKey}`);
+
             // Add to archive table
+            this.context.log(`📦 Creating entity in archive table...`);
             await this.archiveTableClient.createEntity(archiveEntity);
+            this.context.log(`✅ Entity created in archive table successfully`);
 
             // Remove from active table
+            this.context.log(`📦 Deleting from active table...`);
             await this.tableClient.deleteEntity(integration.partitionKey, integration.rowKey);
+            this.context.log(`✅ Deleted from active table successfully`);
 
-            this.context.log(`📦 Archived integration ${integration.rowKey} with status ${finalStatus}`);
+            this.context.log(`📦 Archived integration ${integration.rowKey} with status ${finalStatus} to partition ArchivedIntegration`);
         } catch (error) {
             this.context.log(`❌ Failed to archive integration ${integration.rowKey}:`, error.message);
+            this.context.log(`❌ Error stack:`, error.stack);
             // Don't throw - archival failure shouldn't break the flow
         }
     }
@@ -891,16 +952,11 @@ class PendingPollingServiceClass {
             // Ensure tables are initialized
             await this.ensureTablesInitialized();
 
-            const partitionKey = 'ArchivedIntegration';
+            this.context.log(`📦 Querying archive table for ALL archived records (regardless of partition key)`);
 
-            this.context.log(`📦 Querying archive table for partition: ${partitionKey}`);
-
-            // Get all archived integrations
-            const entities = this.archiveTableClient.listEntities({
-                queryOptions: {
-                    filter: `PartitionKey eq '${partitionKey}'`
-                }
-            });
+            // Get ALL archived integrations (no partition key filter)
+            // This includes both old records (PendingIntegration) and new records (ArchivedIntegration)
+            const entities = this.archiveTableClient.listEntities();
 
             const archivedIntegrations = [];
             let count = 0;

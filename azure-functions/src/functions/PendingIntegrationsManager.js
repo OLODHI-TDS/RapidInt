@@ -108,8 +108,21 @@ app.http('PendingIntegrationsManager', {
                     }
 
                     const retryResult = await manager.retryPendingIntegration(id);
+
+                    // Determine appropriate status code
+                    let statusCode = 200;
+                    if (retryResult.status === 'rejected') {
+                        // Rejection is a successful operation - return 200 with rejection details
+                        statusCode = 200;
+                    } else if (!retryResult.success && retryResult.error === 'Integration not found') {
+                        statusCode = 404;
+                    } else if (!retryResult.success) {
+                        // Other failures (e.g., workflow errors)
+                        statusCode = 500;
+                    }
+
                     return {
-                        status: retryResult.success ? 200 : 404,
+                        status: statusCode,
                         jsonBody: {
                             ...retryResult,
                             timestamp: new Date().toISOString()
@@ -252,6 +265,13 @@ app.http('PendingIntegrationsManager', {
 
                 case 'archive':
                     const archivedIntegrations = await manager.getArchivedIntegrations();
+
+                    // Debug: Log what we found
+                    context.log(`📦 Archive endpoint called - found ${archivedIntegrations.length} archived records`);
+                    if (archivedIntegrations.length > 0) {
+                        context.log(`📦 First archived record:`, JSON.stringify(archivedIntegrations[0], null, 2));
+                    }
+
                     return {
                         status: 200,
                         jsonBody: {
@@ -438,6 +458,40 @@ class PendingIntegrationsManagerClass {
             this.context.log(`   Is Complete: ${validationResult.isComplete}`);
             this.context.log(`   Missing Fields: ${JSON.stringify(validationResult.missingFields)}`);
             this.context.log(`   Summary: ${validationResult.summary}`);
+
+            // Check if this tenancy is permanently rejected (wrong deposit scheme type)
+            if (validationResult.isPermanentRejection) {
+                this.context.log(`🚫 ${integration.tenancyId} permanently rejected: ${validationResult.rejectionReason}`);
+
+                // Mark as rejected and archive
+                const rejectedEntity = this.createCleanEntity(integration, {
+                    integrationStatus: 'REJECTED',
+                    pendingReason: validationResult.rejectionReason,
+                    depositSchemeType: altoData.tenancy?.depositSchemeType || '',
+                    failedAt: new Date().toISOString()
+                });
+
+                // Remove any undefined/null values that could cause EDM errors
+                Object.keys(rejectedEntity).forEach(key => {
+                    if (rejectedEntity[key] === undefined || rejectedEntity[key] === null) {
+                        rejectedEntity[key] = '';
+                    }
+                });
+
+                await this.tableClient.updateEntity(rejectedEntity, 'Replace');
+
+                // Immediately archive the rejected integration
+                await this.archiveIntegration(rejectedEntity, 'REJECTED', validationResult.rejectionReason);
+
+                this.context.log(`🚫 Integration ${id} rejected and archived: ${validationResult.rejectionReason}`);
+
+                return {
+                    success: false,
+                    error: 'Tenancy rejected - not for TDS Custodial scheme',
+                    status: 'rejected',
+                    rejectionReason: validationResult.rejectionReason
+                };
+            }
 
             if (validationResult.isComplete) {
                 this.context.log(`✅ Data now complete for ${integration.tenancyId} - triggering workflow`);
@@ -653,12 +707,14 @@ class PendingIntegrationsManagerClass {
      */
     async archiveIntegration(integration, finalStatus, reason) {
         try {
+            this.context.log(`📦 Starting archival for ${integration.rowKey} with status ${finalStatus}`);
+
             const archiveEntity = {
+                // Copy all original fields FIRST
+                ...integration,
+                // Then override with archive-specific values (this prevents spread from overwriting)
                 partitionKey: 'ArchivedIntegration',
                 rowKey: integration.rowKey,
-                // Copy all original fields
-                ...integration,
-                // Add archive-specific metadata
                 finalStatus: finalStatus,
                 archiveReason: reason,
                 archivedAt: new Date().toISOString(),
@@ -675,20 +731,38 @@ class PendingIntegrationsManagerClass {
                     : integration.tdsResponse
             };
 
+            // Remove any undefined/null values that could cause Azure Table Storage errors
+            Object.keys(archiveEntity).forEach(key => {
+                if (archiveEntity[key] === undefined || archiveEntity[key] === null) {
+                    archiveEntity[key] = '';
+                }
+            });
+
+            this.context.log(`📦 Archive entity prepared with partitionKey: ${archiveEntity.partitionKey}, rowKey: ${archiveEntity.rowKey}`);
+
             // Ensure archive table exists
+            this.context.log(`📦 Ensuring archive table exists...`);
             await this.archiveTableClient.createTable().catch(err => {
-                if (err.statusCode !== 409) throw err; // Ignore 'already exists' error
+                if (err.statusCode !== 409) { // 409 = already exists
+                    this.context.log(`⚠️ Table creation error:`, err.message);
+                    throw err;
+                }
             });
 
             // Add to archive table
+            this.context.log(`📦 Creating entity in archive table...`);
             await this.archiveTableClient.createEntity(archiveEntity);
+            this.context.log(`✅ Entity created in archive table successfully`);
 
             // Remove from active table
+            this.context.log(`📦 Deleting from active table...`);
             await this.tableClient.deleteEntity(integration.partitionKey, integration.rowKey);
+            this.context.log(`✅ Deleted from active table successfully`);
 
-            this.context.log(`📦 Archived integration ${integration.rowKey} with status ${finalStatus}`);
+            this.context.log(`📦 Archived integration ${integration.rowKey} with status ${finalStatus} to partition ArchivedIntegration`);
         } catch (error) {
             this.context.log(`❌ Failed to archive integration ${integration.rowKey}:`, error.message);
+            this.context.log(`❌ Error stack:`, error.stack);
             // Don't throw - archival failure shouldn't break the flow
         }
     }
@@ -1100,6 +1174,31 @@ class PendingIntegrationsManagerClass {
 
         let isComplete = true;
 
+        // Check deposit scheme type - critical filter for TDS custodial tenancies
+        const depositSchemeType = altoData.tenancy?.depositSchemeType;
+
+        // If depositSchemeType is present but not TDS Custodial or Unspecified, this is a permanent rejection
+        if (depositSchemeType &&
+            depositSchemeType !== 'DisputeServiceCustodial' &&
+            depositSchemeType !== 'Unspecified') {
+            this.context.log(`🚫 Tenancy rejected: Tenancy is not for TDS Custodial (scheme type: ${depositSchemeType})`);
+            // This tenancy is for a different scheme - permanently reject
+            return {
+                isComplete: false,
+                isPermanentRejection: true,
+                rejectionReason: `Tenancy is not for TDS Custodial scheme (scheme type: ${depositSchemeType})`,
+                missingFields: {},
+                summary: `Tenancy is not for TDS Custodial scheme (scheme type: ${depositSchemeType})`
+            };
+        }
+
+        // If depositSchemeType is "Unspecified", treat as missing field (can continue retry)
+        if (!depositSchemeType || depositSchemeType === 'Unspecified') {
+            missingFields.tenancy.push('deposit scheme type');
+            isComplete = false;
+            this.context.log(`⏳ Deposit scheme type is unspecified - will continue retry polling`);
+        }
+
         // Check deposit availability - synchronized with WorkflowOrchestrator.checkDepositAvailability
         // Consider deposit information available if the field exists (even if it's 0)
         // This allows zero-deposit tenancies to proceed
@@ -1462,17 +1561,23 @@ class PendingIntegrationsManagerClass {
             const archivedIntegrations = [];
 
             this.context.log('📖 Fetching archived integrations from Azure Table...');
+            this.context.log('📖 Table name: PendingIntegrationArchive');
+            this.context.log('📖 Loading ALL archived records (regardless of partition key)');
 
             // Ensure archive table exists
             await this.archiveTableClient.createTable().catch(err => {
                 if (err.statusCode !== 409) throw err;
             });
+            this.context.log('📖 Archive table verified/created');
 
-            const entities = this.archiveTableClient.listEntities({
-                queryOptions: { filter: `PartitionKey eq 'ArchivedIntegration'` }
-            });
+            // Get ALL entities (no partition key filter) to include both old and new archived records
+            const entities = this.archiveTableClient.listEntities();
 
+            let entityCount = 0;
             for await (const entity of entities) {
+                entityCount++;
+                this.context.log(`📖 Found archived entity ${entityCount}: ${entity.rowKey}, partition: ${entity.partitionKey}, status: ${entity.finalStatus || entity.integrationStatus}`);
+
                 // Parse JSON fields
                 const archivedIntegration = {
                     ...entity,
@@ -1487,7 +1592,7 @@ class PendingIntegrationsManagerClass {
             // Sort by archived date (newest first)
             archivedIntegrations.sort((a, b) => new Date(b.archivedAt) - new Date(a.archivedAt));
 
-            this.context.log(`📖 Retrieved ${archivedIntegrations.length} archived integrations`);
+            this.context.log(`📖 Retrieved ${archivedIntegrations.length} archived integrations from ${entityCount} entities`);
 
             return archivedIntegrations;
 
