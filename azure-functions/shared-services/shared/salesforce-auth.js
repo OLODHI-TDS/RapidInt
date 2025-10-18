@@ -135,7 +135,15 @@ async function getApiKeyHeader(context, orgCredentials = null) {
     // Build AccessToken: Scheme-SchemeType-MemberID-BranchID-ApiKey
     accessToken = `${scheme}-${type}-${memberId}-${branchId}-${apiKey}`;
 
-    context?.log(`Built AccessToken for member ${memberId}, branch ${branchId}, region ${region}`);
+    context?.log(`🔑 Built AccessToken components:`, {
+      scheme,
+      type,
+      memberId,
+      branchId,
+      apiKeyLength: apiKey?.length || 0,
+      fullTokenLength: accessToken.length
+    });
+    context?.log(`🔑 Full AccessToken format: ${scheme}-${type}-${memberId}-${branchId}-[API_KEY_${apiKey?.length || 0}_CHARS]`);
 
   } else {
     // Fall back to environment variable (for testing/default)
