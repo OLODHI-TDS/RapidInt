@@ -1179,3 +1179,5 @@ class AltoTDSOrchestrator {
         };
     }
 }
+// Export for internal use by PendingPollingService (no HTTP, no auth needed)
+module.exports = { AltoTDSOrchestrator };
