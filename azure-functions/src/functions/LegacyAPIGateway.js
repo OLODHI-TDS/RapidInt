@@ -9,6 +9,7 @@ const { transformSalesforceToLegacy } = require('../../shared-services/TDSReques
 const { getSalesforceAuthHeader } = require('../../shared-services/shared/salesforce-auth');
 const { sanitizeForLogging } = require('../../shared-services/shared/sanitized-logger');
 const { storeBatchTracking } = require('../../shared-services/shared/batch-tracking');
+const { OrganizationMappingService } = require('./OrganizationMapping');
 const telemetry = require('../../shared-services/shared/telemetry');
 const axios = require('axios');
 
@@ -20,7 +21,7 @@ const axios = require('axios');
  *
  * DNS forwarding routes legacy endpoints to these middleware endpoints:
  * - POST /v1.2/CreateDeposit → /api/legacy/CreateDeposit
- * - POST /v1.2/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId} → /api/legacy/CreateDepositStatus/{batchId}
+ * - GET /v1.2/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId} → /api/legacy/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId}
  *
  * Features:
  * - Automatic Legacy → Salesforce payload transformation
@@ -58,21 +59,12 @@ async function authenticateLegacyRequest(legacyPayload, context) {
 
     context.log(`🔐 Authenticating Legacy API request: Member ID: ${member_id}, Branch ID: ${branch_id}`);
 
-    // Query OrganizationMapping to find org with matching Legacy credentials
-    const functionKey = process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY || '';
-    const orgListUrl = new URL(`${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/list`);
-    if (functionKey) {
-      orgListUrl.searchParams.append('code', functionKey);
-    }
-
-    const orgMappingResponse = await axios.get(orgListUrl.toString());
-
-    if (!orgMappingResponse.data.success) {
-      throw new Error('Failed to retrieve organization mappings');
-    }
+    // Query OrganizationMapping directly using the service class
+    const orgMappingService = new OrganizationMappingService(context);
+    const allMappings = await orgMappingService.getAllMappings();
 
     // Find organization with matching Legacy credentials
-    const matchingOrg = orgMappingResponse.data.mappings.find(mapping => {
+    const matchingOrg = allMappings.find(mapping => {
       return mapping.legacyMemberId === member_id &&
              mapping.legacyBranchId === branch_id &&
              mapping.isActive === true;
@@ -87,7 +79,7 @@ async function authenticateLegacyRequest(legacyPayload, context) {
       throw new Error('Invalid Legacy API key');
     }
 
-    context.log(`✅ Authentication successful: ${matchingOrg.organizationName} (${matchingOrg.agencyRef})`);
+    context.log(`✅ Authentication successful: ${matchingOrg.organizationName}`);
 
     // Determine Salesforce baseUrl based on environment
     const salesforceBaseUrl = matchingOrg.environment === 'production'
@@ -198,6 +190,25 @@ async function handleCreateDeposit(legacyPayload, orgMapping, context) {
     context.log('🔄 Transforming Salesforce response to Legacy format...');
     const legacyResponse = transformSalesforceToLegacy(salesforceResponse.data, context);
 
+    // Check if Salesforce returned an error (success: false in response body)
+    if (legacyResponse.success === "false") {
+      context.warn('⚠️ Salesforce returned error response:', legacyResponse.error);
+
+      // Track as failed request
+      telemetry.trackEvent('Legacy_API_Request', {
+        endpoint: 'CreateDeposit',
+        organization: orgMapping.organizationName,
+        success: 'false',
+        error: legacyResponse.error
+      });
+
+      return {
+        statusCode: 400,  // Return 400 for business logic errors
+        body: legacyResponse,
+        duration
+      };
+    }
+
     // Log transaction for audit (optional - don't fail request if tracking fails)
     try {
       const batchId = legacyResponse.batch_id || `LEGACY_${Date.now()}`;
@@ -268,6 +279,9 @@ async function handleCreateDeposit(legacyPayload, orgMapping, context) {
 
     context.error('❌ CreateDeposit failed:', error.message);
 
+    // Extract error message from Salesforce response
+    let errorMessage = error.message;
+
     // Log detailed Salesforce error response
     if (error.response) {
       context.error('Salesforce error response:', {
@@ -275,6 +289,49 @@ async function handleCreateDeposit(legacyPayload, orgMapping, context) {
         statusText: error.response.statusText,
         data: JSON.stringify(error.response.data, null, 2)
       });
+
+      // Parse Salesforce error response to get the actual error message
+      try {
+        let salesforceError = error.response.data;
+
+        // If data is a string, try to parse it as JSON
+        if (typeof salesforceError === 'string') {
+          salesforceError = JSON.parse(salesforceError);
+        }
+
+        // Extract error message from various Salesforce error formats
+        if (salesforceError.errors) {
+          // Format: { "errors": { "failure": "error message" } } OR { "errors": { "failure": ["error"] } }
+          if (salesforceError.errors.failure) {
+            if (Array.isArray(salesforceError.errors.failure)) {
+              errorMessage = salesforceError.errors.failure[0];
+            } else if (typeof salesforceError.errors.failure === 'string') {
+              errorMessage = salesforceError.errors.failure;
+            }
+          }
+          // Format: { "errors": ["error message"] }
+          else if (Array.isArray(salesforceError.errors)) {
+            errorMessage = salesforceError.errors[0];
+          }
+          // Format: { "errors": "error message" }
+          else if (typeof salesforceError.errors === 'string') {
+            errorMessage = salesforceError.errors;
+          }
+        }
+        // Format: { "error": "error message" }
+        else if (salesforceError.error) {
+          errorMessage = salesforceError.error;
+        }
+        // Format: { "message": "error message" }
+        else if (salesforceError.message) {
+          errorMessage = salesforceError.message;
+        }
+
+        context.log(`📝 Extracted error message: ${errorMessage}`);
+      } catch (parseError) {
+        context.warn('⚠️ Failed to parse Salesforce error response:', parseError.message);
+        // Keep the original error.message if parsing fails
+      }
     }
 
     context.error('Error stack:', error.stack);
@@ -290,16 +347,15 @@ async function handleCreateDeposit(legacyPayload, orgMapping, context) {
       endpoint: 'CreateDeposit',
       organization: orgMapping.organizationName,
       success: 'false',
-      error: error.message
+      error: errorMessage
     });
 
     // Return Legacy-formatted error response
     return {
       statusCode: error.response?.status || 500,
       body: {
-        success: false,
-        error: error.message,
-        details: error.response?.data || null
+        error: errorMessage,
+        success: "false"  // String "false" for Legacy API compatibility
       },
       duration
     };
@@ -308,8 +364,9 @@ async function handleCreateDeposit(legacyPayload, orgMapping, context) {
 
 /**
  * CreateDepositStatus endpoint handler
+ * Credentials are extracted from URL path and authenticated before this is called
  */
-async function handleCreateDepositStatus(batchId, legacyPayload, orgMapping, context) {
+async function handleCreateDepositStatus(batchId, orgMapping, context) {
   const startTime = Date.now();
 
   try {
@@ -386,6 +443,55 @@ async function handleCreateDepositStatus(batchId, legacyPayload, orgMapping, con
 
     context.error('❌ CreateDepositStatus failed:', error.message);
 
+    // Extract error message from Salesforce response
+    let errorMessage = error.message;
+
+    if (error.response) {
+      context.error('Salesforce error response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: JSON.stringify(error.response.data, null, 2)
+      });
+
+      // Parse Salesforce error response to get the actual error message
+      try {
+        let salesforceError = error.response.data;
+
+        // If data is a string, try to parse it as JSON
+        if (typeof salesforceError === 'string') {
+          salesforceError = JSON.parse(salesforceError);
+        }
+
+        // Extract error message from various Salesforce error formats
+        if (salesforceError.errors) {
+          // Format: { "errors": { "failure": "error message" } } OR { "errors": { "failure": ["error"] } }
+          if (salesforceError.errors.failure) {
+            if (Array.isArray(salesforceError.errors.failure)) {
+              errorMessage = salesforceError.errors.failure[0];
+            } else if (typeof salesforceError.errors.failure === 'string') {
+              errorMessage = salesforceError.errors.failure;
+            }
+          }
+          // Format: { "errors": ["error message"] }
+          else if (Array.isArray(salesforceError.errors)) {
+            errorMessage = salesforceError.errors[0];
+          }
+          // Format: { "errors": "error message" }
+          else if (typeof salesforceError.errors === 'string') {
+            errorMessage = salesforceError.errors;
+          }
+        } else if (salesforceError.error) {
+          errorMessage = salesforceError.error;
+        } else if (salesforceError.message) {
+          errorMessage = salesforceError.message;
+        }
+
+        context.log(`📝 Extracted error message: ${errorMessage}`);
+      } catch (parseError) {
+        context.warn('⚠️ Failed to parse Salesforce error response:', parseError.message);
+      }
+    }
+
     // Track telemetry for failure
     telemetry.trackException(error, {
       endpoint: 'CreateDepositStatus',
@@ -394,13 +500,15 @@ async function handleCreateDepositStatus(batchId, legacyPayload, orgMapping, con
     });
 
     // Return Legacy-formatted error response
+    // Legacy format: { "batch_id": "...", "success": true, "status": "Failed", "dan": "", "errors": [...] }
     return {
       statusCode: error.response?.status || 500,
       body: {
         batch_id: batchId,
-        status: 'error',
-        error: error.message,
-        details: error.response?.data || null
+        success: true,  // Boolean true for error responses (Legacy API convention)
+        status: 'Failed',
+        dan: '',
+        errors: [{ value: errorMessage }]
       },
       duration
     };
@@ -412,21 +520,32 @@ async function handleCreateDepositStatus(batchId, legacyPayload, orgMapping, con
  *
  * Routes:
  * - POST /api/legacy/CreateDeposit
- * - GET /api/legacy/CreateDepositStatus/{batchId}
+ * - GET /api/legacy/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId}
  * - GET /api/legacy/health
  */
 app.http('LegacyAPIGateway', {
   methods: ['POST', 'GET'],
   authLevel: 'anonymous', // External partners call this
-  route: 'legacy/{endpoint?}/{batchId?}',
+  route: 'legacy/{endpoint?}/{param1?}/{param2?}/{param3?}/{param4?}',
   handler: async (request, context) => {
     const requestStartTime = Date.now();
 
     try {
       const endpoint = request.params.endpoint || 'health';
-      const batchId = request.params.batchId;
 
-      context.log(`🌐 Legacy API Gateway - Endpoint: ${endpoint}, Method: ${request.method}`);
+      // Parse parameters based on endpoint
+      // CreateDepositStatus: /api/legacy/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId}
+      let memberId, branchId, apiKey, batchId;
+
+      if (endpoint === 'CreateDepositStatus') {
+        memberId = request.params.param1;
+        branchId = request.params.param2;
+        apiKey = request.params.param3;
+        batchId = request.params.param4;
+        context.log(`🌐 Legacy API Gateway - Endpoint: ${endpoint}, Method: ${request.method}, BatchId: ${batchId}`);
+      } else {
+        context.log(`🌐 Legacy API Gateway - Endpoint: ${endpoint}, Method: ${request.method}`);
+      }
 
       // Health check endpoint
       if (endpoint === 'health') {
@@ -439,7 +558,7 @@ app.http('LegacyAPIGateway', {
             timestamp: new Date().toISOString(),
             endpoints: [
               'POST /api/legacy/CreateDeposit',
-              'GET /api/legacy/CreateDepositStatus/{batchId}',
+              'GET /api/legacy/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId}',
               'GET /api/legacy/activity'
             ]
           }
@@ -455,53 +574,48 @@ app.http('LegacyAPIGateway', {
           // In production, this should be restricted to admin users
           const allBatches = [];
 
-          // Get list of organizations with Legacy credentials
-          const functionKey = process.env.AZURE_FUNCTION_KEY || process.env.FUNCTION_KEY || '';
-          const orgListUrl = new URL(`${process.env.FUNCTIONS_BASE_URL || 'http://localhost:7071'}/api/organization/list`);
-          if (functionKey) {
-            orgListUrl.searchParams.append('code', functionKey);
-          }
+          // Get list of organizations with Legacy credentials directly from service
+          const orgMappingService = new OrganizationMappingService(context);
+          const allMappings = await orgMappingService.getAllMappings();
+          const orgs = allMappings.filter(org => org.legacyMemberId && org.isActive);
 
-          const orgMappingResponse = await axios.get(orgListUrl.toString());
+          if (orgs.length > 0) {
 
-          if (orgMappingResponse.data.success) {
-            const orgs = orgMappingResponse.data.mappings.filter(org => org.legacyMemberId && org.isActive);
+          // Track which batches we've already added (by batchId) to prevent duplicates
+          const seenBatches = new Set();
 
-            // Track which batches we've already added (by batchId) to prevent duplicates
-            const seenBatches = new Set();
+          // Fetch recent batches for each organization using Legacy credentials as organizationId
+          for (const org of orgs) {
+            try {
+              // Use Legacy credentials (member_id:branch_id) as organizationId, not agencyRef
+              const legacyOrgId = `${org.legacyMemberId}:${org.legacyBranchId}`;
+              const batches = await getRecentBatches(legacyOrgId, { limit: 10 }, context);
 
-            // Fetch recent batches for each organization using Legacy credentials as organizationId
-            for (const org of orgs) {
-              try {
-                // Use Legacy credentials (member_id:branch_id) as organizationId, not agencyRef
-                const legacyOrgId = `${org.legacyMemberId}:${org.legacyBranchId}`;
-                const batches = await getRecentBatches(legacyOrgId, { limit: 10 }, context);
+              context.log(`Found ${batches.length} batches for org: ${org.organizationName} (${legacyOrgId})`);
 
-                context.log(`Found ${batches.length} batches for org: ${org.organizationName} (${legacyOrgId})`);
+              batches.forEach(batch => {
+                // Skip if we've already added this batch (prevents duplicates)
+                if (seenBatches.has(batch.batchId)) {
+                  context.log(`Skipping duplicate batch: ${batch.batchId}`);
+                  return;
+                }
 
-                batches.forEach(batch => {
-                  // Skip if we've already added this batch (prevents duplicates)
-                  if (seenBatches.has(batch.batchId)) {
-                    context.log(`Skipping duplicate batch: ${batch.batchId}`);
-                    return;
-                  }
+                seenBatches.add(batch.batchId);
 
-                  seenBatches.add(batch.batchId);
+                // The batch's organizationId MUST match the legacyOrgId we just queried (partition key filtering)
+                // So we can safely use the current org's name
+                context.log(`Adding batch ${batch.batchId} for org ${org.organizationName} (batch orgId: ${batch.organizationId})`);
 
-                  // The batch's organizationId MUST match the legacyOrgId we just queried (partition key filtering)
-                  // So we can safely use the current org's name
-                  context.log(`Adding batch ${batch.batchId} for org ${org.organizationName} (batch orgId: ${batch.organizationId})`);
-
-                  allBatches.push({
-                    ...batch,
-                    organizationName: org.organizationName // Use the org we queried for, since getRecentBatches filters by partition key
-                  });
+                allBatches.push({
+                  ...batch,
+                  organizationName: org.organizationName // Use the org we queried for, since getRecentBatches filters by partition key
                 });
-              } catch (err) {
-                context.warn(`Failed to get batches for ${org.organizationName}:`, err.message);
-              }
+              });
+            } catch (err) {
+              context.warn(`Failed to get batches for ${org.organizationName}:`, err.message);
             }
           }
+        }
 
           // Sort by creation date (most recent first)
           allBatches.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -542,9 +656,9 @@ app.http('LegacyAPIGateway', {
         }
       }
 
-      // Parse request body for POST requests
+      // Parse request body for POST requests (CreateDeposit)
       let legacyPayload = null;
-      if (request.method === 'POST') {
+      if (request.method === 'POST' && endpoint === 'CreateDeposit') {
         const bodyText = await request.text();
 
         try {
@@ -555,10 +669,8 @@ app.http('LegacyAPIGateway', {
             status: 400,
             headers: { 'Content-Type': 'application/json' },
             jsonBody: {
-              success: false,
               error: 'Invalid JSON in request body',
-              message: parseError.message,
-              timestamp: new Date().toISOString()
+              success: "false"  // String "false" for Legacy API compatibility
             }
           };
         }
@@ -567,17 +679,31 @@ app.http('LegacyAPIGateway', {
       // Authenticate request (extract org mapping from Legacy credentials)
       let orgMapping;
       try {
-        orgMapping = await authenticateLegacyRequest(legacyPayload || {}, context);
+        // For CreateDepositStatus, credentials are in URL path
+        if (endpoint === 'CreateDepositStatus') {
+          const urlCredentials = {
+            member_id: memberId,
+            branch_id: branchId,
+            api_key: apiKey
+          };
+          orgMapping = await authenticateLegacyRequest(urlCredentials, context);
+        }
+        // For CreateDeposit, credentials are in POST body
+        else if (legacyPayload) {
+          orgMapping = await authenticateLegacyRequest(legacyPayload, context);
+        }
+        // For other endpoints (health, activity), skip authentication
+        else {
+          orgMapping = null;
+        }
       } catch (authError) {
         context.error('Authentication failed:', authError.message);
         return {
           status: 401,
           headers: { 'Content-Type': 'application/json' },
           jsonBody: {
-            success: false,
-            error: 'Authentication failed',
-            message: authError.message,
-            timestamp: new Date().toISOString()
+            error: authError.message,
+            success: "false"  // String "false" for Legacy API compatibility
           }
         };
       }
@@ -602,10 +728,23 @@ app.http('LegacyAPIGateway', {
             return {
               status: 400,
               headers: { 'Content-Type': 'application/json' },
-              jsonBody: { error: 'batch_id required in URL path' }
+              jsonBody: {
+                error: 'batch_id required in URL path',
+                success: "false"
+              }
             };
           }
-          result = await handleCreateDepositStatus(batchId, legacyPayload, orgMapping, context);
+          if (!memberId || !branchId || !apiKey) {
+            return {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+              jsonBody: {
+                error: 'Missing required credentials in URL path (memberId, branchId, apiKey)',
+                success: "false"
+              }
+            };
+          }
+          result = await handleCreateDepositStatus(batchId, orgMapping, context);
           break;
 
         default:
@@ -652,11 +791,8 @@ app.http('LegacyAPIGateway', {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
         jsonBody: {
-          success: false,
-          error: 'Internal server error',
-          message: error.message,
-          duration: totalDuration,
-          timestamp: new Date().toISOString()
+          error: error.message || 'Internal server error',
+          success: "false"  // String "false" for Legacy API compatibility
         }
       };
     }

@@ -75,23 +75,47 @@ function transformSalesforceToLegacy(salesforceResponse, context) {
 /**
  * Transform Salesforce EWC success/error response
  * Handles CreateDeposit response with DAN
+ *
+ * Legacy TDS API Success format:
+ * { "batch_id": "167237", "success": "true" }
+ *
+ * Legacy TDS API Error format:
+ * { "error": "Invalid authentication key", "success": "false" }
  */
 function transformSuccessErrorResponse(salesforceResponse, context) {
-  const legacyResponse = {
-    success: stringToBoolean(salesforceResponse.success || salesforceResponse.Success),
-    batch_id: salesforceResponse.batch_id || null,
-    dan: salesforceResponse.DAN || salesforceResponse.dan || null,
-    status: salesforceResponse.DAN ? 'created' : 'unknown',
-    message: salesforceResponse.message || '',
-    error: salesforceResponse.error || null,
-    errors: salesforceResponse.errors || [],
-    warnings: salesforceResponse.warnings || [],
-    timestamp: new Date().toISOString()
-  };
+  // Check if the response indicates success
+  const isSuccess = salesforceResponse.success === true ||
+                    salesforceResponse.Success === true ||
+                    salesforceResponse.success === 'true' ||
+                    salesforceResponse.Success === 'true';
 
-  context?.log('Success/error response transformed to legacy format');
+  if (isSuccess) {
+    // Success response - Legacy format
+    // Legacy API returns only batch_id and success in CreateDeposit response
+    // DAN is retrieved separately via CreateDepositStatus endpoint
+    const legacyResponse = {
+      batch_id: salesforceResponse.batch_id || salesforceResponse.batchId || null,
+      success: "true"  // String "true" for Legacy API compatibility
+    };
 
-  return legacyResponse;
+    context?.log('✅ Success response transformed to legacy format:', legacyResponse);
+    return legacyResponse;
+  } else {
+    // Error response - Legacy format
+    const errorMessage = salesforceResponse.error ||
+                         salesforceResponse.message ||
+                         salesforceResponse.errorMessage ||
+                         (salesforceResponse.errors && salesforceResponse.errors[0]) ||
+                         'An error occurred';
+
+    const legacyResponse = {
+      error: errorMessage,
+      success: "false"  // String "false" for Legacy API compatibility
+    };
+
+    context?.log('❌ Error response transformed to legacy format:', legacyResponse);
+    return legacyResponse;
+  }
 }
 
 /**
@@ -129,42 +153,54 @@ function transformCreateDepositResponse(salesforceResponse, context) {
 
 /**
  * Transform Salesforce EWC deposit status response to legacy format
+ *
+ * Legacy TDS API format:
+ * Success: { "success": "true", "status": "created", "dan": "NI0000123", "branch_id": "123456", "warnings": [...] }
+ * Error: { "batch_id": "1033783", "success": true, "status": "Failed", "dan": "", "errors": [...], "warnings": [...] }
  */
 function transformStatusResponse(salesforceResponse, context) {
-  // TDS EWC already uses snake_case, just convert data types
+  // Check if this is a success or error response
+  const isSuccess = salesforceResponse.success === true ||
+                    salesforceResponse.success === 'true' ||
+                    salesforceResponse.dan ||
+                    salesforceResponse.DAN;
+
+  // Build Legacy TDS API response
   const legacyResponse = {
-    batch_id: salesforceResponse.batch_id || null,
-    status: salesforceResponse.status || 'unknown',
-    dan: salesforceResponse.dan || salesforceResponse.dan_number || null,
-
-    // Deposit details (convert string numbers to actual numbers)
-    deposit_amount: stringToNumber(salesforceResponse.deposit_amount),
-
-    // Dates (convert DD-MM-YYYY to YYYY-MM-DD)
-    processing_date: convertUKDateToISO(salesforceResponse.processing_date),
-    completion_date: convertUKDateToISO(salesforceResponse.completion_date),
-    tenancy_start_date: convertUKDateToISO(salesforceResponse.tenancy_start_date),
-    tenancy_end_date: convertUKDateToISO(salesforceResponse.tenancy_end_date),
-
-    // Messages
-    message: salesforceResponse.message || salesforceResponse.status_message || '',
-    errors: salesforceResponse.errors || [],
-    warnings: salesforceResponse.warnings || [],
-
-    // Additional metadata
-    last_updated: new Date().toISOString()
+    success: isSuccess ? "true" : true,  // String "true" for success, boolean true for errors
+    status: salesforceResponse.status || (isSuccess ? 'created' : 'Failed'),
+    dan: salesforceResponse.dan || salesforceResponse.DAN || salesforceResponse.dan_number || ''
   };
 
-  // Add deposits array if present
-  if (salesforceResponse.deposits && Array.isArray(salesforceResponse.deposits)) {
-    legacyResponse.deposits = salesforceResponse.deposits.map(deposit => ({
-      deposit_id: deposit.deposit_id || deposit.id,
-      deposit_amount: stringToNumber(deposit.deposit_amount),
-      dan: deposit.dan || deposit.dan_number,
-      status: deposit.status,
-      property_postcode: deposit.property_postcode,
-      tenant_count: stringToNumber(deposit.number_of_tenants) || 0
-    }));
+  // Add batch_id (especially for error responses)
+  if (salesforceResponse.batch_id) {
+    legacyResponse.batch_id = salesforceResponse.batch_id;
+  }
+
+  // Add branch_id if available
+  if (salesforceResponse.branch_id) {
+    legacyResponse.branch_id = salesforceResponse.branch_id;
+  }
+
+  // Add errors array if present
+  if (salesforceResponse.errors) {
+    // Transform Salesforce error format to Legacy format
+    if (salesforceResponse.errors.failure) {
+      // Salesforce format: { "errors": { "failure": "message" } }
+      const failureMsg = salesforceResponse.errors.failure;
+      legacyResponse.errors = Array.isArray(failureMsg) ? failureMsg : [{ value: failureMsg }];
+    } else if (Array.isArray(salesforceResponse.errors)) {
+      legacyResponse.errors = salesforceResponse.errors;
+    } else {
+      legacyResponse.errors = [salesforceResponse.errors];
+    }
+  }
+
+  // Add warnings array if present
+  if (salesforceResponse.warnings) {
+    legacyResponse.warnings = Array.isArray(salesforceResponse.warnings)
+      ? salesforceResponse.warnings
+      : [salesforceResponse.warnings];
   }
 
   context?.log('Status response transformed to legacy format');

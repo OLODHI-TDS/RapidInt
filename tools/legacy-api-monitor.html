@@ -844,7 +844,8 @@
 
                     organizations.forEach(org => {
                         const option = document.createElement('option');
-                        option.value = org.agencyRef;
+                        // Use Legacy credentials as unique identifier (not agencyRef which is Alto-specific)
+                        option.value = `${org.legacyMemberId}:${org.legacyBranchId}`;
                         option.textContent = `${org.organizationName} (${org.legacyMemberId}/${org.legacyBranchId})`;
                         selector.appendChild(option);
                     });
@@ -889,14 +890,20 @@
          * On Organization Change
          */
         function onOrganizationChange() {
-            const agencyRef = document.getElementById('org-selector').value;
+            const orgIdentifier = document.getElementById('org-selector').value;
 
-            if (!agencyRef) {
+            if (!orgIdentifier) {
                 selectedOrg = null;
                 return;
             }
 
-            selectedOrg = organizations.find(org => org.agencyRef === agencyRef);
+            // Parse Legacy credentials from identifier (format: "memberId:branchId")
+            const [memberId, branchId] = orgIdentifier.split(':');
+
+            // Find organization by Legacy credentials (not agencyRef which is Alto-specific)
+            selectedOrg = organizations.find(org =>
+                org.legacyMemberId === memberId && org.legacyBranchId === branchId
+            );
 
             if (selectedOrg) {
                 console.log('Selected organization:', selectedOrg);
@@ -1072,13 +1079,21 @@
                 const data = await response.json();
 
                 // Display response
-                // Check both response.ok (HTTP 200-299) and data.success field
-                // Also check for DAN presence as indicator of success
-                const isSuccess = response.ok && (data.success === true || data.dan);
+                // Check for error conditions:
+                // 1. HTTP error status code (4xx, 5xx)
+                // 2. Legacy API error format: success === "false" or false
+                // 3. Legacy API error format: errors array present
+                // 4. Old error format: data.error field
+                const isError = !response.ok ||
+                               data.success === "false" ||
+                               data.success === false ||
+                               data.status === 'Failed' ||
+                               (data.errors && data.errors.length > 0) ||
+                               data.error;
 
                 const statusElement = document.getElementById('createdeposit-response-status');
-                statusElement.className = `response-status ${isSuccess ? 'success' : 'error'}`;
-                statusElement.textContent = isSuccess ? 'Success' : 'Error';
+                statusElement.className = `response-status ${isError ? 'error' : 'success'}`;
+                statusElement.textContent = isError ? 'Error' : 'Success';
 
                 document.getElementById('createdeposit-response-time').textContent = `${duration}ms`;
 
@@ -1117,25 +1132,36 @@
             const startTime = Date.now();
 
             try {
-                const response = await fetch(`${API_BASE_URL}/legacy/CreateDepositStatus/${batchId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        member_id: selectedOrg.legacyMemberId,
-                        branch_id: selectedOrg.legacyBranchId,
-                        api_key: selectedOrg.legacyApiKey || 'YOUR_API_KEY_HERE'
-                    })
+                // Construct Legacy API URL format: GET /CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId}
+                const memberId = selectedOrg.legacyMemberId;
+                const branchId = selectedOrg.legacyBranchId;
+                const apiKey = selectedOrg.legacyApiKey || 'YOUR_API_KEY_HERE';
+
+                const url = `${API_BASE_URL}/legacy/CreateDepositStatus/${memberId}/${branchId}/${apiKey}/${batchId}`;
+
+                const response = await fetch(url, {
+                    method: 'GET'
                 });
 
                 const duration = Date.now() - startTime;
                 const data = await response.json();
 
                 // Display response
+                // Check for error conditions:
+                // 1. HTTP error status code (4xx, 5xx)
+                // 2. Legacy API error format: success === true && status === "Failed"
+                // 3. Legacy API error format: errors array present
+                // 4. Old error format: data.error field
+                const isError = !response.ok ||
+                               data.status === 'Failed' ||
+                               (data.errors && data.errors.length > 0) ||
+                               data.error ||
+                               data.success === "false" ||
+                               data.success === false;
+
                 const statusElement = document.getElementById('createdepositstatus-response-status');
-                statusElement.className = `response-status ${data.error ? 'error' : 'success'}`;
-                statusElement.textContent = data.error ? 'Error' : 'Success';
+                statusElement.className = `response-status ${isError ? 'error' : 'success'}`;
+                statusElement.textContent = isError ? 'Error' : 'Success';
 
                 document.getElementById('createdepositstatus-response-time').textContent = `${duration}ms`;
 
