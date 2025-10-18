@@ -682,6 +682,12 @@ class SalesforceTDSProvider extends TDSProviderInterface {
 
         const url = `${this.instanceUrl}${finalEndpoint}`;
 
+        // Log the full URL being called for debugging
+        console.log(`🌐 Salesforce API Request: ${method} ${url}`);
+        if (this.context) {
+            this.context.log(`🌐 Salesforce API Request: ${method} ${url}`);
+        }
+
         // Get authentication header using shared auth module
         const orgCredentials = {
             memberId: this.memberId,
@@ -697,6 +703,11 @@ class SalesforceTDSProvider extends TDSProviderInterface {
 
         const authHeaders = await getSalesforceAuthHeader(this.context, orgCredentials);
 
+        console.log(`🔑 Request headers:`, Object.keys(authHeaders));
+        if (this.context) {
+            this.context.log(`🔑 Request headers:`, Object.keys(authHeaders));
+        }
+
         const config = {
             method,
             url,
@@ -711,8 +722,22 @@ class SalesforceTDSProvider extends TDSProviderInterface {
             config.data = payload;
         }
 
-        const response = await axios(config);
-        return response.data;
+        try {
+            const response = await axios(config);
+            console.log(`✅ Salesforce API Response: ${response.status} ${response.statusText}`);
+            if (this.context) {
+                this.context.log(`✅ Salesforce API Response: ${response.status} ${response.statusText}`);
+            }
+            return response.data;
+        } catch (error) {
+            console.log(`❌ Salesforce API Error: ${error.response?.status || 'NO_RESPONSE'}`);
+            console.log(`   Error data:`, error.response?.data);
+            if (this.context) {
+                this.context.log(`❌ Salesforce API Error: ${error.response?.status || 'NO_RESPONSE'}`);
+                this.context.log(`   Error data:`, error.response?.data);
+            }
+            throw error;
+        }
     }
 
     /**
