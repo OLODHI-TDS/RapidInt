@@ -86,6 +86,10 @@ async function getSalesforceAuthHeader(context, orgCredentials = null) {
   // Use org-specific auth method if provided, otherwise fall back to global config
   const method = (orgCredentials?.authMethod || CONFIG.authMethod).toLowerCase();
 
+  // Always log to console for debugging (context might be null)
+  console.log(`🔐 Getting Salesforce auth header using method: ${method}`);
+  console.log(`   Org auth method: ${orgCredentials?.authMethod || 'NOT SET'}`);
+  console.log(`   Config auth method: ${CONFIG.authMethod}`);
   context?.log(`Getting Salesforce auth header using method: ${method}`);
 
   // Normalize method name (handle both 'api-key' and 'api_key' formats)
@@ -134,6 +138,17 @@ async function getApiKeyHeader(context, orgCredentials = null) {
 
     // Build AccessToken: Scheme-SchemeType-MemberID-BranchID-ApiKey
     accessToken = `${scheme}-${type}-${memberId}-${branchId}-${apiKey}`;
+
+    // Always log to console for debugging
+    console.log(`🔑 Built AccessToken components:`, {
+      scheme,
+      type,
+      memberId,
+      branchId,
+      apiKeyLength: apiKey?.length || 0,
+      fullTokenLength: accessToken.length
+    });
+    console.log(`🔑 Full AccessToken format: ${scheme}-${type}-${memberId}-${branchId}-[API_KEY_${apiKey?.length || 0}_CHARS]`);
 
     context?.log(`🔑 Built AccessToken components:`, {
       scheme,
