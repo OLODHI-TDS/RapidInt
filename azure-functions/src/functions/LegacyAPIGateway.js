@@ -516,11 +516,611 @@ async function handleCreateDepositStatus(batchId, orgMapping, context) {
 }
 
 /**
+ * Transform Salesforce errors format to Legacy array format
+ * Salesforce can return errors in multiple formats:
+ * - { "errors": { "failure": "message" } }
+ * - { "errors": ["error1", "error2"] }
+ * - { "errors": "single error" }
+ *
+ * Legacy expects: [{ "field": "error message" }] or [{ "value": "error message" }]
+ */
+function transformErrorsToLegacyFormat(salesforceErrors) {
+  // If errors is an object with "failure" key
+  if (salesforceErrors.failure) {
+    const failureMsg = salesforceErrors.failure;
+    if (Array.isArray(failureMsg)) {
+      return failureMsg.map(msg => ({ value: msg }));
+    } else if (typeof failureMsg === 'string') {
+      return [{ value: failureMsg }];
+    }
+  }
+
+  // If errors is already an array
+  if (Array.isArray(salesforceErrors)) {
+    return salesforceErrors.map(error => {
+      // If array item is already an object with name/value/field, keep it
+      if (typeof error === 'object' && (error.name || error.value || error.field)) {
+        return error;
+      }
+      // If array item is a string, wrap it
+      return { value: error };
+    });
+  }
+
+  // If errors is a simple string
+  if (typeof salesforceErrors === 'string') {
+    return [{ value: salesforceErrors }];
+  }
+
+  // If errors is a single object
+  if (typeof salesforceErrors === 'object') {
+    return [salesforceErrors];
+  }
+
+  return [];
+}
+
+/**
+ * Transform Salesforce warnings format to Legacy array format
+ * Same logic as errors transformation
+ */
+function transformWarningsToLegacyFormat(salesforceWarnings) {
+  // Use same transformation logic as errors
+  return transformErrorsToLegacyFormat(salesforceWarnings);
+}
+
+/**
+ * TenancyInformation endpoint handler
+ * Credentials are extracted from URL path and authenticated before this is called
+ */
+async function handleTenancyInformation(dan, orgMapping, context) {
+  const startTime = Date.now();
+
+  try {
+    context.log(`📊 Processing TenancyInformation request for DAN: ${dan}`);
+
+    // Get Salesforce API URL
+    const salesforceUrl = getSalesforceUrl(orgMapping.environment);
+
+    // Construct endpoint based on auth method
+    // OAuth2: Use /services/apexrest/auth/tenancyinformation/{dan}
+    // API Key: Use /services/apexrest/tenancyinformation/{dan}
+    let endpointPath = `/services/apexrest/tenancyinformation/${dan}`;
+    if (orgMapping.salesforce.authMethod && orgMapping.salesforce.authMethod.toLowerCase() === 'oauth2') {
+      endpointPath = `/services/apexrest/auth/tenancyinformation/${dan}`;
+      context.log('🔐 OAuth2 mode: Using /auth/ endpoint prefix');
+    }
+
+    const endpoint = `${salesforceUrl}${endpointPath}`;
+
+    context.log(`📤 Querying tenancy info at Salesforce: ${endpoint}`);
+
+    // Get Salesforce authentication headers
+    const authHeaders = await getSalesforceAuthHeader(context, orgMapping.salesforce);
+
+    // Call Salesforce API
+    const salesforceResponse = await axios.get(
+      endpoint,
+      {
+        headers: {
+          'Accept': 'application/json',
+          ...authHeaders
+        },
+        timeout: 30000 // 30 seconds
+      }
+    );
+
+    const duration = Date.now() - startTime;
+
+    context.log('📨 Salesforce tenancy info response (sanitized):', JSON.stringify(sanitizeForLogging(salesforceResponse.data), null, 2));
+
+    // Transform Salesforce response back to Legacy format
+    const legacyResponse = {
+      success: salesforceResponse.data.success || "true",
+      dan: salesforceResponse.data.dan || dan,
+      status: salesforceResponse.data.status || ""
+    };
+
+    // Optional field - case_status (only present if there's an active case)
+    if (salesforceResponse.data.case_status) {
+      legacyResponse.case_status = salesforceResponse.data.case_status;
+    }
+
+    // Convert protected_amount from string to number for Legacy API compatibility
+    if (salesforceResponse.data.protected_amount) {
+      legacyResponse.protected_amount = parseFloat(salesforceResponse.data.protected_amount);
+    }
+
+    // CONDITIONAL FIELD: adjudication_decision_published
+    // Only present when an adjudication report has been written
+    if (salesforceResponse.data.adjudication_decision_published !== undefined) {
+      legacyResponse.adjudication_decision_published = salesforceResponse.data.adjudication_decision_published;
+    }
+
+    // Transform errors array from Salesforce format to Legacy format
+    if (salesforceResponse.data.errors) {
+      legacyResponse.errors = transformErrorsToLegacyFormat(salesforceResponse.data.errors);
+    }
+
+    // Transform warnings array from Salesforce format to Legacy format
+    if (salesforceResponse.data.warnings) {
+      legacyResponse.warnings = transformWarningsToLegacyFormat(salesforceResponse.data.warnings);
+    }
+
+    // Track telemetry
+    telemetry.trackDependency('salesforce', endpoint, duration, true, {
+      statusCode: salesforceResponse.status,
+      organizationId: orgMapping.organizationId
+    });
+
+    telemetry.trackEvent('Legacy_API_Request', {
+      endpoint: 'TenancyInformation',
+      organization: orgMapping.organizationName,
+      success: 'true',
+      duration: duration.toString()
+    });
+
+    context.log(`✅ TenancyInformation completed successfully in ${duration}ms`);
+
+    return {
+      statusCode: 200,
+      body: legacyResponse,
+      duration
+    };
+
+  } catch (error) {
+    const duration = Date.now() - startTime;
+
+    context.error('❌ TenancyInformation failed:', error.message);
+
+    // Extract error message from Salesforce response
+    let errorMessage = error.message;
+
+    if (error.response) {
+      context.error('Salesforce error response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: JSON.stringify(error.response.data, null, 2)
+      });
+
+      // Parse Salesforce error response to get the actual error message
+      try {
+        let salesforceError = error.response.data;
+
+        // If data is a string, try to parse it as JSON
+        if (typeof salesforceError === 'string') {
+          salesforceError = JSON.parse(salesforceError);
+        }
+
+        // Extract error message from various Salesforce error formats
+        if (salesforceError.errors) {
+          if (salesforceError.errors.failure) {
+            if (Array.isArray(salesforceError.errors.failure)) {
+              errorMessage = salesforceError.errors.failure[0];
+            } else if (typeof salesforceError.errors.failure === 'string') {
+              errorMessage = salesforceError.errors.failure;
+            }
+          } else if (Array.isArray(salesforceError.errors)) {
+            errorMessage = salesforceError.errors[0];
+          } else if (typeof salesforceError.errors === 'string') {
+            errorMessage = salesforceError.errors;
+          }
+        } else if (salesforceError.error) {
+          errorMessage = salesforceError.error;
+        } else if (salesforceError.message) {
+          errorMessage = salesforceError.message;
+        }
+
+        context.log(`📝 Extracted error message: ${errorMessage}`);
+      } catch (parseError) {
+        context.warn('⚠️ Failed to parse Salesforce error response:', parseError.message);
+      }
+    }
+
+    // Track telemetry for failure
+    telemetry.trackException(error, {
+      endpoint: 'TenancyInformation',
+      organization: orgMapping.organizationName,
+      duration: duration.toString()
+    });
+
+    // Return Legacy-formatted error response
+    return {
+      statusCode: error.response?.status || 500,
+      body: {
+        success: "false",
+        dan: dan,
+        errors: [{
+          "Invalid DAN": errorMessage
+        }]
+      },
+      duration
+    };
+  }
+}
+
+/**
+ * Landlords endpoint handler
+ * Credentials are extracted from URL path and authenticated before this is called
+ */
+async function handleLandlords(queryParams, orgMapping, context) {
+  const startTime = Date.now();
+
+  try {
+    context.log(`🔍 Processing Landlords search request with params:`, queryParams);
+
+    // Get Salesforce API URL
+    const salesforceUrl = getSalesforceUrl(orgMapping.environment);
+
+    // Construct endpoint based on auth method
+    // OAuth2: Use /services/apexrest/auth/nonmemberlandlord
+    // API Key: Use /services/apexrest/nonmemberlandlord
+    let endpointPath = `/services/apexrest/nonmemberlandlord`;
+    if (orgMapping.salesforce.authMethod && orgMapping.salesforce.authMethod.toLowerCase() === 'oauth2') {
+      endpointPath = `/services/apexrest/auth/nonmemberlandlord`;
+      context.log('🔐 OAuth2 mode: Using /auth/ endpoint prefix');
+    }
+
+    // Build query string from parameters
+    const queryString = new URLSearchParams(queryParams).toString();
+    const endpoint = `${salesforceUrl}${endpointPath}${queryString ? '?' + queryString : ''}`;
+
+    context.log(`📤 Querying landlords at Salesforce: ${endpoint}`);
+
+    // Get Salesforce authentication headers
+    const authHeaders = await getSalesforceAuthHeader(context, orgMapping.salesforce);
+
+    // Call Salesforce API
+    const salesforceResponse = await axios.get(
+      endpoint,
+      {
+        headers: {
+          'Accept': 'application/json',
+          ...authHeaders
+        },
+        timeout: 30000 // 30 seconds
+      }
+    );
+
+    const duration = Date.now() - startTime;
+
+    context.log('📨 Salesforce landlords response (sanitized):', JSON.stringify(sanitizeForLogging(salesforceResponse.data), null, 2));
+
+    // Transform Salesforce response back to Legacy format
+    const legacyResponse = {
+      success: salesforceResponse.data.isSuccess === "true" || salesforceResponse.data.isSuccess === true
+    };
+
+    // Convert totalResults from string to number
+    if (salesforceResponse.data.totalResults !== undefined) {
+      legacyResponse.totalResults = parseInt(salesforceResponse.data.totalResults) || 0;
+    }
+
+    // Transform landlords array - convert string numbers to actual numbers and order fields
+    if (salesforceResponse.data.landlords) {
+      legacyResponse.landlords = salesforceResponse.data.landlords.map(landlord => ({
+        // Order fields as per Legacy API specification
+        nonmemberlandlordid: landlord.nonmemberlandlordid,
+        organisationname: landlord.organisationname || "",
+        tradingname: landlord.tradingname || "",
+        companyregisteredname: landlord.companyregisteredname || "",
+        companyregistrationnumber: landlord.companyregistrationnumber || "",
+        telephone: landlord.telephone || "",
+        alttelephone: landlord.alttelephone || "",
+        fax: landlord.fax || "",
+        addresslines: landlord.addresslines || "",
+        addresscity: landlord.addresscity || "",
+        addresscounty: landlord.addresscounty || "",
+        addresspostcode: landlord.addresspostcode || "",
+        addresscountry: landlord.addresscountry || "",
+        branchname: landlord.branchname || "",
+        branchid: landlord.branchid && !isNaN(landlord.branchid) ? parseInt(landlord.branchid) : landlord.branchid,
+        archivestatus: landlord.archivestatus || "",
+        email: landlord.email || "",
+        correspondenceaddresslines: landlord.correspondenceaddresslines || landlord.addresslines || "",
+        correspondenceaddresscity: landlord.correspondenceaddresscity || landlord.addresscity || "",
+        correspondenceaddresscounty: landlord.correspondenceaddresscounty || landlord.addresscounty || "",
+        correspondenceaddresspostcode: landlord.correspondenceaddresspostcode || landlord.addresspostcode || "",
+        correspondenceaddresscountry: landlord.correspondenceaddresscountry || landlord.addresscountry || "",
+        correspondencetelephone: landlord.correspondencetelephone || landlord.telephone || "",
+        ca_is_diff_from_add: "No",
+        live_deposits: parseInt(landlord.live_deposits) || 0,
+        honorific: landlord.honorific || "",
+        first_name: landlord.first_name || "",
+        last_name: landlord.last_name || "",
+        updated: landlord.updated || "",
+        refreshed: landlord.refreshed || "",
+        is_organisation: landlord.is_organisation || "",
+        has_current_dpc: parseInt(landlord.has_current_dpc) || 0,
+        nonmembertype: "Landlord"
+      }));
+    }
+
+    // Transform errors array from Salesforce format to Legacy format
+    if (salesforceResponse.data.errors) {
+      legacyResponse.errors = transformErrorsToLegacyFormat(salesforceResponse.data.errors);
+    }
+
+    // Transform warnings array from Salesforce format to Legacy format
+    if (salesforceResponse.data.warnings) {
+      legacyResponse.warnings = transformWarningsToLegacyFormat(salesforceResponse.data.warnings);
+    }
+
+    // Track telemetry
+    telemetry.trackDependency('salesforce', endpoint, duration, true, {
+      statusCode: salesforceResponse.status,
+      organizationId: orgMapping.organizationId
+    });
+
+    telemetry.trackEvent('Legacy_API_Request', {
+      endpoint: 'Landlords',
+      organization: orgMapping.organizationName,
+      success: 'true',
+      duration: duration.toString()
+    });
+
+    context.log(`✅ Landlords search completed successfully in ${duration}ms`);
+
+    return {
+      statusCode: 200,
+      body: legacyResponse,
+      duration
+    };
+
+  } catch (error) {
+    const duration = Date.now() - startTime;
+
+    context.error('❌ Landlords search failed:', error.message);
+
+    // Extract error message from Salesforce response
+    let errorMessage = error.message;
+
+    if (error.response) {
+      context.error('Salesforce error response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: JSON.stringify(error.response.data, null, 2)
+      });
+
+      // Parse Salesforce error response to get the actual error message
+      try {
+        let salesforceError = error.response.data;
+
+        // If data is a string, try to parse it as JSON
+        if (typeof salesforceError === 'string') {
+          salesforceError = JSON.parse(salesforceError);
+        }
+
+        // Extract error message from various Salesforce error formats
+        if (salesforceError.errors) {
+          if (salesforceError.errors.failure) {
+            if (Array.isArray(salesforceError.errors.failure)) {
+              errorMessage = salesforceError.errors.failure[0];
+            } else if (typeof salesforceError.errors.failure === 'string') {
+              errorMessage = salesforceError.errors.failure;
+            }
+          } else if (Array.isArray(salesforceError.errors)) {
+            errorMessage = salesforceError.errors[0];
+          } else if (typeof salesforceError.errors === 'string') {
+            errorMessage = salesforceError.errors;
+          }
+        } else if (salesforceError.error) {
+          errorMessage = salesforceError.error;
+        } else if (salesforceError.message) {
+          errorMessage = salesforceError.message;
+        }
+
+        context.log(`📝 Extracted error message: ${errorMessage}`);
+      } catch (parseError) {
+        context.warn('⚠️ Failed to parse Salesforce error response:', parseError.message);
+      }
+    }
+
+    // Track telemetry for failure
+    telemetry.trackException(error, {
+      endpoint: 'Landlords',
+      organization: orgMapping.organizationName,
+      duration: duration.toString()
+    });
+
+    // Return Legacy-formatted error response
+    return {
+      statusCode: error.response?.status || 500,
+      body: {
+        success: false,
+        errors: [{
+          "search_error": errorMessage
+        }]
+      },
+      duration
+    };
+  }
+}
+
+/**
+ * Properties endpoint handler
+ * Credentials are extracted from URL path and authenticated before this is called
+ */
+async function handleProperties(queryParams, orgMapping, context) {
+  const startTime = Date.now();
+
+  try {
+    context.log(`🏠 Processing Properties search request with params:`, queryParams);
+
+    // Get Salesforce API URL
+    const salesforceUrl = getSalesforceUrl(orgMapping.environment);
+
+    // Construct endpoint based on auth method
+    // OAuth2: Use /services/apexrest/auth/property
+    // API Key: Use /services/apexrest/property
+    let endpointPath = `/services/apexrest/property`;
+    if (orgMapping.salesforce.authMethod && orgMapping.salesforce.authMethod.toLowerCase() === 'oauth2') {
+      endpointPath = `/services/apexrest/auth/property`;
+      context.log('🔐 OAuth2 mode: Using /auth/ endpoint prefix');
+    }
+
+    // Build query string from parameters
+    const queryString = new URLSearchParams(queryParams).toString();
+    const endpoint = `${salesforceUrl}${endpointPath}${queryString ? '?' + queryString : ''}`;
+
+    context.log(`📤 Querying properties at Salesforce: ${endpoint}`);
+
+    // Get Salesforce authentication headers
+    const authHeaders = await getSalesforceAuthHeader(context, orgMapping.salesforce);
+
+    // Call Salesforce API
+    const salesforceResponse = await axios.get(
+      endpoint,
+      {
+        headers: {
+          'Accept': 'application/json',
+          ...authHeaders
+        },
+        timeout: 30000 // 30 seconds
+      }
+    );
+
+    const duration = Date.now() - startTime;
+
+    context.log('📨 Salesforce properties response (sanitized):', JSON.stringify(sanitizeForLogging(salesforceResponse.data), null, 2));
+
+    // Transform Salesforce response back to Legacy format
+    const legacyResponse = {
+      success: salesforceResponse.data.isSuccess === "true" || salesforceResponse.data.isSuccess === true
+    };
+
+    // Convert totalResults from string to number
+    if (salesforceResponse.data.totalResults !== undefined) {
+      legacyResponse.totalResults = parseInt(salesforceResponse.data.totalResults) || 0;
+    }
+
+    // Transform properties array - convert string numbers to actual numbers
+    if (salesforceResponse.data.properties) {
+      legacyResponse.properties = salesforceResponse.data.properties.map(property => ({
+        ...property,
+        // Convert string numbers to actual numbers for consistency
+        // Note: propertyid can be alphanumeric (e.g., "PR-00426266"), keep as string
+        // memberid can be alphanumeric (e.g., "A02099SC"), keep as string
+        branchid: property.branchid && !isNaN(property.branchid) ? parseInt(property.branchid) : property.branchid,
+        nonmemberid: property.nonmemberid && !isNaN(property.nonmemberid) ? parseInt(property.nonmemberid) : property.nonmemberid,
+        live_deposits: parseInt(property.live_deposits) || 0,
+        has_current_dpc: parseInt(property.has_current_dpc) || 0,
+        numberofbedrooms: parseInt(property.numberofbedrooms) || 0,
+        numberoflivingrooms: parseInt(property.numberoflivingrooms) || 0,
+        lockversion: parseInt(property.lockversion) || 0
+      }));
+    }
+
+    // Transform errors array from Salesforce format to Legacy format
+    if (salesforceResponse.data.errors) {
+      legacyResponse.errors = transformErrorsToLegacyFormat(salesforceResponse.data.errors);
+    }
+
+    // Transform warnings array from Salesforce format to Legacy format
+    if (salesforceResponse.data.warnings) {
+      legacyResponse.warnings = transformWarningsToLegacyFormat(salesforceResponse.data.warnings);
+    }
+
+    // Track telemetry
+    telemetry.trackDependency('salesforce', endpoint, duration, true, {
+      statusCode: salesforceResponse.status,
+      organizationId: orgMapping.organizationId
+    });
+
+    telemetry.trackEvent('Legacy_API_Request', {
+      endpoint: 'Properties',
+      organization: orgMapping.organizationName,
+      success: 'true',
+      duration: duration.toString()
+    });
+
+    context.log(`✅ Properties search completed successfully in ${duration}ms`);
+
+    return {
+      statusCode: 200,
+      body: legacyResponse,
+      duration
+    };
+
+  } catch (error) {
+    const duration = Date.now() - startTime;
+
+    context.error('❌ Properties search failed:', error.message);
+
+    // Extract error message from Salesforce response
+    let errorMessage = error.message;
+
+    if (error.response) {
+      context.error('Salesforce error response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: JSON.stringify(error.response.data, null, 2)
+      });
+
+      // Parse Salesforce error response to get the actual error message
+      try {
+        let salesforceError = error.response.data;
+
+        // If data is a string, try to parse it as JSON
+        if (typeof salesforceError === 'string') {
+          salesforceError = JSON.parse(salesforceError);
+        }
+
+        // Extract error message from various Salesforce error formats
+        if (salesforceError.errors) {
+          if (salesforceError.errors.failure) {
+            if (Array.isArray(salesforceError.errors.failure)) {
+              errorMessage = salesforceError.errors.failure[0];
+            } else if (typeof salesforceError.errors.failure === 'string') {
+              errorMessage = salesforceError.errors.failure;
+            }
+          } else if (Array.isArray(salesforceError.errors)) {
+            errorMessage = salesforceError.errors[0];
+          } else if (typeof salesforceError.errors === 'string') {
+            errorMessage = salesforceError.errors;
+          }
+        } else if (salesforceError.error) {
+          errorMessage = salesforceError.error;
+        } else if (salesforceError.message) {
+          errorMessage = salesforceError.message;
+        }
+
+        context.log(`📝 Extracted error message: ${errorMessage}`);
+      } catch (parseError) {
+        context.warn('⚠️ Failed to parse Salesforce error response:', parseError.message);
+      }
+    }
+
+    // Track telemetry for failure
+    telemetry.trackException(error, {
+      endpoint: 'Properties',
+      organization: orgMapping.organizationName,
+      duration: duration.toString()
+    });
+
+    // Return Legacy-formatted error response
+    return {
+      statusCode: error.response?.status || 500,
+      body: {
+        success: false,
+        errors: [{
+          "search_error": errorMessage
+        }]
+      },
+      duration
+    };
+  }
+}
+
+/**
  * Azure Function HTTP Handler
  *
  * Routes:
  * - POST /api/legacy/CreateDeposit
  * - GET /api/legacy/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId}
+ * - GET /api/legacy/TenancyInformation/{memberId}/{branchId}/{apiKey}/{dan}
+ * - GET /api/legacy/Landlords/{memberId}/{branchId}/{apiKey}?queryParams
+ * - GET /api/legacy/Properties/{memberId}/{branchId}/{apiKey}?queryParams
  * - GET /api/legacy/health
  */
 app.http('LegacyAPIGateway', {
@@ -535,7 +1135,10 @@ app.http('LegacyAPIGateway', {
 
       // Parse parameters based on endpoint
       // CreateDepositStatus: /api/legacy/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId}
-      let memberId, branchId, apiKey, batchId;
+      // TenancyInformation: /api/legacy/TenancyInformation/{memberId}/{branchId}/{apiKey}/{dan}
+      // Landlords: /api/legacy/Landlords/{memberId}/{branchId}/{apiKey}?queryParams
+      // Properties: /api/legacy/Properties/{memberId}/{branchId}/{apiKey}?queryParams
+      let memberId, branchId, apiKey, batchId, dan;
 
       if (endpoint === 'CreateDepositStatus') {
         memberId = request.params.param1;
@@ -543,6 +1146,17 @@ app.http('LegacyAPIGateway', {
         apiKey = request.params.param3;
         batchId = request.params.param4;
         context.log(`🌐 Legacy API Gateway - Endpoint: ${endpoint}, Method: ${request.method}, BatchId: ${batchId}`);
+      } else if (endpoint === 'TenancyInformation') {
+        memberId = request.params.param1;
+        branchId = request.params.param2;
+        apiKey = request.params.param3;
+        dan = request.params.param4;
+        context.log(`🌐 Legacy API Gateway - Endpoint: ${endpoint}, Method: ${request.method}, DAN: ${dan}`);
+      } else if (endpoint === 'Landlords' || endpoint === 'Properties') {
+        memberId = request.params.param1;
+        branchId = request.params.param2;
+        apiKey = request.params.param3;
+        context.log(`🌐 Legacy API Gateway - Endpoint: ${endpoint}, Method: ${request.method}, Query: ${request.url}`);
       } else {
         context.log(`🌐 Legacy API Gateway - Endpoint: ${endpoint}, Method: ${request.method}`);
       }
@@ -559,6 +1173,9 @@ app.http('LegacyAPIGateway', {
             endpoints: [
               'POST /api/legacy/CreateDeposit',
               'GET /api/legacy/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId}',
+              'GET /api/legacy/TenancyInformation/{memberId}/{branchId}/{apiKey}/{dan}',
+              'GET /api/legacy/Landlords/{memberId}/{branchId}/{apiKey}?queryParams',
+              'GET /api/legacy/Properties/{memberId}/{branchId}/{apiKey}?queryParams',
               'GET /api/legacy/activity'
             ]
           }
@@ -679,8 +1296,8 @@ app.http('LegacyAPIGateway', {
       // Authenticate request (extract org mapping from Legacy credentials)
       let orgMapping;
       try {
-        // For CreateDepositStatus, credentials are in URL path
-        if (endpoint === 'CreateDepositStatus') {
+        // For CreateDepositStatus, TenancyInformation, Landlords, and Properties, credentials are in URL path
+        if (endpoint === 'CreateDepositStatus' || endpoint === 'TenancyInformation' || endpoint === 'Landlords' || endpoint === 'Properties') {
           const urlCredentials = {
             member_id: memberId,
             branch_id: branchId,
@@ -747,13 +1364,77 @@ app.http('LegacyAPIGateway', {
           result = await handleCreateDepositStatus(batchId, orgMapping, context);
           break;
 
+        case 'TenancyInformation':
+          if (!dan) {
+            return {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+              jsonBody: {
+                error: 'DAN required in URL path',
+                success: "false"
+              }
+            };
+          }
+          if (!memberId || !branchId || !apiKey) {
+            return {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+              jsonBody: {
+                error: 'Missing required credentials in URL path (memberId, branchId, apiKey)',
+                success: "false"
+              }
+            };
+          }
+          result = await handleTenancyInformation(dan, orgMapping, context);
+          break;
+
+        case 'Landlords':
+          if (!memberId || !branchId || !apiKey) {
+            return {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+              jsonBody: {
+                error: 'Missing required credentials in URL path (memberId, branchId, apiKey)',
+                success: "false"
+              }
+            };
+          }
+          // Extract query parameters from request
+          const queryParams = {};
+          const url = new URL(request.url);
+          url.searchParams.forEach((value, key) => {
+            queryParams[key] = value;
+          });
+          result = await handleLandlords(queryParams, orgMapping, context);
+          break;
+
+        case 'Properties':
+          if (!memberId || !branchId || !apiKey) {
+            return {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+              jsonBody: {
+                error: 'Missing required credentials in URL path (memberId, branchId, apiKey)',
+                success: "false"
+              }
+            };
+          }
+          // Extract query parameters from request
+          const propertyQueryParams = {};
+          const propertyUrl = new URL(request.url);
+          propertyUrl.searchParams.forEach((value, key) => {
+            propertyQueryParams[key] = value;
+          });
+          result = await handleProperties(propertyQueryParams, orgMapping, context);
+          break;
+
         default:
           return {
             status: 404,
             headers: { 'Content-Type': 'application/json' },
             jsonBody: {
               error: 'Unknown endpoint',
-              availableEndpoints: ['CreateDeposit', 'CreateDepositStatus', 'health']
+              availableEndpoints: ['CreateDeposit', 'CreateDepositStatus', 'TenancyInformation', 'Landlords', 'Properties', 'health']
             }
           };
       }
@@ -802,5 +1483,8 @@ app.http('LegacyAPIGateway', {
 module.exports = {
   authenticateLegacyRequest,
   handleCreateDeposit,
-  handleCreateDepositStatus
+  handleCreateDepositStatus,
+  handleTenancyInformation,
+  handleLandlords,
+  handleProperties
 };

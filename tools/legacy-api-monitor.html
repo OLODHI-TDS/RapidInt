@@ -379,6 +379,180 @@
                             </div>
                         </div>
 
+                        <!-- TenancyInformation Endpoint -->
+                        <div class="accordion-item">
+                            <div class="accordion-header" onclick="toggleAccordion(this)">
+                                <div class="accordion-title">
+                                    <span>TenancyInformation</span>
+                                    <span class="accordion-status">Implemented</span>
+                                </div>
+                                <span class="accordion-icon">▼</span>
+                            </div>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <div class="workflow-section">
+                                        <!-- Request Parameters -->
+                                        <div>
+                                            <h3 style="margin-bottom: var(--space-md);">Request Parameters</h3>
+                                            <div class="form-group">
+                                                <label class="form-label" for="dan-input">DAN (Deposit Account Number)</label>
+                                                <input type="text" id="dan-input" class="form-input" placeholder="e.g., EW0232232 or NI0000123">
+                                                <div class="form-hint">Enter the Deposit Account Number to retrieve tenancy information</div>
+                                            </div>
+                                            <div style="margin-top: var(--space-md); display: flex; gap: var(--space-sm);">
+                                                <button class="btn btn-primary" onclick="executeEndpoint('TenancyInformation')">
+                                                    Get Tenancy Info
+                                                </button>
+                                                <button class="btn btn-secondary" onclick="clearPayload('TenancyInformation')">
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Response Viewer -->
+                                        <div>
+                                            <h3 style="margin-bottom: var(--space-md);">Response</h3>
+                                            <div class="response-viewer">
+                                                <div class="response-header">
+                                                    <span id="tenancyinformation-response-status"></span>
+                                                    <span id="tenancyinformation-response-time" style="color: var(--color-gray-400); font-size: 0.875rem;"></span>
+                                                </div>
+                                                <div class="response-content" id="tenancyinformation-response">
+                                                    <div class="empty-response">Response will appear here after execution</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Landlords Endpoint -->
+                        <div class="accordion-item">
+                            <div class="accordion-header" onclick="toggleAccordion(this)">
+                                <div class="accordion-title">
+                                    <span>Landlords</span>
+                                    <span class="accordion-status">Implemented</span>
+                                </div>
+                                <span class="accordion-icon">▼</span>
+                            </div>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <div class="workflow-section">
+                                        <!-- Request Parameters -->
+                                        <div>
+                                            <h3 style="margin-bottom: var(--space-md);">Search Filters</h3>
+                                            <div class="form-group">
+                                                <label class="form-label" for="landlord-id-input">Landlord ID</label>
+                                                <input type="text" id="landlord-id-input" class="form-input" placeholder="e.g., 123456">
+                                                <div class="form-hint">Search by landlord ID</div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label" for="landlord-email-input">Email</label>
+                                                <input type="text" id="landlord-email-input" class="form-input" placeholder="e.g., landlord@example.com">
+                                                <div class="form-hint">Search by email address</div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label" for="landlord-limit-input">Limit</label>
+                                                <input type="number" id="landlord-limit-input" class="form-input" placeholder="50" value="50">
+                                                <div class="form-hint">Maximum number of results (default 50)</div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label" for="landlord-after-id-input">After ID (Pagination)</label>
+                                                <input type="text" id="landlord-after-id-input" class="form-input" placeholder="e.g., 123456">
+                                                <div class="form-hint">For pagination - last ID from previous batch</div>
+                                            </div>
+                                            <div style="margin-top: var(--space-md); display: flex; gap: var(--space-sm);">
+                                                <button class="btn btn-primary" onclick="executeEndpoint('Landlords')">
+                                                    Search Landlords
+                                                </button>
+                                                <button class="btn btn-secondary" onclick="clearPayload('Landlords')">
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Response Viewer -->
+                                        <div>
+                                            <h3 style="margin-bottom: var(--space-md);">Response</h3>
+                                            <div class="response-viewer">
+                                                <div class="response-header">
+                                                    <span id="landlords-response-status"></span>
+                                                    <span id="landlords-response-time" style="color: var(--color-gray-400); font-size: 0.875rem;"></span>
+                                                </div>
+                                                <div class="response-content" id="landlords-response">
+                                                    <div class="empty-response">Response will appear here after execution</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Properties Endpoint -->
+                        <div class="accordion-item">
+                            <div class="accordion-header" onclick="toggleAccordion(this)">
+                                <div class="accordion-title">
+                                    <span>Properties</span>
+                                    <span class="accordion-status">Implemented</span>
+                                </div>
+                                <span class="accordion-icon">▼</span>
+                            </div>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <div class="workflow-section">
+                                        <!-- Request Parameters -->
+                                        <div>
+                                            <h3 style="margin-bottom: var(--space-md);">Search Filters</h3>
+                                            <div class="form-group">
+                                                <label class="form-label" for="property-id-input">Property ID</label>
+                                                <input type="text" id="property-id-input" class="form-input" placeholder="e.g., 123456">
+                                                <div class="form-hint">Search by property ID</div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label" for="property-postcode-input">Postcode</label>
+                                                <input type="text" id="property-postcode-input" class="form-input" placeholder="e.g., HP2 7TG">
+                                                <div class="form-hint">Search by postcode</div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label" for="property-limit-input">Limit</label>
+                                                <input type="number" id="property-limit-input" class="form-input" placeholder="50" value="50">
+                                                <div class="form-hint">Maximum number of results (default 50)</div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label" for="property-after-id-input">After ID (Pagination)</label>
+                                                <input type="text" id="property-after-id-input" class="form-input" placeholder="e.g., 123456">
+                                                <div class="form-hint">For pagination - last ID from previous batch</div>
+                                            </div>
+                                            <div style="margin-top: var(--space-md); display: flex; gap: var(--space-sm);">
+                                                <button class="btn btn-primary" onclick="executeEndpoint('Properties')">
+                                                    Search Properties
+                                                </button>
+                                                <button class="btn btn-secondary" onclick="clearPayload('Properties')">
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Response Viewer -->
+                                        <div>
+                                            <h3 style="margin-bottom: var(--space-md);">Response</h3>
+                                            <div class="response-viewer">
+                                                <div class="response-header">
+                                                    <span id="properties-response-status"></span>
+                                                    <span id="properties-response-time" style="color: var(--color-gray-400); font-size: 0.875rem;"></span>
+                                                </div>
+                                                <div class="response-content" id="properties-response">
+                                                    <div class="empty-response">Response will appear here after execution</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Future Endpoint Placeholder -->
                         <div class="accordion-item">
                             <div class="accordion-header" onclick="toggleAccordion(this)">
@@ -523,6 +697,30 @@
                                     <td>Fully operational</td>
                                 </tr>
                                 <tr>
+                                    <td><code>/TenancyInformation/{memberId}/{branchId}/{apiKey}/{dan}</code></td>
+                                    <td><code>/services/apexrest/tenancyinformation/{dan}</code></td>
+                                    <td><span class="badge badge-success">Implemented</span></td>
+                                    <td><span class="badge badge-success">Complete</span></td>
+                                    <td>Tested</td>
+                                    <td>Fully operational</td>
+                                </tr>
+                                <tr>
+                                    <td><code>/Landlords/{memberId}/{branchId}/{apiKey}?queryParams</code></td>
+                                    <td><code>/services/apexrest/nonmemberlandlord</code></td>
+                                    <td><span class="badge badge-success">Implemented</span></td>
+                                    <td><span class="badge badge-success">Complete</span></td>
+                                    <td>Tested</td>
+                                    <td>Fully operational</td>
+                                </tr>
+                                <tr>
+                                    <td><code>/Properties/{memberId}/{branchId}/{apiKey}?queryParams</code></td>
+                                    <td><code>/services/apexrest/property</code></td>
+                                    <td><span class="badge badge-success">Implemented</span></td>
+                                    <td><span class="badge badge-success">Complete</span></td>
+                                    <td>Ready for Testing</td>
+                                    <td>Newly implemented</td>
+                                </tr>
+                                <tr>
                                     <td><code>/UpdateTenancy</code></td>
                                     <td><code>/services/apexrest/tenancyupdate</code></td>
                                     <td><span class="badge badge-warning">Pending</span></td>
@@ -576,6 +774,9 @@
                                 <option value="">All Endpoints</option>
                                 <option value="CreateDeposit">CreateDeposit</option>
                                 <option value="CreateDepositStatus">CreateDepositStatus</option>
+                                <option value="TenancyInformation">TenancyInformation</option>
+                                <option value="Landlords">Landlords</option>
+                                <option value="Properties">Properties</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -1015,6 +1216,27 @@
                 document.getElementById('createdepositstatus-response').innerHTML = '<div class="empty-response">Response will appear here after execution</div>';
                 document.getElementById('createdepositstatus-response-status').innerHTML = '';
                 document.getElementById('createdepositstatus-response-time').innerHTML = '';
+            } else if (endpoint === 'TenancyInformation') {
+                document.getElementById('dan-input').value = '';
+                document.getElementById('tenancyinformation-response').innerHTML = '<div class="empty-response">Response will appear here after execution</div>';
+                document.getElementById('tenancyinformation-response-status').innerHTML = '';
+                document.getElementById('tenancyinformation-response-time').innerHTML = '';
+            } else if (endpoint === 'Landlords') {
+                document.getElementById('landlord-id-input').value = '';
+                document.getElementById('landlord-email-input').value = '';
+                document.getElementById('landlord-limit-input').value = '50';
+                document.getElementById('landlord-after-id-input').value = '';
+                document.getElementById('landlords-response').innerHTML = '<div class="empty-response">Response will appear here after execution</div>';
+                document.getElementById('landlords-response-status').innerHTML = '';
+                document.getElementById('landlords-response-time').innerHTML = '';
+            } else if (endpoint === 'Properties') {
+                document.getElementById('property-id-input').value = '';
+                document.getElementById('property-postcode-input').value = '';
+                document.getElementById('property-limit-input').value = '50';
+                document.getElementById('property-after-id-input').value = '';
+                document.getElementById('properties-response').innerHTML = '<div class="empty-response">Response will appear here after execution</div>';
+                document.getElementById('properties-response-status').innerHTML = '';
+                document.getElementById('properties-response-time').innerHTML = '';
             }
         }
 
@@ -1027,6 +1249,12 @@
                     await executeCreateDeposit();
                 } else if (endpoint === 'CreateDepositStatus') {
                     await executeCreateDepositStatus();
+                } else if (endpoint === 'TenancyInformation') {
+                    await executeTenancyInformation();
+                } else if (endpoint === 'Landlords') {
+                    await executeLandlords();
+                } else if (endpoint === 'Properties') {
+                    await executeProperties();
                 }
             } catch (error) {
                 console.error('Execution failed:', error);
@@ -1173,6 +1401,229 @@
                 document.getElementById('createdepositstatus-response-status').innerHTML = '<span class="response-status error">Error</span>';
                 document.getElementById('createdepositstatus-response-time').textContent = `${duration}ms`;
                 document.getElementById('createdepositstatus-response').innerHTML = `<pre>${JSON.stringify({ error: error.message }, null, 2)}</pre>`;
+            }
+        }
+
+        /**
+         * Execute TenancyInformation
+         */
+        async function executeTenancyInformation() {
+            const dan = document.getElementById('dan-input').value.trim();
+
+            if (!dan) {
+                alert('Please enter a DAN (Deposit Account Number)');
+                return;
+            }
+
+            if (!selectedOrg) {
+                alert('Please select an organization to query tenancy information');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('tenancyinformation-response').innerHTML = '<div class="empty-response">Fetching tenancy information...</div>';
+            document.getElementById('tenancyinformation-response-status').innerHTML = '';
+            document.getElementById('tenancyinformation-response-time').innerHTML = '';
+
+            const startTime = Date.now();
+
+            try {
+                // Construct Legacy API URL format: GET /TenancyInformation/{memberId}/{branchId}/{apiKey}/{dan}
+                const memberId = selectedOrg.legacyMemberId;
+                const branchId = selectedOrg.legacyBranchId;
+                const apiKey = selectedOrg.legacyApiKey || 'YOUR_API_KEY_HERE';
+
+                const url = `${API_BASE_URL}/legacy/TenancyInformation/${memberId}/${branchId}/${apiKey}/${dan}`;
+
+                const response = await fetch(url, {
+                    method: 'GET'
+                });
+
+                const duration = Date.now() - startTime;
+                const data = await response.json();
+
+                // Display response
+                // Check for error conditions:
+                // 1. HTTP error status code (4xx, 5xx)
+                // 2. Legacy API error format: success === "false" or false
+                // 3. Legacy API error format: errors array present
+                const isError = !response.ok ||
+                               data.success === "false" ||
+                               data.success === false ||
+                               (data.errors && data.errors.length > 0);
+
+                const statusElement = document.getElementById('tenancyinformation-response-status');
+                statusElement.className = `response-status ${isError ? 'error' : 'success'}`;
+                statusElement.textContent = isError ? 'Error' : 'Success';
+
+                document.getElementById('tenancyinformation-response-time').textContent = `${duration}ms`;
+
+                document.getElementById('tenancyinformation-response').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+            } catch (error) {
+                const duration = Date.now() - startTime;
+
+                document.getElementById('tenancyinformation-response-status').innerHTML = '<span class="response-status error">Error</span>';
+                document.getElementById('tenancyinformation-response-time').textContent = `${duration}ms`;
+                document.getElementById('tenancyinformation-response').innerHTML = `<pre>${JSON.stringify({ error: error.message }, null, 2)}</pre>`;
+            }
+        }
+
+        /**
+         * Execute Landlords Search
+         */
+        async function executeLandlords() {
+            const landlordId = document.getElementById('landlord-id-input').value.trim();
+            const email = document.getElementById('landlord-email-input').value.trim();
+            const limit = document.getElementById('landlord-limit-input').value.trim();
+            const afterId = document.getElementById('landlord-after-id-input').value.trim();
+
+            if (!selectedOrg) {
+                alert('Please select an organization to search landlords');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('landlords-response').innerHTML = '<div class="empty-response">Searching landlords...</div>';
+            document.getElementById('landlords-response-status').innerHTML = '';
+            document.getElementById('landlords-response-time').innerHTML = '';
+
+            const startTime = Date.now();
+
+            try {
+                // Construct Legacy API URL format: GET /Landlords/{memberId}/{branchId}/{apiKey}?queryParams
+                const memberId = selectedOrg.legacyMemberId;
+                const branchId = selectedOrg.legacyBranchId;
+                const apiKey = selectedOrg.legacyApiKey || 'YOUR_API_KEY_HERE';
+
+                // Build query string
+                const queryParams = new URLSearchParams();
+                if (landlordId) queryParams.append('id', landlordId);
+                if (email) queryParams.append('email', email);
+                if (limit) queryParams.append('limit', limit);
+                if (afterId) queryParams.append('after_id', afterId);
+
+                const queryString = queryParams.toString();
+                const url = `${API_BASE_URL}/legacy/Landlords/${memberId}/${branchId}/${apiKey}${queryString ? '?' + queryString : ''}`;
+
+                const response = await fetch(url, {
+                    method: 'GET'
+                });
+
+                const duration = Date.now() - startTime;
+                const data = await response.json();
+
+                // Display response
+                // Check for error conditions:
+                // 1. HTTP error status code (4xx, 5xx)
+                // 2. Legacy API error format: success === false
+                // 3. Legacy API error format: errors array present
+                const isError = !response.ok ||
+                               data.success === false ||
+                               (data.errors && data.errors.length > 0);
+
+                const statusElement = document.getElementById('landlords-response-status');
+                statusElement.className = `response-status ${isError ? 'error' : 'success'}`;
+                statusElement.textContent = isError ? 'Error' : 'Success';
+
+                document.getElementById('landlords-response-time').textContent = `${duration}ms`;
+
+                // Format response with count
+                let displayData = data;
+                if (data.landlords && data.totalResults !== undefined) {
+                    displayData = {
+                        ...data,
+                        _summary: `Found ${data.totalResults} landlord(s)`
+                    };
+                }
+
+                document.getElementById('landlords-response').innerHTML = `<pre>${JSON.stringify(displayData, null, 2)}</pre>`;
+
+            } catch (error) {
+                const duration = Date.now() - startTime;
+
+                document.getElementById('landlords-response-status').innerHTML = '<span class="response-status error">Error</span>';
+                document.getElementById('landlords-response-time').textContent = `${duration}ms`;
+                document.getElementById('landlords-response').innerHTML = `<pre>${JSON.stringify({ error: error.message }, null, 2)}</pre>`;
+            }
+        }
+
+        /**
+         * Execute Properties Search
+         */
+        async function executeProperties() {
+            const propertyId = document.getElementById('property-id-input').value.trim();
+            const postcode = document.getElementById('property-postcode-input').value.trim();
+            const limit = document.getElementById('property-limit-input').value.trim();
+            const afterId = document.getElementById('property-after-id-input').value.trim();
+
+            if (!selectedOrg) {
+                alert('Please select an organization to search properties');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('properties-response').innerHTML = '<div class="empty-response">Searching properties...</div>';
+            document.getElementById('properties-response-status').innerHTML = '';
+            document.getElementById('properties-response-time').innerHTML = '';
+
+            const startTime = Date.now();
+
+            try {
+                // Construct Legacy API URL format: GET /Properties/{memberId}/{branchId}/{apiKey}?queryParams
+                const memberId = selectedOrg.legacyMemberId;
+                const branchId = selectedOrg.legacyBranchId;
+                const apiKey = selectedOrg.legacyApiKey || 'YOUR_API_KEY_HERE';
+
+                // Build query string
+                const queryParams = new URLSearchParams();
+                if (propertyId) queryParams.append('id', propertyId);
+                if (postcode) queryParams.append('postcode', postcode);
+                if (limit) queryParams.append('limit', limit);
+                if (afterId) queryParams.append('after_id', afterId);
+
+                const queryString = queryParams.toString();
+                const url = `${API_BASE_URL}/legacy/Properties/${memberId}/${branchId}/${apiKey}${queryString ? '?' + queryString : ''}`;
+
+                const response = await fetch(url, {
+                    method: 'GET'
+                });
+
+                const duration = Date.now() - startTime;
+                const data = await response.json();
+
+                // Display response
+                // Check for error conditions:
+                // 1. HTTP error status code (4xx, 5xx)
+                // 2. Legacy API error format: success === false
+                // 3. Legacy API error format: errors array present
+                const isError = !response.ok ||
+                               data.success === false ||
+                               (data.errors && data.errors.length > 0);
+
+                const statusElement = document.getElementById('properties-response-status');
+                statusElement.className = `response-status ${isError ? 'error' : 'success'}`;
+                statusElement.textContent = isError ? 'Error' : 'Success';
+
+                document.getElementById('properties-response-time').textContent = `${duration}ms`;
+
+                // Format response with count
+                let displayData = data;
+                if (data.properties && data.totalResults !== undefined) {
+                    displayData = {
+                        ...data,
+                        _summary: `Found ${data.totalResults} propert${data.totalResults === 1 ? 'y' : 'ies'}`
+                    };
+                }
+
+                document.getElementById('properties-response').innerHTML = `<pre>${JSON.stringify(displayData, null, 2)}</pre>`;
+
+            } catch (error) {
+                const duration = Date.now() - startTime;
+
+                document.getElementById('properties-response-status').innerHTML = '<span class="response-status error">Error</span>';
+                document.getElementById('properties-response-time').textContent = `${duration}ms`;
+                document.getElementById('properties-response').innerHTML = `<pre>${JSON.stringify({ error: error.message }, null, 2)}</pre>`;
             }
         }
 
