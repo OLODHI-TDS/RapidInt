@@ -333,6 +333,42 @@ function safeSetText(element, text) {
 }
 
 /**
+ * Format a date/time string for display
+ *
+ * @param {string|Date} dateString - Date string or Date object
+ * @returns {string} - Formatted date string or '-' if invalid
+ *
+ * @example
+ * formatDateTime('2025-10-19T10:30:00Z'); // "10/19/2025, 10:30:00 AM"
+ * formatDateTime(null); // "-"
+ */
+function formatDateTime(dateString) {
+    if (!dateString) return '-';
+    try {
+        return new Date(dateString).toLocaleString();
+    } catch (e) {
+        return '-';
+    }
+}
+
+/**
+ * Truncate text to a maximum length with ellipsis
+ *
+ * @param {string} text - Text to truncate
+ * @param {number} maxLength - Maximum length before truncation
+ * @returns {string} - Truncated text with ellipsis or original if short enough
+ *
+ * @example
+ * truncateText('This is a long text', 10); // "This is a..."
+ * truncateText('Short', 10); // "Short"
+ * truncateText(null, 10); // ""
+ */
+function truncateText(text, maxLength) {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+}
+
+/**
  * Test function to verify XSS protection
  * Run this in browser console to verify security
  *
@@ -390,6 +426,8 @@ if (typeof module !== 'undefined' && module.exports) {
         safeCreateEmptyState,
         safeCreateLink,
         safeSetText,
+        formatDateTime,
+        truncateText,
         testXSSProtection
     };
 }

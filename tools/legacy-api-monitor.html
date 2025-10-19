@@ -59,8 +59,25 @@
             font-size: 0.875rem;
             padding: 4px 12px;
             border-radius: var(--radius-full);
-            background: var(--color-success);
             color: white;
+            font-weight: 600;
+        }
+
+        /* HTTP Method Badges */
+        .accordion-status.method-get {
+            background: #3b82f6; /* Blue */
+        }
+
+        .accordion-status.method-post {
+            background: #10b981; /* Green */
+        }
+
+        .accordion-status.method-put {
+            background: #8b5cf6; /* Purple */
+        }
+
+        .accordion-status.method-delete {
+            background: #ef4444; /* Red */
         }
 
         .accordion-status.pending {
@@ -288,7 +305,7 @@
                             <div class="accordion-header" onclick="toggleAccordion(this)">
                                 <div class="accordion-title">
                                     <span>CreateDeposit</span>
-                                    <span class="accordion-status">Implemented</span>
+                                    <span class="accordion-status method-post">POST</span>
                                 </div>
                                 <span class="accordion-icon">▼</span>
                             </div>
@@ -337,7 +354,7 @@
                             <div class="accordion-header" onclick="toggleAccordion(this)">
                                 <div class="accordion-title">
                                     <span>CreateDepositStatus</span>
-                                    <span class="accordion-status">Implemented</span>
+                                    <span class="accordion-status method-get">GET</span>
                                 </div>
                                 <span class="accordion-icon">▼</span>
                             </div>
@@ -384,7 +401,7 @@
                             <div class="accordion-header" onclick="toggleAccordion(this)">
                                 <div class="accordion-title">
                                     <span>TenancyInformation</span>
-                                    <span class="accordion-status">Implemented</span>
+                                    <span class="accordion-status method-get">GET</span>
                                 </div>
                                 <span class="accordion-icon">▼</span>
                             </div>
@@ -432,7 +449,7 @@
                             <div class="accordion-header" onclick="toggleAccordion(this)">
                                 <div class="accordion-title">
                                     <span>Landlords</span>
-                                    <span class="accordion-status">Implemented</span>
+                                    <span class="accordion-status method-get">GET</span>
                                 </div>
                                 <span class="accordion-icon">▼</span>
                             </div>
@@ -495,7 +512,7 @@
                             <div class="accordion-header" onclick="toggleAccordion(this)">
                                 <div class="accordion-title">
                                     <span>Properties</span>
-                                    <span class="accordion-status">Implemented</span>
+                                    <span class="accordion-status method-get">GET</span>
                                 </div>
                                 <span class="accordion-icon">▼</span>
                             </div>
@@ -558,7 +575,7 @@
                             <div class="accordion-header" onclick="toggleAccordion(this)">
                                 <div class="accordion-title">
                                     <span>RaiseRepaymentRequest</span>
-                                    <span class="accordion-status">Implemented</span>
+                                    <span class="accordion-status method-post">POST</span>
                                 </div>
                                 <span class="accordion-icon">▼</span>
                             </div>
@@ -609,7 +626,7 @@
                             <div class="accordion-header" onclick="toggleAccordion(this)">
                                 <div class="accordion-title">
                                     <span>DPC (Deposit Protection Certificate)</span>
-                                    <span class="accordion-status">Implemented</span>
+                                    <span class="accordion-status method-get">GET</span>
                                 </div>
                                 <span class="accordion-icon">▼</span>
                             </div>
@@ -752,27 +769,56 @@
                     </div>
 
                     <!-- Recent Requests Table -->
-                    <h3 style="margin-bottom: var(--space-md);">Recent Requests</h3>
-                    <div class="table-container">
-                        <table class="table">
+                    <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between;">
+                        <h3 style="margin: 0;">Recent Requests</h3>
+                        <div class="page-size-controls">
+                            <label class="page-size-label">Results per page:</label>
+                            <select id="activity-results-per-page" onchange="changeActivityPageSize()" class="page-size-select">
+                                <option value="10" selected>10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table class="mapping-table" id="activity-table">
                             <thead>
                                 <tr>
                                     <th>Timestamp</th>
                                     <th>Organization</th>
                                     <th>Endpoint</th>
                                     <th>Status</th>
+                                    <th>DAN</th>
                                     <th>Duration</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="recent-requests-table">
                                 <tr>
-                                    <td colspan="6" style="text-align: center; color: var(--color-gray-400); padding: var(--space-xl);">
+                                    <td colspan="7" style="text-align: center; color: var(--color-gray-400); padding: var(--space-xl);">
                                         Loading recent requests...
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Pagination Controls -->
+                    <div id="activity-pagination" class="pagination-controls">
+                        <div class="pagination-info">
+                            <span id="activity-showing-info">Showing 0 - 0 of 0 entries</span>
+                        </div>
+                        <div class="pagination-buttons">
+                            <button class="btn btn-secondary btn-sm" onclick="goToActivityPage(1)" id="activity-first-page">First</button>
+                            <button class="btn btn-secondary btn-sm" onclick="previousActivityPage()" id="activity-prev-page">Previous</button>
+                            <span class="pagination-current">
+                                Page <span id="activity-current-page">1</span> of <span id="activity-total-pages">1</span>
+                            </span>
+                            <button class="btn btn-secondary btn-sm" onclick="nextActivityPage()" id="activity-next-page">Next</button>
+                            <button class="btn btn-secondary btn-sm" onclick="goToActivityPage('last')" id="activity-last-page">Last</button>
+                        </div>
                     </div>
             </div>
         </div>
@@ -1991,11 +2037,19 @@
         }
 
         /**
+         * Pagination state for activity log
+         */
+        let activityCurrentPage = 1;
+        let activityPageSize = 10;
+        let activityTotalEntries = 0;
+        let currentActivityData = []; // Store full activity data for pagination
+
+        /**
          * Load Recent Requests
          */
         async function loadRecentRequests() {
             const tbody = document.getElementById('recent-requests-table');
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--color-gray-400); padding: var(--space-xl);">Loading recent requests...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--color-gray-400); padding: var(--space-xl);">Loading recent requests...</td></tr>';
 
             try {
                 const response = await fetch(`${API_BASE_URL}/legacy/activity`);
@@ -2008,39 +2062,19 @@
                     document.getElementById('stat-avg-response').textContent = data.stats.avgResponseTime;
                     document.getElementById('stat-active-orgs').textContent = data.stats.activeOrgs;
 
-                    // Populate table
-                    if (data.batches.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--color-gray-400); padding: var(--space-xl);">No recent requests found</td></tr>';
-                        return;
-                    }
+                    // Store data and reset pagination
+                    currentActivityData = data.batches;
+                    activityTotalEntries = data.batches.length;
+                    activityCurrentPage = 1;
 
-                    tbody.innerHTML = '';
-                    data.batches.forEach(batch => {
-                        const row = document.createElement('tr');
-                        const timestamp = new Date(batch.createdAt).toLocaleString();
-                        const status = batch.danNumber ? 'success' : (batch.currentStatus === 'submitted' ? 'pending' : 'failed');
-                        const statusBadge = status === 'success' ? 'badge-success' : (status === 'pending' ? 'badge-warning' : 'badge-error');
-
-                        row.innerHTML = `
-                            <td>${timestamp}</td>
-                            <td>${batch.organizationName || 'Unknown'}</td>
-                            <td><code>CreateDeposit</code></td>
-                            <td><span class="badge ${statusBadge}">${status}</span></td>
-                            <td>${batch.requestDurationMs ? batch.requestDurationMs + 'ms' : '--'}</td>
-                            <td>
-                                <button class="btn btn-sm btn-secondary" onclick="viewBatchDetails('${batch.batchId}', '${batch.organizationId}')">
-                                    View
-                                </button>
-                            </td>
-                        `;
-                        tbody.appendChild(row);
-                    });
+                    // Display paginated results
+                    displayActivityData();
                 } else {
-                    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--color-error); padding: var(--space-xl);">Error loading activity: ${data.error}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--color-error); padding: var(--space-xl);">Error loading activity: ${data.error}</td></tr>`;
                 }
             } catch (error) {
                 console.error('Failed to load recent requests:', error);
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--color-error); padding: var(--space-xl);">Failed to load activity</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--color-error); padding: var(--space-xl);">Failed to load activity</td></tr>`;
 
                 // Set default stats
                 document.getElementById('stat-requests-hour').textContent = '--';
@@ -2051,10 +2085,309 @@
         }
 
         /**
-         * View Batch Details (Placeholder)
+         * Display Activity Data (with pagination)
          */
-        function viewBatchDetails(batchId, organizationId) {
-            alert(`Batch Details:\nBatch ID: ${batchId}\nOrganization ID: ${organizationId}\n\nDetailed view coming soon...`);
+        function displayActivityData() {
+            const tbody = document.getElementById('recent-requests-table');
+
+            if (!currentActivityData || currentActivityData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--color-gray-400); padding: var(--space-xl);">No recent requests found</td></tr>';
+                updateActivityPaginationUI(1, 0, 0);
+                return;
+            }
+
+            // Calculate pagination
+            const totalPages = Math.ceil(activityTotalEntries / activityPageSize) || 1;
+
+            // Ensure current page is valid
+            if (activityCurrentPage > totalPages) {
+                activityCurrentPage = totalPages;
+            }
+
+            const startIndex = (activityCurrentPage - 1) * activityPageSize;
+            const endIndex = Math.min(startIndex + activityPageSize, activityTotalEntries);
+            const pageEntries = currentActivityData.slice(startIndex, endIndex);
+
+            tbody.innerHTML = '';
+
+            // ✅ XSS Protection: Build table rows using safe DOM methods
+            pageEntries.forEach(batch => {
+                const row = document.createElement('tr');
+
+                // Determine status from audit log success field
+                const status = batch.success ? 'success' : 'failed';
+
+                // Apply row status class
+                if (status === 'success') {
+                    row.className = 'success-row';
+                } else if (status === 'pending') {
+                    row.className = 'pending-row';
+                } else {
+                    row.className = 'error-row';
+                }
+
+                // Timestamp cell
+                row.appendChild(safeCreateElement('td', formatDateTime(batch.createdAt)));
+
+                // Organization cell
+                row.appendChild(safeCreateElement('td', batch.organizationName || 'Unknown'));
+
+                // Endpoint cell
+                const endpoint = batch.endpoint || 'CreateDeposit';
+                const endpointCell = document.createElement('td');
+                const endpointCode = safeCreateElement('code', endpoint);
+                endpointCell.appendChild(endpointCode);
+                row.appendChild(endpointCell);
+
+                // Status badge cell
+                const statusCell = document.createElement('td');
+                const statusBadge = safeCreateElement('span', status, {
+                    className: `status-badge ${status.toLowerCase()}`
+                });
+                statusCell.appendChild(statusBadge);
+                row.appendChild(statusCell);
+
+                // DAN cell
+                row.appendChild(safeCreateElement('td', batch.danNumber || '-'));
+
+                // Duration cell
+                const duration = batch.requestDurationMs ? `${batch.requestDurationMs}ms` : '--';
+                row.appendChild(safeCreateElement('td', duration));
+
+                // Actions cell with view button
+                const actionsCell = document.createElement('td');
+                const viewBtn = document.createElement('button');
+                viewBtn.className = 'btn btn-secondary btn-sm';
+                viewBtn.textContent = 'View';
+                viewBtn.onclick = () => viewBatchDetails(batch.requestId, batch.organizationId);
+                actionsCell.appendChild(viewBtn);
+                row.appendChild(actionsCell);
+
+                tbody.appendChild(row);
+            });
+
+            // Update pagination UI
+            updateActivityPaginationUI(totalPages, startIndex, endIndex);
+        }
+
+        /**
+         * Update Activity Pagination UI
+         */
+        function updateActivityPaginationUI(totalPages, startIndex, endIndex) {
+            document.getElementById('activity-current-page').textContent = activityCurrentPage;
+            document.getElementById('activity-total-pages').textContent = totalPages;
+            document.getElementById('activity-showing-info').textContent =
+                `Showing ${startIndex + 1} - ${endIndex} of ${activityTotalEntries} entries`;
+
+            // Enable/disable pagination buttons
+            document.getElementById('activity-first-page').disabled = activityCurrentPage === 1;
+            document.getElementById('activity-prev-page').disabled = activityCurrentPage === 1;
+            document.getElementById('activity-next-page').disabled = activityCurrentPage === totalPages;
+            document.getElementById('activity-last-page').disabled = activityCurrentPage === totalPages;
+        }
+
+        /**
+         * Change Activity Page Size
+         */
+        function changeActivityPageSize() {
+            activityPageSize = parseInt(document.getElementById('activity-results-per-page').value);
+            activityCurrentPage = 1; // Reset to first page
+            displayActivityData();
+        }
+
+        /**
+         * Go to Activity Page
+         */
+        function goToActivityPage(page) {
+            const totalPages = Math.ceil(activityTotalEntries / activityPageSize) || 1;
+
+            if (page === 'last') {
+                activityCurrentPage = totalPages;
+            } else if (typeof page === 'number') {
+                activityCurrentPage = Math.max(1, Math.min(page, totalPages));
+            }
+
+            displayActivityData();
+        }
+
+        /**
+         * Previous Activity Page
+         */
+        function previousActivityPage() {
+            if (activityCurrentPage > 1) {
+                activityCurrentPage--;
+                displayActivityData();
+            }
+        }
+
+        /**
+         * Next Activity Page
+         */
+        function nextActivityPage() {
+            const totalPages = Math.ceil(activityTotalEntries / activityPageSize) || 1;
+            if (activityCurrentPage < totalPages) {
+                activityCurrentPage++;
+                displayActivityData();
+            }
+        }
+
+        /**
+         * View Batch Details - Fetch and display audit log details in modal
+         */
+        async function viewBatchDetails(requestId, organizationId) {
+            if (!requestId) {
+                console.error('No requestId provided');
+                return;
+            }
+
+            try {
+                // Fetch audit log details from backend
+                const response = await fetch(`${API_BASE_URL}/legacy/audit/${requestId}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    console.error('Failed to fetch audit log details:', result.error);
+                    alert(`Failed to fetch details: ${result.error}`);
+                    return;
+                }
+
+                const log = result.log;
+
+                // ✅ XSS Protection: Build modal using safe DOM methods
+                const modal = document.createElement('div');
+                modal.className = 'audit-modal';
+                modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+                const modalContent = document.createElement('div');
+                modalContent.className = 'audit-modal-content';
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'audit-modal-header';
+                const title = document.createElement('h3');
+                title.textContent = `Request Details - ${log.endpoint}`;
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'close-modal';
+                closeBtn.textContent = '×';
+                closeBtn.onclick = () => modal.remove();
+                header.appendChild(title);
+                header.appendChild(closeBtn);
+                modalContent.appendChild(header);
+
+                // Body
+                const body = document.createElement('div');
+                body.className = 'audit-modal-body';
+
+                // Detail Grid
+                const detailGrid = document.createElement('div');
+                detailGrid.className = 'audit-detail-grid';
+
+                // Helper to create detail row
+                const addDetail = (label, value, fullWidth = false) => {
+                    const div = document.createElement('div');
+                    if (fullWidth) div.style.gridColumn = '1 / -1';
+                    const strong = document.createElement('strong');
+                    strong.textContent = label + ': ';
+                    div.appendChild(strong);
+                    div.appendChild(safeCreateElement('span', value || '-'));
+                    detailGrid.appendChild(div);
+                };
+
+                // Add details
+                addDetail('Timestamp', new Date(log.timestamp).toLocaleString());
+
+                // Status badge
+                const statusDiv = document.createElement('div');
+                const statusLabel = document.createElement('strong');
+                statusLabel.textContent = 'Status: ';
+                statusDiv.appendChild(statusLabel);
+                const statusBadge = safeCreateElement('span', log.success ? 'Success' : 'Failed', {
+                    className: `status-badge ${log.success ? 'success' : 'error'}`
+                });
+                statusDiv.appendChild(statusBadge);
+                detailGrid.appendChild(statusDiv);
+
+                addDetail('Organization', log.organizationName);
+                addDetail('Endpoint', log.endpoint);
+                addDetail('Method', log.method);
+                addDetail('Response Status', log.responseStatus);
+                addDetail('Response Time', log.responseTime ? `${log.responseTime}ms` : '-');
+                addDetail('Request ID', log.requestId);
+
+                // Metadata
+                if (log.metadata) {
+                    if (log.metadata.batchId) addDetail('Batch ID', log.metadata.batchId);
+                    if (log.metadata.danNumber) addDetail('DAN', log.metadata.danNumber);
+                    if (log.metadata.legacyMemberId) addDetail('Legacy Member ID', log.metadata.legacyMemberId);
+                    if (log.metadata.legacyBranchId) addDetail('Legacy Branch ID', log.metadata.legacyBranchId);
+                }
+
+                // Request URL
+                addDetail('Request URL', log.requestUrl, true);
+
+                // Error message
+                if (log.errorMessage) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.gridColumn = '1 / -1';
+                    errorDiv.className = 'error-detail';
+                    const errorLabel = document.createElement('strong');
+                    errorLabel.textContent = 'Error: ';
+                    errorDiv.appendChild(errorLabel);
+                    errorDiv.appendChild(safeCreateElement('span', log.errorMessage));
+                    detailGrid.appendChild(errorDiv);
+                }
+
+                body.appendChild(detailGrid);
+
+                // Request Body section
+                if (log.requestBody) {
+                    const requestSection = document.createElement('div');
+                    requestSection.className = 'full-result';
+                    const requestTitle = document.createElement('h4');
+                    requestTitle.textContent = 'Request Body:';
+                    requestSection.appendChild(requestTitle);
+
+                    const requestPre = document.createElement('pre');
+                    requestPre.textContent = JSON.stringify(log.requestBody, null, 2);
+                    requestSection.appendChild(requestPre);
+                    body.appendChild(requestSection);
+                }
+
+                // Response Body section
+                if (log.responseBody) {
+                    const responseSection = document.createElement('div');
+                    responseSection.className = 'full-result';
+                    const responseTitle = document.createElement('h4');
+                    responseTitle.textContent = 'Response Body:';
+                    responseSection.appendChild(responseTitle);
+
+                    const responsePre = document.createElement('pre');
+
+                    // Check if response was truncated
+                    if (log.responseBody._truncated) {
+                        responsePre.textContent = `Response too large to store (${log.responseBody._originalSize} bytes)`;
+                        if (log.responseBody._recordCount) {
+                            responsePre.textContent += `\nRecord Count: ${log.responseBody._recordCount}`;
+                        }
+                        if (log.responseBody._preview) {
+                            responsePre.textContent += `\n\nPreview:\n${log.responseBody._preview}`;
+                        }
+                    } else {
+                        responsePre.textContent = JSON.stringify(log.responseBody, null, 2);
+                    }
+
+                    responseSection.appendChild(responsePre);
+                    body.appendChild(responseSection);
+                }
+
+                modalContent.appendChild(body);
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+
+            } catch (error) {
+                console.error('Failed to load batch details:', error);
+                alert(`Failed to load details: ${error.message}`);
+            }
         }
 
         /**

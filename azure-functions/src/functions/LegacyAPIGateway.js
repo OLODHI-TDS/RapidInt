@@ -222,6 +222,7 @@ async function handleCreateDeposit(legacyPayload, orgMapping, context) {
         legacyPayload, // requestPayload (for audit)
         salesforceResponse.data, // responsePayload (for audit)
         {
+          endpoint: 'CreateDeposit',  // Track which Legacy API endpoint was called
           requestDurationMs: duration,
           executionMode: 'forwarding',
           metadata: {
@@ -1470,6 +1471,9 @@ app.http('LegacyAPIGateway', {
         branchId = request.params.param2;
         apiKey = request.params.param3;
         context.log(`🌐 Legacy API Gateway - Endpoint: ${endpoint}, Method: ${request.method}, Query: ${request.url}`);
+      } else if (endpoint === 'audit') {
+        const auditRequestId = request.params.param1;
+        context.log(`🌐 Legacy API Gateway - Endpoint: ${endpoint}, Method: ${request.method}, RequestId: ${auditRequestId || 'none'}`);
       } else {
         context.log(`🌐 Legacy API Gateway - Endpoint: ${endpoint}, Method: ${request.method}`);
       }
@@ -1491,7 +1495,8 @@ app.http('LegacyAPIGateway', {
               'GET /api/legacy/DPC/{memberId}/{branchId}/{apiKey}/{dan}',
               'GET /api/legacy/Landlords/{memberId}/{branchId}/{apiKey}?queryParams',
               'GET /api/legacy/Properties/{memberId}/{branchId}/{apiKey}?queryParams',
-              'GET /api/legacy/activity'
+              'GET /api/legacy/activity',
+              'GET /api/legacy/audit/{requestId}'
             ]
           }
         };
@@ -1500,65 +1505,74 @@ app.http('LegacyAPIGateway', {
       // Activity endpoint for dashboard monitoring
       if (endpoint === 'activity') {
         try {
-          const { getRecentBatches } = require('../../shared-services/shared/batch-tracking');
+          const { queryAuditLogs } = require('../../shared-services/shared/audit-logging');
 
-          // Get recent batches for all organizations (for monitoring)
+          // Get recent audit logs for all organizations (for monitoring)
           // In production, this should be restricted to admin users
-          const allBatches = [];
+          const allLogs = [];
 
           // Get list of organizations with Legacy credentials directly from service
           const orgMappingService = new OrganizationMappingService(context);
           const allMappings = await orgMappingService.getAllMappings();
           const orgs = allMappings.filter(org => org.legacyMemberId && org.isActive);
 
+          context.log(`Fetching activity for ${orgs.length} organizations with Legacy credentials`);
+
           if (orgs.length > 0) {
+            // Track which requests we've already added (by requestId) to prevent duplicates
+            const seenRequests = new Set();
 
-          // Track which batches we've already added (by batchId) to prevent duplicates
-          const seenBatches = new Set();
+            // Fetch recent audit logs for each organization using Legacy credentials as organizationId
+            for (const org of orgs) {
+              try {
+                // Use Legacy credentials (member_id:branch_id) as organizationId, not agencyRef
+                const legacyOrgId = `${org.legacyMemberId}:${org.legacyBranchId}`;
+                const result = await queryAuditLogs({ organizationId: legacyOrgId, limit: 20 }, context);
 
-          // Fetch recent batches for each organization using Legacy credentials as organizationId
-          for (const org of orgs) {
-            try {
-              // Use Legacy credentials (member_id:branch_id) as organizationId, not agencyRef
-              const legacyOrgId = `${org.legacyMemberId}:${org.legacyBranchId}`;
-              const batches = await getRecentBatches(legacyOrgId, { limit: 10 }, context);
+                if (result.success) {
+                  context.log(`Found ${result.logs.length} audit logs for org: ${org.organizationName} (${legacyOrgId})`);
 
-              context.log(`Found ${batches.length} batches for org: ${org.organizationName} (${legacyOrgId})`);
+                  result.logs.forEach(log => {
+                    // Skip if we've already added this request (prevents duplicates)
+                    if (seenRequests.has(log.requestId)) {
+                      context.log(`Skipping duplicate request: ${log.requestId}`);
+                      return;
+                    }
 
-              batches.forEach(batch => {
-                // Skip if we've already added this batch (prevents duplicates)
-                if (seenBatches.has(batch.batchId)) {
-                  context.log(`Skipping duplicate batch: ${batch.batchId}`);
-                  return;
+                    seenRequests.add(log.requestId);
+
+                    // Add to all logs with organization name
+                    allLogs.push({
+                      requestId: log.requestId,
+                      batchId: log.batchId || null,  // For CreateDeposit requests
+                      endpoint: log.endpoint,
+                      organizationId: log.organizationId,
+                      organizationName: org.organizationName,
+                      createdAt: log.timestamp,
+                      currentStatus: log.success ? 'submitted' : 'failed',
+                      danNumber: log.danNumber || null,
+                      requestDurationMs: log.responseTime || 0,
+                      success: log.success,
+                      errorMessage: log.errorMessage || null
+                    });
+                  });
                 }
-
-                seenBatches.add(batch.batchId);
-
-                // The batch's organizationId MUST match the legacyOrgId we just queried (partition key filtering)
-                // So we can safely use the current org's name
-                context.log(`Adding batch ${batch.batchId} for org ${org.organizationName} (batch orgId: ${batch.organizationId})`);
-
-                allBatches.push({
-                  ...batch,
-                  organizationName: org.organizationName // Use the org we queried for, since getRecentBatches filters by partition key
-                });
-              });
-            } catch (err) {
-              context.warn(`Failed to get batches for ${org.organizationName}:`, err.message);
+              } catch (err) {
+                context.warn(`Failed to get audit logs for ${org.organizationName}:`, err.message);
+              }
             }
           }
-        }
 
-          // Sort by creation date (most recent first)
-          allBatches.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          // Sort by timestamp (most recent first)
+          allLogs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
           // Calculate stats
           const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-          const recentBatches = allBatches.filter(b => new Date(b.createdAt) > oneHourAgo);
-          const successfulBatches = recentBatches.filter(b => b.currentStatus === 'submitted' || b.danNumber);
-          const successRate = recentBatches.length > 0 ? (successfulBatches.length / recentBatches.length * 100).toFixed(0) : 100;
-          const avgDuration = recentBatches.length > 0
-            ? Math.round(recentBatches.reduce((sum, b) => sum + (b.requestDurationMs || 0), 0) / recentBatches.length)
+          const recentLogs = allLogs.filter(log => new Date(log.createdAt) > oneHourAgo);
+          const successfulLogs = recentLogs.filter(log => log.success);
+          const successRate = recentLogs.length > 0 ? (successfulLogs.length / recentLogs.length * 100).toFixed(0) : 100;
+          const avgDuration = recentLogs.length > 0
+            ? Math.round(recentLogs.reduce((sum, log) => sum + (log.requestDurationMs || 0), 0) / recentLogs.length)
             : 0;
 
           return {
@@ -1566,12 +1580,12 @@ app.http('LegacyAPIGateway', {
             headers: { 'Content-Type': 'application/json' },
             jsonBody: {
               success: true,
-              batches: allBatches.slice(0, 50), // Return last 50 batches
+              batches: allLogs.slice(0, 50), // Return last 50 requests (keeping 'batches' key for compatibility)
               stats: {
-                requestsLastHour: recentBatches.length,
+                requestsLastHour: recentLogs.length,
                 successRate: `${successRate}%`,
                 avgResponseTime: avgDuration > 0 ? `${avgDuration}ms` : '--',
-                activeOrgs: new Set(allBatches.map(b => b.organizationId)).size
+                activeOrgs: new Set(allLogs.map(log => log.organizationId)).size
               }
             }
           };
@@ -1603,6 +1617,122 @@ app.http('LegacyAPIGateway', {
             jsonBody: {
               error: 'Invalid JSON in request body',
               success: "false"  // String "false" for Legacy API compatibility
+            }
+          };
+        }
+      }
+
+      // Audit log endpoint - query audit logs with filtering
+      // Route: GET /api/legacy/audit?organizationId=xxx&endpoint=yyy
+      if (endpoint === 'audit' && !request.params.param1) {
+        try {
+          const { queryAuditLogs, getAuditStats } = require('../../shared-services/shared/audit-logging');
+
+          // Parse query parameters
+          const url = new URL(request.url);
+          const filters = {
+            organizationId: url.searchParams.get('organizationId') || null,
+            endpoint: url.searchParams.get('endpoint') || null,
+            method: url.searchParams.get('method') || null,
+            status: url.searchParams.get('status') || null,
+            startDate: url.searchParams.get('startDate') || null,
+            endDate: url.searchParams.get('endDate') || null,
+            limit: parseInt(url.searchParams.get('limit')) || 50,
+            continuationToken: url.searchParams.get('continuationToken') || null
+          };
+
+          context.log(`Querying audit logs with filters:`, filters);
+
+          // Query logs and stats in parallel
+          const [logsResult, statsResult] = await Promise.all([
+            queryAuditLogs(filters, context),
+            getAuditStats(context)
+          ]);
+
+          if (!logsResult.success) {
+            return {
+              status: 500,
+              headers: { 'Content-Type': 'application/json' },
+              jsonBody: {
+                success: false,
+                error: logsResult.error
+              }
+            };
+          }
+
+          return {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+            jsonBody: {
+              success: true,
+              logs: logsResult.logs,
+              continuationToken: logsResult.continuationToken,
+              hasMore: logsResult.hasMore,
+              stats: statsResult.stats
+            }
+          };
+
+        } catch (error) {
+          context.error('Failed to query audit logs:', error);
+          return {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+            jsonBody: {
+              success: false,
+              error: error.message
+            }
+          };
+        }
+      }
+
+      // Audit log details endpoint - get single audit entry by requestId
+      // Route: GET /api/legacy/audit/{requestId}
+      if (endpoint === 'audit') {
+        const requestId = request.params.param1;
+
+        if (!requestId) {
+          return {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+            jsonBody: {
+              success: false,
+              error: 'Request ID is required. Usage: GET /api/legacy/audit/{requestId}'
+            }
+          };
+        }
+
+        try {
+          const { getAuditLogDetails } = require('../../shared-services/shared/audit-logging');
+
+          context.log(`Fetching audit log details for requestId: ${requestId}`);
+
+          const result = await getAuditLogDetails(requestId, context);
+
+          if (!result.success) {
+            return {
+              status: 404,
+              headers: { 'Content-Type': 'application/json' },
+              jsonBody: {
+                success: false,
+                error: result.error
+              }
+            };
+          }
+
+          return {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+            jsonBody: result
+          };
+
+        } catch (error) {
+          context.error('Failed to fetch audit log details:', error);
+          return {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+            jsonBody: {
+              success: false,
+              error: error.message
             }
           };
         }
@@ -1792,6 +1922,82 @@ app.http('LegacyAPIGateway', {
       const totalDuration = Date.now() - requestStartTime;
 
       context.log(`✅ Request completed in ${totalDuration}ms`);
+
+      // Log audit entry for all endpoints
+      try {
+        const { logAuditEntry } = require('../../shared-services/shared/audit-logging');
+
+        // Determine request method
+        const method = request.method;
+
+        // Build request parameters based on endpoint type
+        let requestParams = null;
+        let requestBodyForAudit = null;
+
+        if (method === 'POST') {
+          requestBodyForAudit = legacyPayload;
+        } else {
+          // For GET requests, capture URL parameters
+          requestParams = {
+            memberId,
+            branchId,
+            apiKey: '***',  // Sanitized
+            dan,
+            batchId
+          };
+
+          // Add query parameters for search endpoints
+          if (endpoint === 'Landlords' || endpoint === 'Properties') {
+            const url = new URL(request.url);
+            url.searchParams.forEach((value, key) => {
+              if (key !== 'apiKey') {  // Don't log API key
+                requestParams[key] = value;
+              }
+            });
+          }
+        }
+
+        // Determine success (check for various success indicators)
+        // For CreateDeposit/RaiseRepaymentRequest: success = batch_id present
+        // For other endpoints: success = success field true OR no error
+        let isSuccess = false;
+        if (endpoint === 'CreateDeposit' || endpoint === 'RaiseRepaymentRequest') {
+          // CreateDeposit/RaiseRepaymentRequest is successful if batch_id is returned
+          isSuccess = result.statusCode === 200 && result.body.batch_id;
+        } else {
+          // Other endpoints use standard success indicators
+          isSuccess = result.statusCode === 200 &&
+                     (result.body.success === true ||
+                      result.body.success === "true" ||
+                      !result.body.error);
+        }
+
+        await logAuditEntry({
+          organizationId: `${orgMapping.legacyMemberId}:${orgMapping.legacyBranchId}`,
+          organizationName: orgMapping.organizationName,
+          endpoint: endpoint,
+          method: method,
+          requestUrl: request.url,
+          requestHeaders: {
+            'content-type': request.headers['content-type'],
+            'user-agent': request.headers['user-agent']
+          },
+          requestBody: requestBodyForAudit,
+          requestParams: requestParams,
+          responseStatus: result.statusCode,
+          responseTime: totalDuration,
+          responseBody: result.body,
+          success: isSuccess,
+          errorMessage: result.body.error || null,
+          legacyMemberId: orgMapping.legacyMemberId,
+          legacyBranchId: orgMapping.legacyBranchId,
+          batchId: result.body.batch_id || null,
+          danNumber: result.body.dan || null
+        }, context);
+      } catch (auditError) {
+        // Don't let audit logging failures break the response
+        context.warn('Failed to log audit entry:', auditError.message);
+      }
 
       // Return response
       return {

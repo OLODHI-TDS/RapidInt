@@ -837,6 +837,266 @@ tbody tr:hover {
     background: var(--glass-bg-light);
 }
 
+/* Mapping/Audit Table (shared across dashboards) */
+.mapping-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: var(--space-md);
+}
+
+.mapping-table th,
+.mapping-table td {
+    padding: var(--space-md);
+    text-align: left;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.mapping-table th {
+    background: var(--glass-bg-medium);
+    font-weight: 600;
+}
+
+.mapping-table tr:hover {
+    background: var(--glass-bg-light);
+}
+
+/* Table row status colors */
+.success-row { background: rgba(16, 185, 129, 0.05); }
+.error-row { background: rgba(239, 68, 68, 0.05); }
+.pending-row { background: rgba(245, 158, 11, 0.05); }
+.processing-row { background: rgba(59, 130, 246, 0.05); }
+
+/* Status badge for tables */
+.status-badge {
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.status-badge.success,
+.status-badge.completed {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--color-success-light);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-badge.pending,
+.status-badge.pending-deposit,
+.status-badge.pending-data {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--color-warning-light);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.status-badge.failed,
+.status-badge.error {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--color-error-light);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-badge.rejected {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.status-badge.processing {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--color-info-light);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* ============================================
+   MODALS
+   ============================================ */
+
+.audit-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.audit-modal-content {
+    background: var(--glass-bg-heavy);
+    border: 1px solid var(--glass-border-heavy);
+    border-radius: var(--radius-2xl);
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    backdrop-filter: blur(40px);
+}
+
+.audit-modal-header {
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.audit-modal-body {
+    padding: var(--space-lg);
+}
+
+.close-modal {
+    background: transparent;
+    border: none;
+    font-size: 28px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: color var(--transition-fast);
+}
+
+.close-modal:hover {
+    color: var(--color-error);
+}
+
+.audit-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.full-result {
+    margin-top: var(--space-lg);
+    padding: var(--space-md);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-md);
+}
+
+.full-result pre {
+    font-size: 12px;
+    overflow-x: auto;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.error-detail {
+    grid-column: 1 / -1;
+    color: var(--color-error-light);
+}
+
+@media (max-width: 768px) {
+    .audit-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .audit-modal-content {
+        max-width: 95%;
+        max-height: 95vh;
+    }
+}
+
+/* ============================================
+   PAGINATION CONTROLS
+   ============================================ */
+
+.pagination-controls {
+    margin-top: var(--space-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.pagination-info {
+    color: var(--text-secondary);
+    font-size: 14px;
+    flex: 0 0 auto;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+}
+
+.pagination-current {
+    color: var(--text-primary);
+    font-size: 14px;
+    padding: 0 var(--space-sm);
+    font-weight: 500;
+}
+
+.page-size-select {
+    padding: 6px 32px 6px 12px;
+    background: var(--glass-bg-medium);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    transition: all var(--transition-fast);
+}
+
+.page-size-select:hover {
+    background-color: var(--glass-bg-light);
+    border-color: var(--glass-border-heavy);
+}
+
+.page-size-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.page-size-select option {
+    background: var(--color-black);
+    color: var(--text-primary);
+    padding: 8px;
+}
+
+.page-size-controls {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+.page-size-label {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .pagination-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pagination-buttons {
+        margin-left: 0;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .pagination-info {
+        width: 100%;
+        text-align: center;
+    }
+}
+
 /* ============================================
    LOADING SPINNERS
    ============================================ */
@@ -1020,6 +1280,117 @@ tbody tr:hover {
 
 .modal-close:hover {
     color: var(--text-primary);
+}
+
+/* Audit Modal Variants */
+.audit-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal);
+    backdrop-filter: blur(4px);
+}
+
+.audit-modal-content {
+    background: var(--glass-bg-heavy);
+    border: 1px solid var(--glass-border-heavy);
+    border-radius: var(--radius-2xl);
+    max-width: 900px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    backdrop-filter: blur(40px);
+    box-shadow: var(--shadow-2xl);
+}
+
+.audit-modal-header {
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.audit-modal-body {
+    padding: var(--space-lg);
+}
+
+.audit-modal-footer {
+    padding: var(--space-lg);
+    border-top: 1px solid var(--glass-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-md);
+}
+
+.audit-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.audit-detail-section {
+    margin-bottom: var(--space-lg);
+    padding: var(--space-md);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-lg);
+}
+
+.audit-detail-section h4 {
+    color: var(--text-primary);
+    margin-bottom: var(--space-md);
+    font-size: 1.1rem;
+}
+
+.audit-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-sm);
+}
+
+.audit-detail-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.audit-detail-value {
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.audit-detail-code {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm);
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    overflow-x: auto;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+    .audit-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .audit-modal-content {
+        width: 95%;
+        max-width: 100%;
+    }
 }
 
 /* ============================================

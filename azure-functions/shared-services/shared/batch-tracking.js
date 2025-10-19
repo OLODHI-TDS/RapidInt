@@ -39,6 +39,7 @@ function getTableClient() {
  * @param {Object} requestPayload - Original request payload (will be stringified and encrypted)
  * @param {Object} responsePayload - TDS API response (will be stringified and encrypted)
  * @param {Object} options - Additional options
+ * @param {string} options.endpoint - API endpoint called (e.g., 'CreateDeposit', 'TenancyInformation')
  * @param {string} options.executionMode - Execution mode ('single', 'dual', 'shadow', 'forwarding')
  * @param {string} options.altoAgencyRef - Alto agency reference
  * @param {string} options.altoBranchId - Alto branch ID
@@ -69,6 +70,7 @@ async function storeBatchTracking(
     }
 
     const {
+      endpoint = null,
       executionMode = 'single',
       altoAgencyRef = null,
       altoBranchId = null,
@@ -104,6 +106,7 @@ async function storeBatchTracking(
       rowKey: batchId,
       batchId: batchId,
       provider: provider,
+      endpoint: endpoint,  // API endpoint called (CreateDeposit, TenancyInformation, etc.)
       executionMode: executionMode,
       organizationId: organizationId,
       altoAgencyRef: altoAgencyRef,
@@ -407,6 +410,7 @@ async function getRecentBatches(organizationId, options = {}, context) {
       batches.push({
         batchId: entity.batchId,
         provider: entity.provider,
+        endpoint: entity.endpoint,  // Include endpoint for activity log display
         executionMode: entity.executionMode,
         currentStatus: entity.currentStatus,
         danNumber: entity.danNumber,

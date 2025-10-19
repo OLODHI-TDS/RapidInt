@@ -9,11 +9,7 @@
     <style>
         /* Alto Integration Dashboard - Page-specific styles */
 
-        /* Dropdown styling for pagination */
-        .audit-page-size-select option {
-            background: var(--color-black);
-            color: var(--text-primary);
-        }
+        /* Pagination styles are now in shared-styles.css */
 
         /* Icon button styling */
         .icon-btn {
@@ -179,115 +175,9 @@
             margin-bottom: var(--space-sm);
         }
 
-        .mapping-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: var(--space-md);
-        }
+        /* Mapping tables, row status colors, and status badges are now in shared-styles.css */
 
-        .mapping-table th,
-        .mapping-table td {
-            padding: var(--space-md);
-            text-align: left;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        .mapping-table th {
-            background: var(--glass-bg-medium);
-            font-weight: 600;
-        }
-
-        .mapping-table tr:hover {
-            background: var(--glass-bg-light);
-        }
-
-        .success-row { background: rgba(16, 185, 129, 0.05); }
-        .error-row { background: rgba(239, 68, 68, 0.05); }
-        .pending-row { background: rgba(245, 158, 11, 0.05); }
-        .processing-row { background: rgba(59, 130, 246, 0.05); }
-
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: var(--radius-full);
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .status-badge.success,
-        .status-badge.completed { background: rgba(16, 185, 129, 0.15); color: var(--color-success-light); border: 1px solid rgba(16, 185, 129, 0.3); }
-        .status-badge.failed { background: rgba(239, 68, 68, 0.15); color: var(--color-error-light); border: 1px solid rgba(239, 68, 68, 0.3); }
-        .status-badge.rejected { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
-        .status-badge.pending,
-        .status-badge.pending-deposit,
-        .status-badge.pending-data { background: rgba(245, 158, 11, 0.15); color: var(--color-warning-light); border: 1px solid rgba(245, 158, 11, 0.3); }
-        .status-badge.processing { background: rgba(59, 130, 246, 0.15); color: var(--color-info-light); border: 1px solid rgba(59, 130, 246, 0.3); }
-
-        .audit-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .audit-modal-content {
-            background: var(--glass-bg-heavy);
-            border: 1px solid var(--glass-border-heavy);
-            border-radius: var(--radius-2xl);
-            max-width: 800px;
-            max-height: 90vh;
-            overflow-y: auto;
-            backdrop-filter: blur(40px);
-        }
-
-        .audit-modal-header {
-            padding: var(--space-lg);
-            border-bottom: 1px solid var(--glass-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .audit-modal-body {
-            padding: var(--space-lg);
-        }
-
-        .close-modal {
-            background: transparent;
-            border: none;
-            font-size: 28px;
-            color: var(--text-primary);
-            cursor: pointer;
-        }
-
-        .audit-detail-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--space-md);
-            margin-bottom: var(--space-lg);
-        }
-
-        .full-result {
-            margin-top: var(--space-lg);
-            padding: var(--space-md);
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: var(--radius-md);
-        }
-
-        .full-result pre {
-            font-size: 12px;
-            overflow-x: auto;
-            color: var(--text-secondary);
-        }
-
-        .error-detail {
-            color: var(--color-error-light);
-        }
+        /* Audit modals and detail grids are now in shared-styles.css */
 
         .btn-small {
             padding: 6px 12px;
@@ -796,9 +686,9 @@
                         <button class="btn btn-secondary" onclick="clearAuditLog()">Clear Log</button>
                         <button class="btn btn-warning" onclick="exportAuditLog()">Export CSV</button>
                     </div>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <label style="color: var(--text-primary); font-size: 14px;">Results per page:</label>
-                        <select id="audit-results-per-page" onchange="changeAuditPageSize()" class="audit-page-size-select" style="padding: 8px 12px; background: var(--glass-bg-light); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 14px;">
+                    <div class="page-size-controls">
+                        <label class="page-size-label">Results per page:</label>
+                        <select id="audit-results-per-page" onchange="changeAuditPageSize()" class="page-size-select">
                             <option value="10" selected>10</option>
                             <option value="25">25</option>
                             <option value="50">50</option>
@@ -828,14 +718,14 @@
                 </div>
 
                 <!-- Pagination Controls -->
-                <div id="audit-pagination" style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-                    <div style="color: var(--text-secondary); font-size: 14px;">
+                <div id="audit-pagination" class="pagination-controls">
+                    <div class="pagination-info">
                         <span id="audit-showing-info">Showing 0 - 0 of 0 entries</span>
                     </div>
-                    <div style="display: flex; gap: 8px; align-items: center;">
+                    <div class="pagination-buttons">
                         <button class="btn btn-secondary btn-sm" onclick="goToAuditPage(1)" id="audit-first-page">First</button>
                         <button class="btn btn-secondary btn-sm" onclick="previousAuditPage()" id="audit-prev-page">Previous</button>
-                        <span style="color: var(--text-primary); font-size: 14px; padding: 0 10px;">
+                        <span class="pagination-current">
                             Page <span id="audit-current-page">1</span> of <span id="audit-total-pages">1</span>
                         </span>
                         <button class="btn btn-secondary btn-sm" onclick="nextAuditPage()" id="audit-next-page">Next</button>
@@ -1109,19 +999,19 @@
                 </div>
 
                 <!-- Pagination Controls -->
-                <div id="archive-pagination" style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-                    <div style="color: var(--text-secondary); font-size: 14px;">
+                <div id="archive-pagination" class="pagination-controls">
+                    <div class="pagination-info">
                         <span id="archive-showing-info">Showing 0 - 0 of 0 entries</span>
                     </div>
-                    <div style="display: flex; gap: 8px; align-items: center;">
+                    <div class="pagination-buttons">
                         <button class="btn btn-secondary btn-sm" onclick="goToArchivePage(1)" id="archive-first-page">First</button>
                         <button class="btn btn-secondary btn-sm" onclick="previousArchivePage()" id="archive-prev-page">Previous</button>
-                        <span style="color: var(--text-primary); font-size: 14px; padding: 0 10px;">
+                        <span class="pagination-current">
                             Page <span id="archive-current-page">1</span> of <span id="archive-total-pages">1</span>
                         </span>
                         <button class="btn btn-secondary btn-sm" onclick="nextArchivePage()" id="archive-next-page">Next</button>
                         <button class="btn btn-secondary btn-sm" onclick="goToArchivePage('last')" id="archive-last-page">Last</button>
-                        <select id="archive-results-per-page" class="audit-page-size-select" onchange="changeArchivePageSize()" style="background: var(--glass-bg-medium); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; font-size: 14px;">
+                        <select id="archive-results-per-page" class="page-size-select" onchange="changeArchivePageSize()">
                             <option value="10">10 per page</option>
                             <option value="25">25 per page</option>
                             <option value="50">50 per page</option>
