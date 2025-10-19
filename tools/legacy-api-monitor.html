@@ -2037,6 +2037,18 @@
         }
 
         /**
+         * Utility function to format date/time strings
+         */
+        function formatDateTime(dateString) {
+            if (!dateString) return '-';
+            try {
+                return new Date(dateString).toLocaleString();
+            } catch (e) {
+                return '-';
+            }
+        }
+
+        /**
          * Pagination state for activity log
          */
         let activityCurrentPage = 1;
