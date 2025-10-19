@@ -1113,12 +1113,324 @@ async function handleProperties(queryParams, orgMapping, context) {
 }
 
 /**
+ * RaiseRepaymentRequest endpoint handler
+ * Credentials are in POST body and authenticated before this is called
+ */
+async function handleRaiseRepaymentRequest(legacyPayload, orgMapping, context) {
+  const startTime = Date.now();
+
+  try {
+    context.log(`💰 Processing RaiseRepaymentRequest for DAN: ${legacyPayload.dan}`);
+
+    // Get Salesforce API URL
+    const salesforceUrl = getSalesforceUrl(orgMapping.environment);
+
+    // Construct endpoint based on auth method
+    // OAuth2: Use /services/apexrest/auth/raiserepaymentrequest/
+    // API Key: Use /services/apexrest/raiserepaymentrequest/
+    let endpointPath = `/services/apexrest/raiserepaymentrequest/`;
+    if (orgMapping.salesforce.authMethod && orgMapping.salesforce.authMethod.toLowerCase() === 'oauth2') {
+      endpointPath = `/services/apexrest/auth/raiserepaymentrequest/`;
+      context.log('🔐 OAuth2 mode: Using /auth/ endpoint prefix');
+    }
+
+    const endpoint = `${salesforceUrl}${endpointPath}`;
+
+    context.log(`📍 Salesforce URL: ${endpoint}`);
+
+    // Transform Legacy payload to Salesforce format
+    const salesforcePayload = {
+      dan: legacyPayload.dan,
+      tenancy_end_date: legacyPayload.tenancy_end_date,
+      tenant_repayment: String(legacyPayload.tenant_repayment), // Convert to string
+      agent_repayment: {
+        total: String(legacyPayload.agent_repayment.total),
+        cleaning: String(legacyPayload.agent_repayment.cleaning),
+        rent_arrears: String(legacyPayload.agent_repayment.rent_arrears),
+        damage: String(legacyPayload.agent_repayment.damage),
+        redecoration: String(legacyPayload.agent_repayment.redecoration),
+        gardening: String(legacyPayload.agent_repayment.gardening),
+        other: String(legacyPayload.agent_repayment.other),
+        other_text: legacyPayload.agent_repayment.other_text || ""
+      }
+    };
+
+    // Convert date format from dd/mm/yyyy to dd-mm-yyyy if needed
+    if (salesforcePayload.tenancy_end_date && salesforcePayload.tenancy_end_date.includes('/')) {
+      salesforcePayload.tenancy_end_date = salesforcePayload.tenancy_end_date.replace(/\//g, '-');
+    }
+
+    context.log('📤 Submitting repayment request to Salesforce:', JSON.stringify(sanitizeForLogging(salesforcePayload), null, 2));
+
+    // Get Salesforce authentication headers
+    const authHeaders = await getSalesforceAuthHeader(context, orgMapping.salesforce);
+
+    // Call Salesforce API
+    const salesforceResponse = await axios.post(
+      endpoint,
+      salesforcePayload,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...authHeaders
+        },
+        timeout: 30000 // 30 seconds
+      }
+    );
+
+    const duration = Date.now() - startTime;
+
+    context.log('📨 Salesforce repayment request response:', JSON.stringify(salesforceResponse.data, null, 2));
+
+    // Transform Salesforce response back to Legacy format
+    const legacyResponse = {
+      success: salesforceResponse.data.Success === "true" || salesforceResponse.data.Success === true ||
+               salesforceResponse.data.success === "true" || salesforceResponse.data.success === true
+    };
+
+    // Track telemetry
+    telemetry.trackDependency('salesforce', endpoint, duration, true, {
+      statusCode: salesforceResponse.status,
+      organizationId: orgMapping.organizationId
+    });
+
+    telemetry.trackEvent('Legacy_API_Request', {
+      endpoint: 'RaiseRepaymentRequest',
+      organization: orgMapping.organizationName,
+      success: 'true',
+      duration: duration.toString()
+    });
+
+    context.log(`✅ RaiseRepaymentRequest completed successfully in ${duration}ms`);
+
+    return {
+      statusCode: 200,
+      body: legacyResponse,
+      duration
+    };
+
+  } catch (error) {
+    const duration = Date.now() - startTime;
+
+    context.error('❌ RaiseRepaymentRequest failed:', error.message);
+
+    // Extract error message from Salesforce response
+    let errorDetails = {};
+
+    if (error.response) {
+      context.error('Salesforce error response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: JSON.stringify(error.response.data, null, 2)
+      });
+
+      // Parse Salesforce error response
+      try {
+        let salesforceError = error.response.data;
+
+        // If data is a string, try to parse it as JSON
+        if (typeof salesforceError === 'string') {
+          salesforceError = JSON.parse(salesforceError);
+        }
+
+        // Extract error details from Salesforce response
+        if (salesforceError.errors) {
+          errorDetails = salesforceError.errors;
+        } else if (salesforceError.error) {
+          errorDetails = { error: salesforceError.error };
+        } else if (salesforceError.message) {
+          errorDetails = { error: salesforceError.message };
+        } else {
+          errorDetails = { failure: error.message };
+        }
+
+        context.log(`📝 Extracted error details:`, errorDetails);
+      } catch (parseError) {
+        context.warn('⚠️ Failed to parse Salesforce error response:', parseError.message);
+        errorDetails = { failure: error.message };
+      }
+    } else {
+      errorDetails = { failure: error.message };
+    }
+
+    // Track telemetry for failure
+    telemetry.trackException(error, {
+      endpoint: 'RaiseRepaymentRequest',
+      organization: orgMapping.organizationName,
+      duration: duration.toString()
+    });
+
+    // Return Legacy-formatted error response
+    return {
+      statusCode: error.response?.status || 500,
+      body: {
+        success: false,
+        errors: errorDetails
+      },
+      duration
+    };
+  }
+}
+
+/**
+ * DPC (Deposit Protection Certificate) endpoint handler
+ * Credentials are extracted from URL path and authenticated before this is called
+ */
+async function handleDPC(dan, orgMapping, context) {
+  const startTime = Date.now();
+
+  try {
+    context.log(`📜 Processing DPC request for DAN: ${dan}`);
+
+    // Get Salesforce API URL
+    const salesforceUrl = getSalesforceUrl(orgMapping.environment);
+
+    // Construct endpoint based on auth method
+    // OAuth2: Use /services/apexrest/auth/dpc/{dan}
+    // API Key: Use /services/apexrest/dpc/{dan}
+    let endpointPath = `/services/apexrest/dpc/${dan}`;
+    if (orgMapping.salesforce.authMethod && orgMapping.salesforce.authMethod.toLowerCase() === 'oauth2') {
+      endpointPath = `/services/apexrest/auth/dpc/${dan}`;
+      context.log('🔐 OAuth2 mode: Using /auth/ endpoint prefix');
+    }
+
+    const endpoint = `${salesforceUrl}${endpointPath}`;
+
+    context.log(`📤 Requesting DPC certificate at Salesforce: ${endpoint}`);
+
+    // Get Salesforce authentication headers
+    const authHeaders = await getSalesforceAuthHeader(context, orgMapping.salesforce);
+
+    // Call Salesforce API
+    const salesforceResponse = await axios.get(
+      endpoint,
+      {
+        headers: {
+          'Accept': 'application/json',
+          ...authHeaders
+        },
+        timeout: 30000 // 30 seconds
+      }
+    );
+
+    const duration = Date.now() - startTime;
+
+    context.log('📨 Salesforce DPC response (sanitized):', JSON.stringify(sanitizeForLogging(salesforceResponse.data), null, 2));
+
+    // Transform Salesforce response back to Legacy format
+    const legacyResponse = {
+      success: salesforceResponse.data.success === "true" || salesforceResponse.data.success === true,
+      dan: salesforceResponse.data.dan || dan,
+      certificate: salesforceResponse.data.certificate || ""
+    };
+
+    // Transform errors array from Salesforce format to Legacy format
+    if (salesforceResponse.data.errors) {
+      legacyResponse.errors = transformErrorsToLegacyFormat(salesforceResponse.data.errors);
+    }
+
+    // Track telemetry
+    telemetry.trackDependency('salesforce', endpoint, duration, true, {
+      statusCode: salesforceResponse.status,
+      organizationId: orgMapping.organizationId
+    });
+
+    telemetry.trackEvent('Legacy_API_Request', {
+      endpoint: 'DPC',
+      organization: orgMapping.organizationName,
+      success: 'true',
+      duration: duration.toString()
+    });
+
+    context.log(`✅ DPC request completed successfully in ${duration}ms`);
+
+    return {
+      statusCode: 200,
+      body: legacyResponse,
+      duration
+    };
+
+  } catch (error) {
+    const duration = Date.now() - startTime;
+
+    context.error('❌ DPC request failed:', error.message);
+
+    // Extract error message from Salesforce response
+    let errorMessage = error.message;
+
+    if (error.response) {
+      context.error('Salesforce error response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: JSON.stringify(error.response.data, null, 2)
+      });
+
+      // Parse Salesforce error response to get the actual error message
+      try {
+        let salesforceError = error.response.data;
+
+        // If data is a string, try to parse it as JSON
+        if (typeof salesforceError === 'string') {
+          salesforceError = JSON.parse(salesforceError);
+        }
+
+        // Extract error message from various Salesforce error formats
+        if (salesforceError.errors) {
+          if (salesforceError.errors.failure) {
+            if (Array.isArray(salesforceError.errors.failure)) {
+              errorMessage = salesforceError.errors.failure[0];
+            } else if (typeof salesforceError.errors.failure === 'string') {
+              errorMessage = salesforceError.errors.failure;
+            }
+          } else if (Array.isArray(salesforceError.errors)) {
+            errorMessage = salesforceError.errors[0];
+          } else if (typeof salesforceError.errors === 'string') {
+            errorMessage = salesforceError.errors;
+          }
+        } else if (salesforceError.error) {
+          errorMessage = salesforceError.error;
+        } else if (salesforceError.message) {
+          errorMessage = salesforceError.message;
+        }
+
+        context.log(`📝 Extracted error message: ${errorMessage}`);
+      } catch (parseError) {
+        context.warn('⚠️ Failed to parse Salesforce error response:', parseError.message);
+      }
+    }
+
+    // Track telemetry for failure
+    telemetry.trackException(error, {
+      endpoint: 'DPC',
+      organization: orgMapping.organizationName,
+      duration: duration.toString()
+    });
+
+    // Return Legacy-formatted error response
+    return {
+      statusCode: error.response?.status || 500,
+      body: {
+        success: false,
+        dan: dan,
+        errors: [{
+          "not_found": errorMessage
+        }]
+      },
+      duration
+    };
+  }
+}
+
+/**
  * Azure Function HTTP Handler
  *
  * Routes:
  * - POST /api/legacy/CreateDeposit
+ * - POST /api/legacy/RaiseRepaymentRequest
  * - GET /api/legacy/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId}
  * - GET /api/legacy/TenancyInformation/{memberId}/{branchId}/{apiKey}/{dan}
+ * - GET /api/legacy/DPC/{memberId}/{branchId}/{apiKey}/{dan}
  * - GET /api/legacy/Landlords/{memberId}/{branchId}/{apiKey}?queryParams
  * - GET /api/legacy/Properties/{memberId}/{branchId}/{apiKey}?queryParams
  * - GET /api/legacy/health
@@ -1136,6 +1448,7 @@ app.http('LegacyAPIGateway', {
       // Parse parameters based on endpoint
       // CreateDepositStatus: /api/legacy/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId}
       // TenancyInformation: /api/legacy/TenancyInformation/{memberId}/{branchId}/{apiKey}/{dan}
+      // DPC: /api/legacy/DPC/{memberId}/{branchId}/{apiKey}/{dan}
       // Landlords: /api/legacy/Landlords/{memberId}/{branchId}/{apiKey}?queryParams
       // Properties: /api/legacy/Properties/{memberId}/{branchId}/{apiKey}?queryParams
       let memberId, branchId, apiKey, batchId, dan;
@@ -1146,7 +1459,7 @@ app.http('LegacyAPIGateway', {
         apiKey = request.params.param3;
         batchId = request.params.param4;
         context.log(`🌐 Legacy API Gateway - Endpoint: ${endpoint}, Method: ${request.method}, BatchId: ${batchId}`);
-      } else if (endpoint === 'TenancyInformation') {
+      } else if (endpoint === 'TenancyInformation' || endpoint === 'DPC') {
         memberId = request.params.param1;
         branchId = request.params.param2;
         apiKey = request.params.param3;
@@ -1172,8 +1485,10 @@ app.http('LegacyAPIGateway', {
             timestamp: new Date().toISOString(),
             endpoints: [
               'POST /api/legacy/CreateDeposit',
+              'POST /api/legacy/RaiseRepaymentRequest',
               'GET /api/legacy/CreateDepositStatus/{memberId}/{branchId}/{apiKey}/{batchId}',
               'GET /api/legacy/TenancyInformation/{memberId}/{branchId}/{apiKey}/{dan}',
+              'GET /api/legacy/DPC/{memberId}/{branchId}/{apiKey}/{dan}',
               'GET /api/legacy/Landlords/{memberId}/{branchId}/{apiKey}?queryParams',
               'GET /api/legacy/Properties/{memberId}/{branchId}/{apiKey}?queryParams',
               'GET /api/legacy/activity'
@@ -1273,9 +1588,9 @@ app.http('LegacyAPIGateway', {
         }
       }
 
-      // Parse request body for POST requests (CreateDeposit)
+      // Parse request body for POST requests (CreateDeposit, RaiseRepaymentRequest)
       let legacyPayload = null;
-      if (request.method === 'POST' && endpoint === 'CreateDeposit') {
+      if (request.method === 'POST' && (endpoint === 'CreateDeposit' || endpoint === 'RaiseRepaymentRequest')) {
         const bodyText = await request.text();
 
         try {
@@ -1296,8 +1611,8 @@ app.http('LegacyAPIGateway', {
       // Authenticate request (extract org mapping from Legacy credentials)
       let orgMapping;
       try {
-        // For CreateDepositStatus, TenancyInformation, Landlords, and Properties, credentials are in URL path
-        if (endpoint === 'CreateDepositStatus' || endpoint === 'TenancyInformation' || endpoint === 'Landlords' || endpoint === 'Properties') {
+        // For CreateDepositStatus, TenancyInformation, DPC, Landlords, and Properties, credentials are in URL path
+        if (endpoint === 'CreateDepositStatus' || endpoint === 'TenancyInformation' || endpoint === 'DPC' || endpoint === 'Landlords' || endpoint === 'Properties') {
           const urlCredentials = {
             member_id: memberId,
             branch_id: branchId,
@@ -1305,7 +1620,7 @@ app.http('LegacyAPIGateway', {
           };
           orgMapping = await authenticateLegacyRequest(urlCredentials, context);
         }
-        // For CreateDeposit, credentials are in POST body
+        // For CreateDeposit and RaiseRepaymentRequest, credentials are in POST body
         else if (legacyPayload) {
           orgMapping = await authenticateLegacyRequest(legacyPayload, context);
         }
@@ -1338,6 +1653,17 @@ app.http('LegacyAPIGateway', {
             };
           }
           result = await handleCreateDeposit(legacyPayload, orgMapping, context);
+          break;
+
+        case 'RaiseRepaymentRequest':
+          if (request.method !== 'POST') {
+            return {
+              status: 405,
+              headers: { 'Content-Type': 'application/json' },
+              jsonBody: { error: 'POST method required for RaiseRepaymentRequest' }
+            };
+          }
+          result = await handleRaiseRepaymentRequest(legacyPayload, orgMapping, context);
           break;
 
         case 'CreateDepositStatus':
@@ -1388,6 +1714,30 @@ app.http('LegacyAPIGateway', {
           result = await handleTenancyInformation(dan, orgMapping, context);
           break;
 
+        case 'DPC':
+          if (!dan) {
+            return {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+              jsonBody: {
+                error: 'DAN required in URL path',
+                success: "false"
+              }
+            };
+          }
+          if (!memberId || !branchId || !apiKey) {
+            return {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+              jsonBody: {
+                error: 'Missing required credentials in URL path (memberId, branchId, apiKey)',
+                success: "false"
+              }
+            };
+          }
+          result = await handleDPC(dan, orgMapping, context);
+          break;
+
         case 'Landlords':
           if (!memberId || !branchId || !apiKey) {
             return {
@@ -1434,7 +1784,7 @@ app.http('LegacyAPIGateway', {
             headers: { 'Content-Type': 'application/json' },
             jsonBody: {
               error: 'Unknown endpoint',
-              availableEndpoints: ['CreateDeposit', 'CreateDepositStatus', 'TenancyInformation', 'Landlords', 'Properties', 'health']
+              availableEndpoints: ['CreateDeposit', 'RaiseRepaymentRequest', 'CreateDepositStatus', 'TenancyInformation', 'DPC', 'Landlords', 'Properties', 'health']
             }
           };
       }
@@ -1483,8 +1833,10 @@ app.http('LegacyAPIGateway', {
 module.exports = {
   authenticateLegacyRequest,
   handleCreateDeposit,
+  handleRaiseRepaymentRequest,
   handleCreateDepositStatus,
   handleTenancyInformation,
+  handleDPC,
   handleLandlords,
   handleProperties
 };

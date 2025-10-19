@@ -553,7 +553,106 @@
                             </div>
                         </div>
 
-                        <!-- Future Endpoint Placeholder -->
+                        <!-- RaiseRepaymentRequest Endpoint -->
+                        <div class="accordion-item">
+                            <div class="accordion-header" onclick="toggleAccordion(this)">
+                                <div class="accordion-title">
+                                    <span>RaiseRepaymentRequest</span>
+                                    <span class="accordion-status">Implemented</span>
+                                </div>
+                                <span class="accordion-icon">▼</span>
+                            </div>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <div class="workflow-section">
+                                        <!-- Request Payload -->
+                                        <div>
+                                            <h3 style="margin-bottom: var(--space-md);">Request Payload</h3>
+                                            <div class="form-group">
+                                                <label class="form-label">JSON Payload</label>
+                                                <textarea id="raiserepaymentrequest-payload" class="form-textarea" rows="20"
+                                                          placeholder="Enter JSON payload or load an example..."></textarea>
+                                            </div>
+                                            <div style="margin-top: var(--space-md); display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+                                                <button class="btn btn-primary" onclick="executeEndpoint('RaiseRepaymentRequest')">
+                                                    Submit Repayment Request
+                                                </button>
+                                                <button class="btn btn-secondary" onclick="loadExamplePayload('RaiseRepaymentRequest')">
+                                                    Load Example
+                                                </button>
+                                                <button class="btn btn-secondary" onclick="clearPayload('RaiseRepaymentRequest')">
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Response Viewer -->
+                                        <div>
+                                            <h3 style="margin-bottom: var(--space-md);">Response</h3>
+                                            <div class="response-viewer">
+                                                <div class="response-header">
+                                                    <span id="raiserepaymentrequest-response-status"></span>
+                                                    <span id="raiserepaymentrequest-response-time" style="color: var(--color-gray-400); font-size: 0.875rem;"></span>
+                                                </div>
+                                                <div class="response-content" id="raiserepaymentrequest-response">
+                                                    <div class="empty-response">Response will appear here after execution</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DPC (Deposit Protection Certificate) Endpoint -->
+                        <div class="accordion-item">
+                            <div class="accordion-header" onclick="toggleAccordion(this)">
+                                <div class="accordion-title">
+                                    <span>DPC (Deposit Protection Certificate)</span>
+                                    <span class="accordion-status">Implemented</span>
+                                </div>
+                                <span class="accordion-icon">▼</span>
+                            </div>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <div class="workflow-section">
+                                        <!-- Request Parameters -->
+                                        <div>
+                                            <h3 style="margin-bottom: var(--space-md);">Request Parameters</h3>
+                                            <div class="form-group">
+                                                <label class="form-label" for="dpc-dan-input">DAN (Deposit Account Number)</label>
+                                                <input type="text" id="dpc-dan-input" class="form-input" placeholder="e.g., EW0232232 or NI0000123">
+                                                <div class="form-hint">Enter the Deposit Account Number to retrieve the DPC certificate</div>
+                                            </div>
+                                            <div style="margin-top: var(--space-md); display: flex; gap: var(--space-sm);">
+                                                <button class="btn btn-primary" onclick="executeEndpoint('DPC')">
+                                                    Get Certificate
+                                                </button>
+                                                <button class="btn btn-secondary" onclick="clearPayload('DPC')">
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Response Viewer -->
+                                        <div>
+                                            <h3 style="margin-bottom: var(--space-md);">Response</h3>
+                                            <div class="response-viewer">
+                                                <div class="response-header">
+                                                    <span id="dpc-response-status"></span>
+                                                    <span id="dpc-response-time" style="color: var(--color-gray-400); font-size: 0.875rem;"></span>
+                                                </div>
+                                                <div class="response-content" id="dpc-response">
+                                                    <div class="empty-response">Response will appear here after execution</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Future Endpoints -->
                         <div class="accordion-item">
                             <div class="accordion-header" onclick="toggleAccordion(this)">
                                 <div class="accordion-title">
@@ -564,9 +663,58 @@
                             </div>
                             <div class="accordion-content">
                                 <div class="accordion-body">
-                                    <p style="color: var(--color-gray-400); text-align: center; padding: var(--space-xl);">
-                                        Additional Legacy API endpoints will be added here as they are implemented.
+                                    <h3 style="margin-bottom: var(--space-md);">Planned Endpoints</h3>
+                                    <p style="color: var(--color-gray-400); margin-bottom: var(--space-lg);">
+                                        The following endpoints from the Legacy TDS API are not yet available because their Salesforce equivalents do not currently exist:
                                     </p>
+
+                                    <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+                                        <!-- Create Head Office Branch -->
+                                        <div style="padding: var(--space-md); border: 1px solid var(--color-gray-700); border-radius: 6px; background: rgba(255, 255, 255, 0.02);">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+                                                <h4 style="margin: 0; color: var(--color-gray-200);">Create Head Office Branch</h4>
+                                                <span class="badge badge-warning">Blocked</span>
+                                            </div>
+                                            <p style="color: var(--color-gray-400); margin: var(--space-xs) 0; font-size: 0.875rem;">
+                                                <strong>Method:</strong> PUT
+                                            </p>
+                                            <p style="color: var(--color-gray-400); margin: var(--space-xs) 0; font-size: 0.875rem;">
+                                                <strong>Legacy Endpoint:</strong> <code>/headOffices/{head_office_member_id}/branches</code>
+                                            </p>
+                                            <p style="color: var(--color-gray-400); margin: var(--space-xs) 0; font-size: 0.875rem;">
+                                                <strong>Description:</strong> Create a new branch under a head office
+                                            </p>
+                                            <p style="color: var(--color-gray-500); margin: var(--space-xs) 0; font-size: 0.813rem; font-style: italic;">
+                                                <strong>Status:</strong> Awaiting Salesforce API implementation
+                                            </p>
+                                            <p style="color: var(--color-gray-500); margin: var(--space-xs) 0; font-size: 0.813rem;">
+                                                <strong>Reference:</strong> Legacy API Documentation Section 9
+                                            </p>
+                                        </div>
+
+                                        <!-- Create Head Office Branch User -->
+                                        <div style="padding: var(--space-md); border: 1px solid var(--color-gray-700); border-radius: 6px; background: rgba(255, 255, 255, 0.02);">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+                                                <h4 style="margin: 0; color: var(--color-gray-200);">Create Head Office Branch User</h4>
+                                                <span class="badge badge-warning">Blocked</span>
+                                            </div>
+                                            <p style="color: var(--color-gray-400); margin: var(--space-xs) 0; font-size: 0.875rem;">
+                                                <strong>Method:</strong> PUT
+                                            </p>
+                                            <p style="color: var(--color-gray-400); margin: var(--space-xs) 0; font-size: 0.875rem;">
+                                                <strong>Legacy Endpoint:</strong> <code>/headOffices/{head_office_member_id}/branches/{branch_id}/users</code>
+                                            </p>
+                                            <p style="color: var(--color-gray-400); margin: var(--space-xs) 0; font-size: 0.875rem;">
+                                                <strong>Description:</strong> Create a new user for a specific branch
+                                            </p>
+                                            <p style="color: var(--color-gray-500); margin: var(--space-xs) 0; font-size: 0.813rem; font-style: italic;">
+                                                <strong>Status:</strong> Awaiting Salesforce API implementation
+                                            </p>
+                                            <p style="color: var(--color-gray-500); margin: var(--space-xs) 0; font-size: 0.813rem;">
+                                                <strong>Reference:</strong> Legacy API Documentation Section 10
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -689,6 +837,14 @@
                                     <td>Fully operational</td>
                                 </tr>
                                 <tr>
+                                    <td><code>/RaiseRepaymentRequest</code></td>
+                                    <td><code>/services/apexrest/raiserepaymentrequest</code></td>
+                                    <td><span class="badge badge-success">Implemented</span></td>
+                                    <td><span class="badge badge-success">Complete</span></td>
+                                    <td>Ready for Testing</td>
+                                    <td>Newly implemented</td>
+                                </tr>
+                                <tr>
                                     <td><code>/CreateDepositStatus/{batchId}</code></td>
                                     <td><code>/services/apexrest/CreateDepositStatus/{batchId}</code></td>
                                     <td><span class="badge badge-success">Implemented</span></td>
@@ -703,6 +859,14 @@
                                     <td><span class="badge badge-success">Complete</span></td>
                                     <td>Tested</td>
                                     <td>Fully operational</td>
+                                </tr>
+                                <tr>
+                                    <td><code>/DPC/{memberId}/{branchId}/{apiKey}/{dan}</code></td>
+                                    <td><code>/services/apexrest/dpc/{dan}</code></td>
+                                    <td><span class="badge badge-success">Implemented</span></td>
+                                    <td><span class="badge badge-success">Complete</span></td>
+                                    <td>Ready for Testing</td>
+                                    <td>Newly implemented</td>
                                 </tr>
                                 <tr>
                                     <td><code>/Landlords/{memberId}/{branchId}/{apiKey}?queryParams</code></td>
@@ -773,8 +937,10 @@
                             <select id="log-filter-endpoint" class="form-select" onchange="applyLogFilters()">
                                 <option value="">All Endpoints</option>
                                 <option value="CreateDeposit">CreateDeposit</option>
+                                <option value="RaiseRepaymentRequest">RaiseRepaymentRequest</option>
                                 <option value="CreateDepositStatus">CreateDepositStatus</option>
                                 <option value="TenancyInformation">TenancyInformation</option>
+                                <option value="DPC">DPC</option>
                                 <option value="Landlords">Landlords</option>
                                 <option value="Properties">Properties</option>
                             </select>
@@ -1199,6 +1365,27 @@
                 };
 
                 document.getElementById('createdeposit-payload').value = JSON.stringify(examplePayload, null, 2);
+            } else if (endpoint === 'RaiseRepaymentRequest') {
+                examplePayload = {
+                    api_key: selectedOrg.legacyApiKey || 'YOUR_API_KEY_HERE',
+                    member_id: selectedOrg.legacyMemberId,
+                    branch_id: selectedOrg.legacyBranchId,
+                    dan: 'EW12345',
+                    tenancy_end_date: '26/05/2020',
+                    tenant_repayment_type: 'split',
+                    tenant_repayment: 999.99,
+                    agent_repayment: {
+                        total: 454.48,
+                        cleaning: 200,
+                        rent_arrears: 0,
+                        damage: 122.99,
+                        redecoration: 0,
+                        gardening: 32.49,
+                        other: 99,
+                        other_text: 'Description of other payment'
+                    }
+                };
+                document.getElementById('raiserepaymentrequest-payload').value = JSON.stringify(examplePayload, null, 2);
             }
         }
 
@@ -1211,6 +1398,11 @@
                 document.getElementById('createdeposit-response').innerHTML = '<div class="empty-response">Response will appear here after execution</div>';
                 document.getElementById('createdeposit-response-status').innerHTML = '';
                 document.getElementById('createdeposit-response-time').innerHTML = '';
+            } else if (endpoint === 'RaiseRepaymentRequest') {
+                document.getElementById('raiserepaymentrequest-payload').value = '';
+                document.getElementById('raiserepaymentrequest-response').innerHTML = '<div class="empty-response">Response will appear here after execution</div>';
+                document.getElementById('raiserepaymentrequest-response-status').innerHTML = '';
+                document.getElementById('raiserepaymentrequest-response-time').innerHTML = '';
             } else if (endpoint === 'CreateDepositStatus') {
                 document.getElementById('batch-id-input').value = '';
                 document.getElementById('createdepositstatus-response').innerHTML = '<div class="empty-response">Response will appear here after execution</div>';
@@ -1221,6 +1413,11 @@
                 document.getElementById('tenancyinformation-response').innerHTML = '<div class="empty-response">Response will appear here after execution</div>';
                 document.getElementById('tenancyinformation-response-status').innerHTML = '';
                 document.getElementById('tenancyinformation-response-time').innerHTML = '';
+            } else if (endpoint === 'DPC') {
+                document.getElementById('dpc-dan-input').value = '';
+                document.getElementById('dpc-response').innerHTML = '<div class="empty-response">Response will appear here after execution</div>';
+                document.getElementById('dpc-response-status').innerHTML = '';
+                document.getElementById('dpc-response-time').innerHTML = '';
             } else if (endpoint === 'Landlords') {
                 document.getElementById('landlord-id-input').value = '';
                 document.getElementById('landlord-email-input').value = '';
@@ -1247,10 +1444,14 @@
             try {
                 if (endpoint === 'CreateDeposit') {
                     await executeCreateDeposit();
+                } else if (endpoint === 'RaiseRepaymentRequest') {
+                    await executeRaiseRepaymentRequest();
                 } else if (endpoint === 'CreateDepositStatus') {
                     await executeCreateDepositStatus();
                 } else if (endpoint === 'TenancyInformation') {
                     await executeTenancyInformation();
+                } else if (endpoint === 'DPC') {
+                    await executeDPC();
                 } else if (endpoint === 'Landlords') {
                     await executeLandlords();
                 } else if (endpoint === 'Properties') {
@@ -1333,6 +1534,67 @@
                 document.getElementById('createdeposit-response-status').innerHTML = '<span class="response-status error">Error</span>';
                 document.getElementById('createdeposit-response-time').textContent = `${duration}ms`;
                 document.getElementById('createdeposit-response').innerHTML = `<pre>${JSON.stringify({ error: error.message }, null, 2)}</pre>`;
+            }
+        }
+
+        /**
+         * Execute RaiseRepaymentRequest
+         */
+        async function executeRaiseRepaymentRequest() {
+            const payloadText = document.getElementById('raiserepaymentrequest-payload').value;
+
+            if (!payloadText.trim()) {
+                alert('Please enter a payload or load an example');
+                return;
+            }
+
+            let payload;
+            try {
+                payload = JSON.parse(payloadText);
+            } catch (e) {
+                alert('Invalid JSON payload: ' + e.message);
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('raiserepaymentrequest-response').innerHTML = '<div class="empty-response">Submitting repayment request...</div>';
+            document.getElementById('raiserepaymentrequest-response-status').innerHTML = '';
+            document.getElementById('raiserepaymentrequest-response-time').innerHTML = '';
+
+            const startTime = Date.now();
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/legacy/RaiseRepaymentRequest`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const duration = Date.now() - startTime;
+                const data = await response.json();
+
+                // Display response
+                const isError = !response.ok ||
+                               data.success === "false" ||
+                               data.success === false ||
+                               (data.errors && Object.keys(data.errors).length > 0);
+
+                const statusElement = document.getElementById('raiserepaymentrequest-response-status');
+                statusElement.className = `response-status ${isError ? 'error' : 'success'}`;
+                statusElement.textContent = isError ? 'Error' : 'Success';
+
+                document.getElementById('raiserepaymentrequest-response-time').textContent = `${duration}ms`;
+
+                document.getElementById('raiserepaymentrequest-response').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+            } catch (error) {
+                const duration = Date.now() - startTime;
+
+                document.getElementById('raiserepaymentrequest-response-status').innerHTML = '<span class="response-status error">Error</span>';
+                document.getElementById('raiserepaymentrequest-response-time').textContent = `${duration}ms`;
+                document.getElementById('raiserepaymentrequest-response').innerHTML = `<pre>${JSON.stringify({ error: error.message }, null, 2)}</pre>`;
             }
         }
 
@@ -1466,6 +1728,76 @@
                 document.getElementById('tenancyinformation-response-status').innerHTML = '<span class="response-status error">Error</span>';
                 document.getElementById('tenancyinformation-response-time').textContent = `${duration}ms`;
                 document.getElementById('tenancyinformation-response').innerHTML = `<pre>${JSON.stringify({ error: error.message }, null, 2)}</pre>`;
+            }
+        }
+
+        /**
+         * Execute DPC (Deposit Protection Certificate)
+         */
+        async function executeDPC() {
+            const dan = document.getElementById('dpc-dan-input').value.trim();
+
+            if (!dan) {
+                alert('Please enter a DAN (Deposit Account Number)');
+                return;
+            }
+
+            if (!selectedOrg) {
+                alert('Please select an organization to retrieve DPC certificate');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('dpc-response').innerHTML = '<div class="empty-response">Fetching DPC certificate...</div>';
+            document.getElementById('dpc-response-status').innerHTML = '';
+            document.getElementById('dpc-response-time').innerHTML = '';
+
+            const startTime = Date.now();
+
+            try {
+                // Construct Legacy API URL format: GET /DPC/{memberId}/{branchId}/{apiKey}/{dan}
+                const memberId = selectedOrg.legacyMemberId;
+                const branchId = selectedOrg.legacyBranchId;
+                const apiKey = selectedOrg.legacyApiKey || 'YOUR_API_KEY_HERE';
+
+                const url = `${API_BASE_URL}/legacy/DPC/${memberId}/${branchId}/${apiKey}/${dan}`;
+
+                const response = await fetch(url, {
+                    method: 'GET'
+                });
+
+                const duration = Date.now() - startTime;
+                const data = await response.json();
+
+                // Display response
+                const isError = !response.ok ||
+                               data.success === "false" ||
+                               data.success === false ||
+                               (data.errors && data.errors.length > 0);
+
+                const statusElement = document.getElementById('dpc-response-status');
+                statusElement.className = `response-status ${isError ? 'error' : 'success'}`;
+                statusElement.textContent = isError ? 'Error' : 'Success';
+
+                document.getElementById('dpc-response-time').textContent = `${duration}ms`;
+
+                // If successful and certificate URL is present, make it clickable
+                let displayData = data;
+                if (data.certificate && data.success) {
+                    displayData = {
+                        ...data,
+                        _note: 'Click the certificate URL below to download the PDF'
+                    };
+                }
+
+                document.getElementById('dpc-response').innerHTML = `<pre>${JSON.stringify(displayData, null, 2)}</pre>`;
+
+            } catch (error) {
+                const duration = Date.now() - startTime;
+
+                document.getElementById('dpc-response-status').innerHTML = '<span class="response-status error">Error</span>';
+                document.getElementById('dpc-response-time').textContent = `${duration}ms`;
+                document.getElementById('dpc-response').innerHTML = `<pre>${JSON.stringify({ error: error.message }, null, 2)}</pre>`;
             }
         }
 
