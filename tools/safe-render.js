@@ -415,7 +415,7 @@ function testXSSProtection() {
     console.groupEnd();
 }
 
-// Export for use in other files
+// Export for Node.js (if running in Node environment)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         safeCreateElement,
@@ -430,4 +430,19 @@ if (typeof module !== 'undefined' && module.exports) {
         truncateText,
         testXSSProtection
     };
+}
+
+// Export for browser (attach to window object)
+if (typeof window !== 'undefined') {
+    window.safeCreateElement = safeCreateElement;
+    window.safeCreateTableRow = safeCreateTableRow;
+    window.safeClearAndPopulate = safeClearAndPopulate;
+    window.safeCreateStatusBadge = safeCreateStatusBadge;
+    window.safeCreateContainer = safeCreateContainer;
+    window.safeCreateEmptyState = safeCreateEmptyState;
+    window.safeCreateLink = safeCreateLink;
+    window.safeSetText = safeSetText;
+    window.formatDateTime = formatDateTime;
+    window.truncateText = truncateText;
+    window.testXSSProtection = testXSSProtection;
 }
