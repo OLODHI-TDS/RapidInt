@@ -398,9 +398,18 @@ async function getAuditLogDetails(requestId, context) {
       let requestBody = null;
       let responseBody = null;
 
+      // Create system userContext for internal decryption operations
+      // This allows audit log viewing without requiring user authentication
+      const systemUserContext = {
+        authenticated: true,
+        email: 'system@tdsrapidint',
+        roles: ['admin'], // System has admin role for decryption
+        isSystemContext: true
+      };
+
       if (entity.requestBody) {
         try {
-          const decrypted = await decryptPII(entity.requestBody, null, context);
+          const decrypted = await decryptPII(entity.requestBody, systemUserContext, context);
           requestBody = JSON.parse(decrypted);
         } catch (e) {
           context?.warn(`Failed to decrypt request body: ${e.message}`);
@@ -410,7 +419,7 @@ async function getAuditLogDetails(requestId, context) {
 
       if (entity.responseBody) {
         try {
-          const decrypted = await decryptPII(entity.responseBody, null, context);
+          const decrypted = await decryptPII(entity.responseBody, systemUserContext, context);
           responseBody = JSON.parse(decrypted);
         } catch (e) {
           context?.warn(`Failed to decrypt response body: ${e.message}`);
