@@ -497,18 +497,22 @@ const schemas = {
       }),
     integrationType: Joi.string()
       .required()
-      .valid('alto', 'jupix', 'manual')
+      .valid('alto', 'jupix', 'manual', 'LtSFB')
       .messages({
         'string.base': 'integrationType must be a string',
-        'any.only': 'integrationType must be one of: alto, jupix, manual',
+        'any.only': 'integrationType must be one of: alto, jupix, manual, LtSFB',
         'any.required': 'integrationType is required'
       }),
-    integrationCredentials: Joi.object({
-      alto: Joi.object({
-        agencyRef: Joi.string().uuid().required(),
-        branchId: Joi.string().optional().allow('', null).max(100)
-      }).optional()
-    }).optional(),
+    integrationCredentials: Joi.when('integrationType', {
+      is: Joi.string().valid('alto', 'jupix'),
+      then: Joi.object({
+        alto: Joi.object({
+          agencyRef: Joi.string().uuid().required(),
+          branchId: Joi.string().optional().allow('', null).max(100)
+        }).optional()
+      }).optional(),
+      otherwise: Joi.object().optional().allow(null)
+    }),
     tdsLegacyConfig: Joi.object({
       memberId: Joi.string().required().min(1).max(100),
       branchId: Joi.string().required().min(1).max(100),
@@ -548,7 +552,7 @@ const schemas = {
   organizationMappingUpdate: Joi.object({
     organizationName: Joi.string().required().min(1).max(200),
     environment: Joi.string().required().valid('development', 'production'),
-    integrationType: Joi.string().required().valid('alto', 'jupix', 'manual'),
+    integrationType: Joi.string().required().valid('alto', 'jupix', 'manual', 'LtSFB'),
     updatedOrganizationName: Joi.string().optional().min(1).max(200),
     legacyMemberId: Joi.string().optional().min(1).max(100),
     legacyBranchId: Joi.string().optional().min(1).max(100),

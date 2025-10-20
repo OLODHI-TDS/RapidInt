@@ -658,7 +658,6 @@
         <!-- Main Navigation Tabs -->
         <div class="main-tabs glass card">
             <button class="main-tab active" onclick="showMainTab('organizations')">Organizations</button>
-            <button class="main-tab" onclick="showMainTab('mapping')">API Data Mapping</button>
             <button class="main-tab" onclick="showMainTab('settings')">Settings</button>
         </div>
 
@@ -768,65 +767,6 @@
         </div>
 
         </div> <!-- End Organizations Tab -->
-
-        <!-- API Data Mapping Tab Content -->
-        <div id="mappingTab" class="main-tab-content">
-            <div class="mapping-section glass card">
-                <div class="section-header">
-                    <h2 class="section-title">API Data Mapping</h2>
-                    <p class="header-subtitle">Field mappings between Legacy TDS API and Salesforce EWC API</p>
-                </div>
-
-                <!-- Endpoint Selection Tabs -->
-                <div class="endpoint-tabs">
-                    <button class="endpoint-tab active" onclick="showEndpointMapping('deposit-creation')">
-                        Deposit Creation
-                        <span class="endpoint-badge">Active</span>
-                    </button>
-                    <button class="endpoint-tab disabled" onclick="showEndpointMapping('status-check')" disabled>
-                        Status Check
-                        <span class="endpoint-badge coming-soon">Coming Soon</span>
-                    </button>
-                    <button class="endpoint-tab disabled" onclick="showEndpointMapping('deposit-update')" disabled>
-                        Deposit Update
-                        <span class="endpoint-badge coming-soon">Coming Soon</span>
-                    </button>
-                </div>
-
-                <!-- Deposit Creation Mapping Content -->
-                <div id="depositCreationMapping" class="endpoint-content active">
-                    <div class="mapping-tabs">
-                        <button class="mapping-tab active" onclick="showMappingTab('overview')">Overview</button>
-                        <button class="mapping-tab" onclick="showMappingTab('tenancy')">Tenancy Fields</button>
-                        <button class="mapping-tab" onclick="showMappingTab('property')">Property Fields</button>
-                        <button class="mapping-tab" onclick="showMappingTab('people')">People Fields</button>
-                        <button class="mapping-tab" onclick="showMappingTab('differences')">Key Differences</button>
-                    </div>
-
-                    <div id="mappingContent" class="mapping-content">
-                        <!-- Content will be populated by JavaScript -->
-                    </div>
-                </div>
-
-                <!-- Status Check Mapping Content (Placeholder) -->
-                <div id="statusCheckMapping" class="endpoint-content">
-                    <div class="empty-state">
-                        <div class="empty-state-icon"></div>
-                        <h3>Status Check Mapping</h3>
-                        <p>Field mappings for status check endpoint will be added here.</p>
-                    </div>
-                </div>
-
-                <!-- Deposit Update Mapping Content (Placeholder) -->
-                <div id="depositUpdateMapping" class="endpoint-content">
-                    <div class="empty-state">
-                        <div class="empty-state-icon"></div>
-                        <h3>Deposit Update Mapping</h3>
-                        <p>Field mappings for deposit update endpoint will be added here.</p>
-                    </div>
-                </div>
-            </div>
-        </div> <!-- End Mapping Tab -->
 
         <!-- Settings Tab Content -->
         <div id="settingsTab" class="main-tab-content">
@@ -1655,463 +1595,9 @@
 
             if (tabName === 'organizations') {
                 document.getElementById('organizationsTab').classList.add('active');
-            } else if (tabName === 'mapping') {
-                document.getElementById('mappingTab').classList.add('active');
             } else if (tabName === 'settings') {
                 document.getElementById('settingsTab').classList.add('active');
             }
-        }
-
-        // Endpoint Mapping Navigation
-        function showEndpointMapping(endpointName) {
-            // Don't proceed if disabled
-            if (event.target.disabled || event.target.closest('.endpoint-tab').disabled) {
-                return;
-            }
-
-            // Update active endpoint tab
-            document.querySelectorAll('.endpoint-tab').forEach(tab => tab.classList.remove('active'));
-            event.target.closest('.endpoint-tab').classList.add('active');
-
-            // Show/hide endpoint content
-            document.querySelectorAll('.endpoint-content').forEach(content => {
-                content.classList.remove('active');
-            });
-
-            const contentMap = {
-                'deposit-creation': 'depositCreationMapping',
-                'status-check': 'statusCheckMapping',
-                'deposit-update': 'depositUpdateMapping'
-            };
-
-            const contentId = contentMap[endpointName];
-            if (contentId) {
-                document.getElementById(contentId).classList.add('active');
-            }
-        }
-
-        // API Mapping Functions
-        function showMappingTab(tabName) {
-            // Update active tab
-            document.querySelectorAll('.mapping-tab').forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
-
-            // Get content
-            const content = getMappingContent(tabName);
-            document.getElementById('mappingContent').innerHTML = content;
-        }
-
-        function getMappingContent(tabName) {
-            switch(tabName) {
-                case 'overview':
-                    return getOverviewContent();
-                case 'tenancy':
-                    return getTenancyFieldsContent();
-                case 'property':
-                    return getPropertyFieldsContent();
-                case 'people':
-                    return getPeopleFieldsContent();
-                case 'differences':
-                    return getDifferencesContent();
-                default:
-                    return '';
-            }
-        }
-
-        function getOverviewContent() {
-            return `
-                <h3 style="margin-bottom: 20px;">API Transformation Overview</h3>
-                <div class="comparison-grid">
-                    <div class="comparison-column">
-                        <h3><span class="api-badge legacy">Legacy</span> TDS Custodial API v1.2</h3>
-                        <ul style="line-height: 2;">
-                            <li><strong>Date Format:</strong> DD/MM/YYYY (slashes)</li>
-                            <li><strong>Booleans:</strong> "Y" / "N" (strings)</li>
-                            <li><strong>Numbers:</strong> Native numbers (1500)</li>
-                            <li><strong>Structure:</strong> tenancy as <code>array</code></li>
-                            <li><strong>Auth:</strong> Root level fields</li>
-                            <li><strong>Tenant Types:</strong> "Lead Tenant", "Joint Tenant"</li>
-                        </ul>
-                    </div>
-                    <div class="comparison-column">
-                        <h3><span class="api-badge salesforce">Salesforce</span> EWC API</h3>
-                        <ul style="line-height: 2;">
-                            <li><strong>Date Format:</strong> DD-MM-YYYY (dashes)</li>
-                            <li><strong>Booleans:</strong> "true" / "false" (strings)</li>
-                            <li><strong>Numbers:</strong> String numbers ("1500")</li>
-                            <li><strong>Structure:</strong> tenancy as <code>object</code></li>
-                            <li><strong>Auth:</strong> AccessToken header</li>
-                            <li><strong>Tenant Types:</strong> All "Tenant" (no distinction)</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="difference-card" style="margin-top: 30px;">
-                    <h4>WARNING: Critical Transformation Rules</h4>
-                    <p>• All numeric values must be converted to strings for Salesforce<br>
-                    • Date separators must change from / to -<br>
-                    • Boolean values map: Y→"true", N→"false"<br>
-                    • Tenant classification flattened in Salesforce<br>
-                    • Authentication moved from body to header</p>
-                </div>
-            `;
-        }
-
-        function getTenancyFieldsContent() {
-            return `
-                <h3 style="margin-bottom: 20px;">Tenancy & Financial Fields</h3>
-                <table class="mapping-table">
-                    <thead>
-                        <tr>
-                            <th>Alto/Internal Field</th>
-                            <th>Legacy API</th>
-                            <th>Salesforce API</th>
-                            <th>Transformation</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code class="field-name">tenancyId</code></td>
-                            <td><code class="field-name">user_tenancy_reference</code></td>
-                            <td><code class="field-name">user_tenancy_reference</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">tenancyStartDate</code></td>
-                            <td><code class="field-name">tenancy_start_date</code></td>
-                            <td><code class="field-name">tenancy_start_date</code></td>
-                            <td><span class="transformation-note">ISO → DD/MM/YYYY (Legacy)<br>ISO → DD-MM-YYYY (Salesforce)</span></td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">tenancyEndDate</code></td>
-                            <td><code class="field-name">tenancy_expected_end_date</code></td>
-                            <td><code class="field-name">tenancy_expected_end_date</code></td>
-                            <td><span class="transformation-note">ISO → DD/MM/YYYY (Legacy)<br>ISO → DD-MM-YYYY (Salesforce)</span></td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">rentAmount</code></td>
-                            <td><code class="field-name">rent_amount</code></td>
-                            <td><code class="field-name">rent_amount</code></td>
-                            <td><span class="transformation-note">Number (Legacy)<br>String "1500" (Salesforce)</span></td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">depositAmount</code></td>
-                            <td><code class="field-name">deposit_amount</code></td>
-                            <td><code class="field-name">deposit_amount</code></td>
-                            <td><span class="transformation-note">Number (Legacy)<br>String "2000" (Salesforce)</span></td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">amountToProtect</code></td>
-                            <td><code class="field-name">deposit_amount_to_protect</code></td>
-                            <td><code class="field-name">deposit_amount_to_protect</code></td>
-                            <td><span class="transformation-note">Number (Legacy)<br>String "1800" (Salesforce)</span></td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">tenants.length</code></td>
-                            <td><code class="field-name">number_of_tenants</code></td>
-                            <td><code class="field-name">number_of_tenants</code></td>
-                            <td><span class="transformation-note">Number (Legacy)<br>String "2" (Salesforce)</span></td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">landlords.length</code></td>
-                            <td><code class="field-name">number_of_landlords</code></td>
-                            <td><code class="field-name">number_of_landlords</code></td>
-                            <td><span class="transformation-note">Number (Legacy)<br>String "1" (Salesforce)</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            `;
-        }
-
-        function getPropertyFieldsContent() {
-            return `
-                <h3 style="margin-bottom: 20px;">Property Address & Details</h3>
-                <table class="mapping-table">
-                    <thead>
-                        <tr>
-                            <th>Alto/Internal Field</th>
-                            <th>Legacy API</th>
-                            <th>Salesforce API</th>
-                            <th>Notes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code class="field-name">property.id</code></td>
-                            <td><code class="field-name">property_id</code></td>
-                            <td><code class="field-name">property_id</code></td>
-                            <td>Number → String (SF)</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">property.address.nameNo</code></td>
-                            <td><code class="field-name">property_paon</code></td>
-                            <td><code class="field-name">property_paon</code></td>
-                            <td>Building name/number</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">property.address.subDwelling</code></td>
-                            <td><code class="field-name">property_saon</code></td>
-                            <td><code class="field-name">property_saon</code></td>
-                            <td>Flat/Unit number</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">property.address.street</code></td>
-                            <td><code class="field-name">property_street</code></td>
-                            <td><code class="field-name">property_street</code></td>
-                            <td>Street name</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">property.address.locality</code></td>
-                            <td><code class="field-name">property_locality</code></td>
-                            <td><span class="transformation-note">Not in Salesforce</span></td>
-                            <td>WARNING: Property locality not supported - use property_town instead</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">property.address.town</code></td>
-                            <td><code class="field-name">property_town</code></td>
-                            <td><code class="field-name">property_town</code></td>
-                            <td>Town/City</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">property.county</code></td>
-                            <td><code class="field-name">property_administrative_area</code></td>
-                            <td><code class="field-name">property_administrative_area</code></td>
-                            <td>County/Region</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">property.address.postcode</code></td>
-                            <td><code class="field-name">property_postcode</code></td>
-                            <td><code class="field-name">property_postcode</code></td>
-                            <td>UK postcode</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">property.bedrooms</code></td>
-                            <td><code class="field-name">number_of_bedrooms</code></td>
-                            <td><code class="field-name">number_of_bedrooms</code></td>
-                            <td><span class="transformation-note">Number (Legacy)<br>String "3" (Salesforce)</span></td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">property.receptions</code></td>
-                            <td><code class="field-name">number_of_living_rooms</code></td>
-                            <td><code class="field-name">number_of_living_rooms</code></td>
-                            <td><span class="transformation-note">Number (Legacy)<br>String "1" (Salesforce)</span></td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">property.furnishedStatus</code></td>
-                            <td><code class="field-name">furnished_status</code></td>
-                            <td><code class="field-name">furnished_status</code></td>
-                            <td><span class="transformation-note">WARNING: DIFFERENT SEMANTICS!<br>Legacy: "furnished"/"part furnished"/"unfurnished"<br>Salesforce: "true"/"false"</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            `;
-        }
-
-        function getPeopleFieldsContent() {
-            return `
-                <h3 style="margin-bottom: 20px;">People (Tenants & Landlords)</h3>
-
-                <div class="difference-card">
-                    <h4>Person Classification Mapping</h4>
-                    <p><strong>Legacy API:</strong> "Lead Tenant" (first tenant) | "Joint Tenant" (additional tenants)<br>
-                    <strong>Salesforce API:</strong> "Tenant" (all tenants, no distinction)<br>
-                    <strong>Both APIs:</strong> "Primary Landlord" | "Joint Landlord" (same)</p>
-                </div>
-
-                <table class="mapping-table">
-                    <thead>
-                        <tr>
-                            <th>Alto/Internal Field</th>
-                            <th>Legacy API</th>
-                            <th>Salesforce API</th>
-                            <th>Transformation</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code class="field-name">person.title</code></td>
-                            <td><code class="field-name">person_title</code></td>
-                            <td><code class="field-name">person_title</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.firstName</code></td>
-                            <td><code class="field-name">person_firstname</code></td>
-                            <td><code class="field-name">person_firstname</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.lastName</code></td>
-                            <td><code class="field-name">person_surname</code></td>
-                            <td><code class="field-name">person_surname</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.isBusiness</code></td>
-                            <td><code class="field-name">is_business</code></td>
-                            <td><code class="field-name">is_business</code></td>
-                            <td><span class="transformation-note">Boolean → "Y"/"N" (Legacy)<br>Boolean → "true"/"false" (Salesforce)</span></td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.businessName</code></td>
-                            <td><code class="field-name">business_name</code></td>
-                            <td><code class="field-name">business_name</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.email</code></td>
-                            <td><code class="field-name">person_email</code></td>
-                            <td><code class="field-name">person_email</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.phone</code></td>
-                            <td><code class="field-name">person_phone</code></td>
-                            <td><code class="field-name">person_phone</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.mobile</code></td>
-                            <td><code class="field-name">person_mobile</code></td>
-                            <td><code class="field-name">person_mobile</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td colspan="4" style="background: #f7fafc; text-align: center; font-weight: 600;">Person Address Fields</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.address.nameNo</code></td>
-                            <td><code class="field-name">person_paon</code></td>
-                            <td><code class="field-name">person_paon</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.address.street</code></td>
-                            <td><code class="field-name">person_street</code></td>
-                            <td><code class="field-name">person_street</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.address.locality</code></td>
-                            <td><code class="field-name">person_locality</code></td>
-                            <td><code class="field-name">person_locality</code></td>
-                            <td>String → String (Supported for people)</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.address.town</code></td>
-                            <td><code class="field-name">person_town</code></td>
-                            <td><code class="field-name">person_town</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.address.postcode</code></td>
-                            <td><code class="field-name">person_postcode</code></td>
-                            <td><code class="field-name">person_postcode</code></td>
-                            <td>String → String</td>
-                        </tr>
-                        <tr>
-                            <td><code class="field-name">person.address.country</code></td>
-                            <td><code class="field-name">person_country</code></td>
-                            <td><code class="field-name">person_country</code></td>
-                            <td>String → String</td>
-                        </tr>
-                    </tbody>
-                </table>
-            `;
-        }
-
-        function getDifferencesContent() {
-            return `
-                <h3 style="margin-bottom: 20px;">Critical API Differences</h3>
-
-                <div class="difference-card">
-                    <h4>1. Structure Difference</h4>
-                    <p><strong>Legacy API:</strong> <code>tenancy</code> is an <strong>array</strong> [{ ... }]</p>
-                    <p><strong>Salesforce API:</strong> <code>tenancy</code> is an <strong>object</strong> { ... }</p>
-                </div>
-
-                <div class="difference-card">
-                    <h4>2. Authentication Location</h4>
-                    <p><strong>Legacy API:</strong> <code>member_id</code>, <code>branch_id</code>, <code>api_key</code> at root level</p>
-                    <p><strong>Salesforce API:</strong> All credentials in <code>AccessToken</code> header<br>
-                    Format: <code>England & Wales Custodial-Custodial-{memberId}-{branchId}-{apiKey}</code></p>
-                </div>
-
-                <div class="difference-card">
-                    <h4>3. Data Type Conversion</h4>
-                    <table style="width: 100%; margin-top: 10px;">
-                        <tr>
-                            <th style="text-align: left; padding: 5px;">Type</th>
-                            <th style="text-align: left; padding: 5px;">Legacy</th>
-                            <th style="text-align: left; padding: 5px;">Salesforce</th>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px;">Numbers</td>
-                            <td style="padding: 5px;"><code>1500</code></td>
-                            <td style="padding: 5px;"><code>"1500"</code></td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px;">Booleans</td>
-                            <td style="padding: 5px;"><code>"Y"</code> / <code>"N"</code></td>
-                            <td style="padding: 5px;"><code>"true"</code> / <code>"false"</code></td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px;">Dates</td>
-                            <td style="padding: 5px;"><code>01/02/2025</code></td>
-                            <td style="padding: 5px;"><code>01-02-2025</code></td>
-                        </tr>
-                    </table>
-                </div>
-
-                <div class="difference-card">
-                    <h4>4. Furnished Status (WARNING: Major Semantic Difference)</h4>
-                    <p><strong>Legacy API:</strong> <code>"furnished"</code>, <code>"part furnished"</code>, <code>"unfurnished"</code> (descriptive strings)</p>
-                    <p><strong>Salesforce API:</strong> <code>"true"</code> or <code>"false"</code> (boolean as string)</p>
-                    <p style="margin-top: 10px; color: var(--color-error);"><strong>WARNING:</strong> This is a semantic mismatch. You must decide how to map:</p>
-                    <ul style="margin-top: 5px;">
-                        <li>"furnished" → "true"?</li>
-                        <li>"part furnished" → "true"?</li>
-                        <li>"unfurnished" → "false"?</li>
-                    </ul>
-                </div>
-
-                <div class="difference-card">
-                    <h4>5. Person Classification</h4>
-                    <p><strong>Legacy API:</strong> Distinguishes between <code>"Lead Tenant"</code> and <code>"Joint Tenant"</code></p>
-                    <p><strong>Salesforce API:</strong> All tenants are just <code>"Tenant"</code> (no lead distinction)</p>
-                </div>
-
-                <div class="difference-card">
-                    <h4>6. Response Format</h4>
-                    <p><strong>Legacy API:</strong> <code>{ "success": true, "batch_id": "167237" }</code></p>
-                    <p><strong>Salesforce API:</strong> <code>{ "Success": "true", "batch_id": "ERR-04238" }</code></p>
-                    <p style="margin-top: 10px;">Note: Capitalized "Success" and string boolean value</p>
-                </div>
-
-                <div class="difference-card">
-                    <h4>7. Asynchronous Processing</h4>
-                    <p><strong>Legacy API:</strong> Returns DAN immediately on success</p>
-                    <p><strong>Salesforce API:</strong> Returns batch_id, then poll <code>/CreateDepositStatus/{batch_id}</code> for DAN</p>
-                </div>
-
-                <div class="difference-card">
-                    <h4>8. Missing Fields in Salesforce</h4>
-                    <ul>
-                        <li><code>property_locality</code> - NOT supported for property address (use <code>property_town</code>)</li>
-                        <li><code>person_locality</code> - IS supported for person addresses</li>
-                        <li><code>invoice</code> flag - Not supported</li>
-                        <li><code>product_type</code> - Not supported</li>
-                        <li><code>members_own_reference</code> - Not supported</li>
-                    </ul>
-                </div>
-
-                <div class="difference-card">
-                    <h4>9. Boolean Casing (Minor Note)</h4>
-                    <p>Salesforce accepts both <code>"true"</code>/<code>"false"</code> and <code>"TRUE"</code>/<code>"FALSE"</code> (case-insensitive)</p>
-                    <p><strong>Recommendation:</strong> Use lowercase <code>"true"</code>/<code>"false"</code> for consistency</p>
-                    <p style="margin-top: 10px;">Both work: <code>"is_business": "true"</code> or <code>"is_business": "TRUE"</code></p>
-                </div>
-            `;
         }
 
         // Organization Management Functions
@@ -2143,6 +1629,7 @@
                             <select class="form-select" id="add-integrationType" onchange="toggleIntegrationFields('add')">
                                 <option value="alto">Alto</option>
                                 <option value="jupix">Jupix (Coming Soon)</option>
+                                <option value="LtSFB">Legacy-to-Salesforce Bridge</option>
                             </select>
                         </div>
 
@@ -2252,6 +1739,13 @@
                 fieldsContainer.innerHTML = `
                     <p style="color: var(--text-secondary); font-style: italic;">Jupix integration fields coming soon...</p>
                 `;
+            } else if (integrationType === 'LtSFB') {
+                fieldsContainer.innerHTML = `
+                    <p style="color: var(--text-secondary); font-style: italic;">
+                        Legacy-to-Salesforce Bridge does not require integration credentials.<br>
+                        Only Legacy and Salesforce TDS configurations are needed.
+                    </p>
+                `;
             }
         }
 
@@ -2296,6 +1790,8 @@
                     agencyRef: document.getElementById('add-agencyRef').value,
                     branchId: document.getElementById('add-branchId').value || 'DEFAULT'
                 };
+            } else if (integrationType === 'LtSFB') {
+                // LtSFB does not require integration credentials
             }
 
             // Build TDS configurations
@@ -2340,6 +1836,8 @@
                 alert('Please enter Alto Agency Reference');
                 return;
             }
+
+            // LtSFB does not require integration credentials validation
 
             if (!tdsLegacyConfig.memberId || !tdsLegacyConfig.branchId || !tdsLegacyConfig.apiKey) {
                 alert('Please fill in all Legacy TDS configuration fields');

@@ -604,6 +604,10 @@ class OrganizationMappingService {
             let integrationId;
             if (integrationType === 'alto' && integrationCredentials.alto) {
                 integrationId = `${integrationCredentials.alto.agencyRef}:${integrationCredentials.alto.branchId || 'DEFAULT'}`;
+            } else if (integrationType === 'LtSFB') {
+                // Generate unique ID for LtSFB based on organization name
+                const sanitizedName = organizationName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+                integrationId = `LtSFB:${sanitizedName}`;
             } else {
                 integrationId = `${integrationType}:${Date.now()}`; // Fallback for other integrations
             }
@@ -722,6 +726,10 @@ class OrganizationMappingService {
                         error: 'Could not determine integration ID from existing mapping'
                     };
                 }
+            } else if (integrationType === 'LtSFB') {
+                // For LtSFB, generate the integrationId from the organization name
+                const sanitizedName = organizationName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+                integrationId = `LtSFB:${sanitizedName}`;
             } else {
                 return {
                     success: false,
