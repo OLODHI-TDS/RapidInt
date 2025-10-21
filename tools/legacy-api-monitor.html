@@ -487,7 +487,6 @@
             <div class="tab tab-active" onclick="showTab('execute-workflow')">Execute Workflow</div>
             <div class="tab" onclick="showTab('real-time')">Real-Time Activity</div>
             <div class="tab" onclick="showTab('organizations')">Organizations</div>
-            <div class="tab" onclick="showTab('endpoints')">Endpoint Coverage</div>
             <div class="tab" onclick="showTab('mapping')">API Data Mapping</div>
         </div>
 
@@ -1035,7 +1034,7 @@
             <div class="card glass">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg);">
                     <h3>Organizations Using Legacy API</h3>
-                    <button class="btn btn-secondary btn-sm" onclick="loadOrganizations()">
+                    <button class="btn btn-secondary btn-sm" onclick="refreshOrganizations()">
                         Refresh
                     </button>
                 </div>
@@ -1063,107 +1062,7 @@
             </div>
         </div>
 
-        <!-- Tab 4: Endpoint Coverage -->
-        <div id="endpoints" class="tab-content">
-            <div class="card glass">
-                <h3>Endpoint Coverage</h3>
-                <p style="color: var(--text-secondary); margin-bottom: var(--space-lg);">Status of Legacy API endpoint implementations</p>
-                    <div class="table-container">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Legacy Endpoint</th>
-                                    <th>Salesforce Endpoint</th>
-                                    <th>Status</th>
-                                    <th>Transformation</th>
-                                    <th>Test Coverage</th>
-                                    <th>Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><code>/CreateDeposit</code></td>
-                                    <td><code>/services/apexrest/depositcreation</code></td>
-                                    <td><span class="badge badge-success">Implemented</span></td>
-                                    <td><span class="badge badge-success">Complete</span></td>
-                                    <td>Tested</td>
-                                    <td>Fully operational</td>
-                                </tr>
-                                <tr>
-                                    <td><code>/RaiseRepaymentRequest</code></td>
-                                    <td><code>/services/apexrest/raiserepaymentrequest</code></td>
-                                    <td><span class="badge badge-success">Implemented</span></td>
-                                    <td><span class="badge badge-success">Complete</span></td>
-                                    <td>Ready for Testing</td>
-                                    <td>Newly implemented</td>
-                                </tr>
-                                <tr>
-                                    <td><code>/CreateDepositStatus/{batchId}</code></td>
-                                    <td><code>/services/apexrest/CreateDepositStatus/{batchId}</code></td>
-                                    <td><span class="badge badge-success">Implemented</span></td>
-                                    <td><span class="badge badge-success">Complete</span></td>
-                                    <td>Tested</td>
-                                    <td>Fully operational</td>
-                                </tr>
-                                <tr>
-                                    <td><code>/TenancyInformation/{memberId}/{branchId}/{apiKey}/{dan}</code></td>
-                                    <td><code>/services/apexrest/tenancyinformation/{dan}</code></td>
-                                    <td><span class="badge badge-success">Implemented</span></td>
-                                    <td><span class="badge badge-success">Complete</span></td>
-                                    <td>Tested</td>
-                                    <td>Fully operational</td>
-                                </tr>
-                                <tr>
-                                    <td><code>/DPC/{memberId}/{branchId}/{apiKey}/{dan}</code></td>
-                                    <td><code>/services/apexrest/dpc/{dan}</code></td>
-                                    <td><span class="badge badge-success">Implemented</span></td>
-                                    <td><span class="badge badge-success">Complete</span></td>
-                                    <td>Ready for Testing</td>
-                                    <td>Newly implemented</td>
-                                </tr>
-                                <tr>
-                                    <td><code>/Landlords/{memberId}/{branchId}/{apiKey}?queryParams</code></td>
-                                    <td><code>/services/apexrest/nonmemberlandlord</code></td>
-                                    <td><span class="badge badge-success">Implemented</span></td>
-                                    <td><span class="badge badge-success">Complete</span></td>
-                                    <td>Tested</td>
-                                    <td>Fully operational</td>
-                                </tr>
-                                <tr>
-                                    <td><code>/Properties/{memberId}/{branchId}/{apiKey}?queryParams</code></td>
-                                    <td><code>/services/apexrest/property</code></td>
-                                    <td><span class="badge badge-success">Implemented</span></td>
-                                    <td><span class="badge badge-success">Complete</span></td>
-                                    <td>Ready for Testing</td>
-                                    <td>Newly implemented</td>
-                                </tr>
-                                <tr>
-                                    <td><code>/UpdateTenancy</code></td>
-                                    <td><code>/services/apexrest/tenancyupdate</code></td>
-                                    <td><span class="badge badge-warning">Pending</span></td>
-                                    <td><span class="badge badge-warning">Not Started</span></td>
-                                    <td>Not Tested</td>
-                                    <td>Awaiting implementation</td>
-                                </tr>
-                                <tr>
-                                    <td><code>/ReleaseDeposit</code></td>
-                                    <td><code>/services/apexrest/depositrelease</code></td>
-                                    <td><span class="badge badge-warning">Pending</span></td>
-                                    <td><span class="badge badge-warning">Not Started</span></td>
-                                    <td>Not Tested</td>
-                                    <td>Awaiting implementation</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="alert alert-info" style="margin-top: var(--space-lg);">
-                        <strong>Adding New Endpoints:</strong> To add a new Legacy endpoint, update the <code>LegacyAPIGateway.js</code> file with a new route handler and corresponding transformation logic in <code>legacy-to-salesforce.js</code>.
-                    </div>
-            </div>
-        </div>
-
-        <!-- Tab 5: API Data Mapping -->
+        <!-- Tab 4: API Data Mapping -->
         <div id="mapping" class="tab-content">
             <div class="mapping-section glass card">
                 <div class="section-header">
@@ -1755,6 +1654,7 @@
         async function init() {
             try {
                 await loadOrganizations();
+                await loadRecentRequests(); // Load activity data on startup for organization stats
                 await checkGatewayHealth();
 
                 // Initialize API Data Mapping content (show overview by default)
@@ -1832,6 +1732,47 @@
         }
 
         /**
+         * Refresh Organizations and Activity Data
+         * Loads both organization mappings and recent activity to update stats
+         */
+        async function refreshOrganizations() {
+            await loadOrganizations();
+            await loadRecentRequests();
+        }
+
+        /**
+         * Calculate Organization Stats
+         * Returns requests today and success rate for a specific organization
+         */
+        function calculateOrgStats(orgName) {
+            if (!currentActivityData || currentActivityData.length === 0) {
+                return { requestsToday: '--', successRate: '--' };
+            }
+
+            // Get today's date at midnight for comparison
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Filter requests for this organization from today
+            const orgRequests = currentActivityData.filter(batch => {
+                const batchDate = new Date(batch.createdAt);
+                return batch.organizationName === orgName && batchDate >= today;
+            });
+
+            if (orgRequests.length === 0) {
+                return { requestsToday: '0', successRate: 'N/A' };
+            }
+
+            const successfulRequests = orgRequests.filter(batch => batch.success).length;
+            const successRate = ((successfulRequests / orgRequests.length) * 100).toFixed(1) + '%';
+
+            return {
+                requestsToday: orgRequests.length.toString(),
+                successRate: successRate
+            };
+        }
+
+        /**
          * Populate Organizations Table
          */
         function populateOrganizationsTable() {
@@ -1844,13 +1785,14 @@
             }
 
             organizations.forEach(org => {
+                const stats = calculateOrgStats(org.organizationName);
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${org.organizationName}</td>
                     <td><code>${org.legacyMemberId}</code></td>
                     <td><span class="badge badge-${org.environment === 'production' ? 'error' : 'info'}">${org.environment}</span></td>
-                    <td>--</td>
-                    <td>--</td>
+                    <td>${stats.requestsToday}</td>
+                    <td>${stats.successRate}</td>
                     <td><span class="badge badge-${org.isActive ? 'success' : 'warning'}">${org.isActive ? 'Active' : 'Inactive'}</span></td>
                 `;
                 tbody.appendChild(row);
@@ -2584,6 +2526,8 @@
             // Load data for specific tabs
             if (tabName === 'real-time') {
                 loadRecentRequests();
+            } else if (tabName === 'organizations') {
+                loadRecentRequests(); // Refresh activity data to update organization stats
             } else if (tabName === 'mapping') {
                 // Initialize mapping content if not already set
                 const mappingContent = document.getElementById('mappingContent');
@@ -2638,6 +2582,11 @@
 
                     // Display paginated results
                     displayActivityData();
+
+                    // Refresh organizations table with updated stats
+                    if (organizations.length > 0) {
+                        populateOrganizationsTable();
+                    }
                 } else {
                     tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--color-error); padding: var(--space-xl);">Error loading activity: ${data.error}</td></tr>`;
                 }
